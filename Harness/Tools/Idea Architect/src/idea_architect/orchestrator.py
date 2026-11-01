@@ -71,6 +71,8 @@ class ProjectOrchestrator:
             for dep in deps:
                 if dep not in descendants:
                     raise ValueError("Unknown task dependency: " + dep)
+                if not descendants[dep]:
+                    raise ValueError("Dependency has no executable leaf tasks: " + dep)
                 expanded.extend(descendants[dep])
             expanded = sorted(set(x for x in expanded if x != node["id"]))
             tasks.append({
