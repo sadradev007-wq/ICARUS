@@ -1,10 +1,5 @@
-"""ITP-1.0: strict JSON contracts shared by all planner and executor roles.
-
-Models propose plans. Python code validates and stores them; models never grant
-permissions or execute tools directly.
-"""
+"""ITP-1.0: strict JSON contracts shared by planner and executor roles."""
 from __future__ import annotations
-
 import json
 from pathlib import Path
 from typing import Any
@@ -19,7 +14,7 @@ class ProtocolError(ValueError):
 
 
 def parse_json_object(raw: str) -> dict[str, Any]:
-    """Parse exactly one JSON object; prose, markdown fences and trailing data are rejected."""
+    """Accept exactly one JSON object; reject prose, fences and trailing content."""
     try:
         value = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -29,6 +24,31 @@ def parse_json_object(raw: str) -> dict[str, Any]:
     return value
 
 
+def validate_task(task: Any, seen: set[str] | None = None) -> None:
+    if not isinstance(task, dict):
+        raise ProtocolError("Each task must be an object")
+    seen = seen if seen is not None else set()
+    for key in ("id", "title", "description", "priority", "status"):
+        if key not in task:
+            raise ProtocolError(f"Task is missing {key}")
+    task_id = task["id"]
+    if not isinstance(task_id, str) or not task_id.strip() or task_id in seen:
+        raise ProtocolError(f"Task id must be unique and non-empty: {task_id!r}")
+    seen.add(task_id)
+    if task["priority"] not in PRIORITIES:
+        raise ProtocolError(f"Invalid priority on {task_id}")
+    if task["status"] not in TASK_STATUSES:
+        raise ProtocolError(f"Invalid status on {task_id}")
+    for key in ("children", "dependencies", "method", "inputs", "expected_outputs",
+                "acceptance_criteria", "required_skills", "risks"):
+        if key in task and not isinstance(task[key], list):
+            raise ProtocolError(f"{task_id}.{key} must be an array")
+    if "is_leaf" in task and not isinstance(task["is_leaf"], bool):
+        raise ProtocolError(f"{task_id}.is_leaf must be boolean")
+    for child in task.get("children", []):
+        validate_task(child, seen)
+
+
 def validate_plan(plan: dict[str, Any], *, role: str | None = None) -> None:
     if plan.get("protocol") != PROTOCOL_VERSION:
         raise ProtocolError(f"protocol must be {PROTOCOL_VERSION}")
@@ -36,35 +56,18 @@ def validate_plan(plan: dict[str, Any], *, role: str | None = None) -> None:
         raise ProtocolError("project_id is required")
     if role and plan.get("model_role") != role:
         raise ProtocolError(f"model_role must be {role}")
-    tasks = plan.get("tasks")
-    if not isinstance(tasks, list) or not tasks:
+    if not isinstance(plan.get("tasks"), list) or not plan["tasks"]:
         raise ProtocolError("tasks must be a non-empty array")
     seen: set[str] = set()
-    for task in tasks:
+    for task in plan["tasks"]:
         validate_task(task, seen)
 
 
-def validate_task(task: Any, seen: set[str] | None = None) -> None:
-    if not isinstance(task, dict):
-        raise ProtocolError("Each task must be an object")
-    seen = seen if seen is not None else set()
-    required = ("id", "title", "description", "priority", "status")
-    for key in required:
-        if key not in task:
-            raise ProtocolError(f"Task is missing {key}")
-    task_id = task["id"]
-    if not isinstance(task_id, str) or not task_id.strip() or task_id in seen:
-        raise ProtocolError(f"Task id must be a unique non-empty string: {task_id!r}")
-    seen.add(task_id)
-    if task["priority"] not in PRIORITIES:
-        raise ProtocolError(f"Invalid priority on {task_id}")
-    if task["status"] not in TASK_STATUSES:
-        raise ProtocolError(f"Invalid status on {task_id}")
-    for key in ("children", "dependencies", "method", "inputs", "expected_outputs", "acceptance_criteria", "required_skills", "risks"):
-        if key in task and not isinstance(task[key], list):
-            raise ProtocolError(f"{task_id}.{key} must be an array")
-    for child in task.get("children", []):
-        validate_task(child, seen)
+def is_executable(task: dict[str, Any]) -> bool:
+    fields = ("method", "inputs", "expected_outputs", "acceptance_criteria")
+    return task.get("is_leaf") is True and all(
+        isinstance(task.get(field), list) and bool(task[field]) for field in fields
+    )
 
 
 def validate_expansion(expansion: dict[str, Any], parent_id: str) -> None:
@@ -80,15 +83,12 @@ def validate_expansion(expansion: dict[str, Any], parent_id: str) -> None:
     seen: set[str] = set()
     for task in subtasks:
         validate_task(task, seen)
-        for field in ("method", "inputs", "expected_outputs", "acceptance_criteria"):
-            if not isinstance(task.get(field), list) or not task[field]:
-                raise ProtocolError(f"{task['id']}.{field} must be a non-empty array")
-
-
-def is_executable(task: dict[str, Any]) -> bool:
-    """A leaf is executable only when its method and success contract are explicit."""
-    required = ("method", "inputs", "expected_outputs", "acceptance_criteria")
-    return all(isinstance(task.get(k), list) and len(task[k]) > 0 for k in required)
+        if "is_leaf" not in task:
+            raise ProtocolError(f"{task['id']}.is_leaf is required")
+        if task["is_leaf"]:
+            for field in ("method", "inputs", "expected_outputs", "acceptance_criteria"):
+                if not isinstance(task.get(field), list) or not task[field]:
+                    raise ProtocolError(f"Leaf {task['id']}.{field} must be a non-empty array")
 
 
 def write_json(path: Path, value: dict[str, Any]) -> None:
