@@ -28,6 +28,21 @@ class ExecutionTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+
+    def test_dependency_must_complete_before_approval(self):
+        queue_path = self.project / "execution" / "execution_queue.json"
+        queue = json.loads(queue_path.read_text())
+        queue["tasks"].append({
+            "task_id": "LEAF-2", "title": "Second report",
+            "method": ["Create"], "inputs": ["source"],
+            "expected_outputs": ["report"], "acceptance_criteria": ["report exists"],
+            "dependencies": ["LEAF-1"], "status": "awaiting_approval"
+        })
+        queue["tasks"][0]["dependencies"] = []
+        write_json(queue_path, queue)
+        with self.assertRaises(ExecutionError):
+            self.engine.approve("LEAF-2", "test.report", approved_by="user")
+
     def test_execution_requires_approval(self):
         with self.assertRaises(ExecutionError):
             self.engine.run("LEAF-1")
