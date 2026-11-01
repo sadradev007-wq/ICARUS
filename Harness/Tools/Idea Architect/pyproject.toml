@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "icarus-idea-architect"
+version = "0.1.0"
+description = "Offline-first, JSON-contract-driven idea planning and task orchestration for ICARUS."
+requires-python = ">=3.10"
+authors = [{name = "ICARUS Project"}]
+dependencies = []
+
+[project.scripts]
+icarus-idea = "idea_architect.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
