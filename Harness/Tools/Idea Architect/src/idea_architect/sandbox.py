@@ -53,6 +53,8 @@ class BubblewrapCommandHandler:
             raise ValueError("sandbox limits must be positive")
 
     def __call__(self, task: dict[str, Any], project_dir: Path) -> HandlerResult:
+        if os.name != "posix" or resource is None:
+            raise ExecutionError("This sandbox requires Linux/POSIX resource limits")
         if not self.bubblewrap:
             raise ExecutionError("bubblewrap is unavailable; refusing unsandboxed execution")
         payload = json.dumps(task, ensure_ascii=False).encode("utf-8")
