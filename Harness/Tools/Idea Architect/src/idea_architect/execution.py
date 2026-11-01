@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .protocol import write_json
+from .scheduler import task_is_ready
 
 
 def _now() -> str:
@@ -77,6 +78,8 @@ class ExecutionEngine:
         project_dir: Path,
         registry: HandlerRegistry,
         evaluator: ResultEvaluator | None = None,
+        *,
+        max_retries: int = 2,
     ) -> None:
         self.project_dir = Path(project_dir)
         self.execution_dir = self.project_dir / "execution"
@@ -87,7 +90,10 @@ class ExecutionEngine:
         self.results_dir.mkdir(parents=True, exist_ok=True)
         if not self.queue_path.exists():
             raise FileNotFoundError(f"Execution queue not found: {self.queue_path}")
+        if max_retries < 0:
+            raise ValueError("max_retries cannot be negative")
         self.registry, self.evaluator = registry, evaluator
+        self.max_retries = max_retries
 
     def _read_queue(self) -> dict[str, Any]:
         queue = json.loads(self.queue_path.read_text(encoding="utf-8"))
@@ -114,6 +120,8 @@ class ExecutionEngine:
         task = self._find_task(queue, task_id)
         if task.get("status") != "awaiting_approval":
             raise ExecutionError(f"Task cannot be approved from status {task.get('status')}")
+        if not task_is_ready(task, queue["tasks"]):
+            raise ExecutionError("Task dependencies are not completed")
         required = ("method", "inputs", "expected_outputs", "acceptance_criteria")
         if any(not isinstance(task.get(field), list) or not task[field] for field in required):
             raise ExecutionError("Only fully specified executable leaf tasks can be approved")
@@ -122,6 +130,32 @@ class ExecutionEngine:
                             "handler_id": handler_id}
         self._write_queue(queue)
         self._audit("task_approved", task_id, approved_by=approved_by, handler_id=handler_id)
+        return task
+
+    def retry(self, task_id: str, *, requested_by: str, reason: str) -> dict[str, Any]:
+        """Request a fresh human approval for another attempt of a failed task."""
+        if not requested_by.strip() or not reason.strip():
+            raise ValueError("requested_by and reason are required")
+        queue = self._read_queue()
+        task = self._find_task(queue, task_id)
+        if task.get("status") != "failed":
+            raise ExecutionError("Only failed tasks can be retried")
+        retry_count = int(task.get("retry_count", 0))
+        if retry_count >= self.max_retries:
+            raise ExecutionError("Maximum retry count reached")
+        previous_approval = task.get("approval")
+        if not isinstance(previous_approval, dict):
+            raise ExecutionError("Previous approved handler information is missing")
+        task.setdefault("approval_history", []).append(previous_approval)
+        task.pop("approval", None)
+        task["retry_count"] = retry_count + 1
+        task["status"] = "awaiting_approval"
+        task["retry_request"] = {
+            "requested_by": requested_by, "reason": reason, "requested_at": _now()
+        }
+        self._write_queue(queue)
+        self._audit("task_retry_requested", task_id, requested_by=requested_by,
+                    retry_count=task["retry_count"], reason=reason)
         return task
 
     def run(self, task_id: str) -> dict[str, Any]:
@@ -134,6 +168,12 @@ class ExecutionEngine:
         handler = self.registry.get(handler_id)
         task["status"] = "running"
         task["started_at"] = _now()
+        task["attempt_count"] = int(task.get("attempt_count", 0)) + 1
+        attempt = {
+            "attempt": task["attempt_count"], "started_at": task["started_at"],
+            "handler_id": handler_id, "status": "running"
+        }
+        task.setdefault("attempts", []).append(attempt)
         self._write_queue(queue)
         self._audit("task_started", task_id, handler_id=handler_id)
         try:
@@ -145,7 +185,9 @@ class ExecutionEngine:
                              "completed_at": _now(), "outputs": result.outputs,
                              "summary": result.summary}
             # Hash the untrusted task ID so it can never escape the results directory.
-            safe_name = hashlib.sha256(task_id.encode("utf-8")).hexdigest()[:24]
+            safe_name = hashlib.sha256(
+                f"{task_id}:{task['attempt_count']}".encode("utf-8")
+            ).hexdigest()[:24]
             result_path = self.results_dir / f"{safe_name}.json"
             write_json(result_path, result_record)
             task["result_file"] = str(result_path.relative_to(self.project_dir))
@@ -183,6 +225,9 @@ class ExecutionEngine:
                         "explanation": f"{type(evaluation_error).__name__}: {evaluation_error}",
                         "evaluated_at": _now()
                     }
+            attempt["status"] = task["status"]
+            attempt["finished_at"] = _now()
+            attempt["result_file"] = task.get("result_file")
             self._write_queue(queue)
             self._audit("task_finished", task_id, status=task["status"],
                         result_file=task["result_file"])
@@ -191,6 +236,10 @@ class ExecutionEngine:
             task["status"] = "failed"
             task["finished_at"] = _now()
             task["error"] = f"{type(exc).__name__}: {exc}"
+            if task.get("attempts"):
+                task["attempts"][-1].update({
+                    "status": "failed", "finished_at": _now(), "error": task["error"]
+                })
             self._write_queue(queue)
             self._audit("task_failed", task_id, error=task["error"])
             raise
