@@ -156,10 +156,33 @@ class ExecutionEngine:
                 task["evaluation"] = {"status": "not_run",
                                       "reason": "No trusted evaluator is configured"}
             else:
-                passed, explanation = self.evaluator(task, result.outputs)
-                task["evaluation"] = {"status": "passed" if passed else "failed",
-                                      "explanation": explanation, "evaluated_at": _now()}
-                task["status"] = "completed" if passed else "failed"
+                try:
+                    assessment = self.evaluator(task, result.outputs)
+                    if isinstance(assessment, EvaluationResult):
+                        if assessment.status not in {"passed", "failed", "needs_review"}:
+                            raise ExecutionError("Evaluator returned an invalid status")
+                        evaluation_status = assessment.status
+                        explanation = assessment.explanation
+                        details = assessment.details or {}
+                    else:
+                        passed, explanation = assessment
+                        evaluation_status = "passed" if passed else "failed"
+                        details = {}
+                    task["evaluation"] = {
+                        "status": evaluation_status, "explanation": explanation,
+                        "details": details, "evaluated_at": _now()
+                    }
+                    task["status"] = {
+                        "passed": "completed", "failed": "failed",
+                        "needs_review": "awaiting_review"
+                    }[evaluation_status]
+                except Exception as evaluation_error:
+                    task["status"] = "awaiting_review"
+                    task["evaluation"] = {
+                        "status": "error",
+                        "explanation": f"{type(evaluation_error).__name__}: {evaluation_error}",
+                        "evaluated_at": _now()
+                    }
             self._write_queue(queue)
             self._audit("task_finished", task_id, status=task["status"],
                         result_file=task["result_file"])
