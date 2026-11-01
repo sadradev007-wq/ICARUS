@@ -65,6 +65,11 @@ class System2Replanner:
     def approve_and_apply(self, proposal_id: str, *, approved_by: str) -> dict[str, Any]:
         if not approved_by.strip():
             raise ReplanError("approved_by is required")
+        if (
+            not isinstance(proposal_id, str) or len(proposal_id) != 24
+            or any(char not in "0123456789abcdef" for char in proposal_id)
+        ):
+            raise ReplanError("Invalid proposal identifier")
         proposal_path = self.proposals_dir / f"{proposal_id}.json"
         if not proposal_path.is_file():
             raise KeyError(f"Unknown proposal: {proposal_id}")
