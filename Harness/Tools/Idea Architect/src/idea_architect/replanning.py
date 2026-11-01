@@ -127,8 +127,14 @@ class System2Replanner:
                 raise ReplanError(f"revised_task is missing {field}")
         if revised["priority"] not in {"low", "normal", "high", "critical"}:
             raise ReplanError("Invalid revised task priority")
+        for field in ("title", "description"):
+            if not isinstance(revised[field], str) or not revised[field].strip():
+                raise ReplanError(f"revised_task.{field} must be a non-empty string")
         for field in ("method", "inputs", "expected_outputs", "acceptance_criteria"):
             if not isinstance(revised[field], list) or not revised[field]:
                 raise ReplanError(f"revised_task.{field} must be non-empty")
+        for field in ("required_skills", "dependencies", "risks"):
+            if not isinstance(revised[field], list):
+                raise ReplanError(f"revised_task.{field} must be an array")
         if not isinstance(revised["permissions"], dict):
             raise ReplanError("revised_task.permissions must be an object")
