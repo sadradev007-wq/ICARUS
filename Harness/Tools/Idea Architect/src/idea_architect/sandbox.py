@@ -6,6 +6,7 @@ accepted. Task text is passed as JSON on stdin and is never interpreted as a she
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
