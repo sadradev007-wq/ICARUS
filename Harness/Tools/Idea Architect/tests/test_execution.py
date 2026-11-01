@@ -51,6 +51,40 @@ class ExecutionTests(unittest.TestCase):
         task = engine.run("LEAF-1")
         self.assertEqual(task["status"], "completed")
 
+
+    def test_retry_requires_new_approval_and_preserves_attempts(self):
+        calls = {"count": 0}
+        def flaky(task, root):
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise RuntimeError("temporary failure")
+            return {"report": "ok"}
+        registry = HandlerRegistry()
+        registry.register("test.flaky", flaky)
+        engine = ExecutionEngine(self.project, registry, max_retries=1)
+        engine.approve("LEAF-1", "test.flaky", approved_by="user")
+        with self.assertRaises(RuntimeError):
+            engine.run("LEAF-1")
+        retry = engine.retry("LEAF-1", requested_by="user", reason="Retry after transient error")
+        self.assertEqual(retry["status"], "awaiting_approval")
+        with self.assertRaises(ExecutionError):
+            engine.run("LEAF-1")
+        engine.approve("LEAF-1", "test.flaky", approved_by="user")
+        result = engine.run("LEAF-1")
+        self.assertEqual(result["attempt_count"], 2)
+        self.assertEqual(len(result["attempts"]), 2)
+        self.assertNotEqual(result["attempts"][0].get("result_file"), result["attempts"][1]["result_file"])
+
+    def test_retry_limit_is_enforced(self):
+        registry = HandlerRegistry()
+        registry.register("test.fail", lambda task, root: (_ for _ in ()).throw(RuntimeError("boom")))
+        engine = ExecutionEngine(self.project, registry, max_retries=0)
+        engine.approve("LEAF-1", "test.fail", approved_by="user")
+        with self.assertRaises(RuntimeError):
+            engine.run("LEAF-1")
+        with self.assertRaises(ExecutionError):
+            engine.retry("LEAF-1", requested_by="user", reason="No retries configured")
+
     def test_failed_handler_is_recorded(self):
         registry = HandlerRegistry()
         registry.register("test.fail", lambda task, root: (_ for _ in ()).throw(RuntimeError("boom")))
