@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .protocol import write_json
-from .scheduler import task_is_ready
+from .scheduler import DependencyError, task_is_ready, topological_batches
 
 
 def _now() -> str:
@@ -101,6 +101,10 @@ class ExecutionEngine:
             raise ExecutionError("Unsupported or unsafe execution policy")
         if not isinstance(queue.get("tasks"), list):
             raise ExecutionError("Execution queue tasks must be an array")
+        try:
+            topological_batches(queue["tasks"])
+        except DependencyError as exc:
+            raise ExecutionError(f"Invalid task dependency graph: {exc}") from exc
         return queue
 
     def _write_queue(self, queue: dict[str, Any]) -> None:
