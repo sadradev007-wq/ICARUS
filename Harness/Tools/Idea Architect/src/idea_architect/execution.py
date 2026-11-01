@@ -164,6 +164,8 @@ class ExecutionEngine:
         approval = task.get("approval")
         if task.get("status") != "approved" or not isinstance(approval, dict):
             raise ExecutionError("Task requires explicit approval before execution")
+        if not task_is_ready(task, queue["tasks"]):
+            raise ExecutionError("Task dependencies are not completed")
         handler_id = approval.get("handler_id")
         handler = self.registry.get(handler_id)
         task["status"] = "running"
