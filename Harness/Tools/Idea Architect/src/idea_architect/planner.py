@@ -34,6 +34,8 @@ class PlanningEngine:
         validate_plan(plan, role="system1")
         for task in plan["tasks"]:
             self._expand(task, depth=1)
+        # Revalidate the complete tree, including cross-branch ID collisions introduced by System 2.
+        validate_plan(plan, role="system1")
         return plan
 
     def _expand(self, task: dict[str, Any], depth: int) -> None:
