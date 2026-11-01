@@ -5,12 +5,13 @@ handlers; a human approval record is required before a handler can be invoked.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from .protocol import write_json
 
@@ -104,6 +105,9 @@ class ExecutionEngine:
         task = self._find_task(queue, task_id)
         if task.get("status") != "awaiting_approval":
             raise ExecutionError(f"Task cannot be approved from status {task.get('status')}")
+        required = ("method", "inputs", "expected_outputs", "acceptance_criteria")
+        if any(not isinstance(task.get(field), list) or not task[field] for field in required):
+            raise ExecutionError("Only fully specified executable leaf tasks can be approved")
         task["status"] = "approved"
         task["approval"] = {"approved_by": approved_by, "approved_at": _now(),
                             "handler_id": handler_id}
@@ -131,7 +135,9 @@ class ExecutionEngine:
             result_record = {"task_id": task_id, "handler_id": handler_id,
                              "completed_at": _now(), "outputs": result.outputs,
                              "summary": result.summary}
-            result_path = self.results_dir / f"{task_id}.json"
+            # Hash the untrusted task ID so it can never escape the results directory.
+            safe_name = hashlib.sha256(task_id.encode("utf-8")).hexdigest()[:24]
+            result_path = self.results_dir / f"{safe_name}.json"
             write_json(result_path, result_record)
             task["result_file"] = str(result_path.relative_to(self.project_dir))
             task["outputs"] = result.outputs
