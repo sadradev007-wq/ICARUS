@@ -60,7 +60,7 @@ class ReplanningTests(unittest.TestCase):
         self.assertNotIn("approval", task)
 
     def test_unknown_proposal_rejected(self):
-        with self.assertRaises(KeyError):
+        with self.assertRaises(ReplanError):
             self.replanner.approve_and_apply("missing", approved_by="human")
 
 
