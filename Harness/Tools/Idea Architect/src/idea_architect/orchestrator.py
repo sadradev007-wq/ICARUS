@@ -37,25 +37,56 @@ class ProjectOrchestrator:
         return {"project_id": project_id, "directory": str(project_dir), "plan": plan, "execution_queue": queue}
 
     def _execution_queue(self, plan: dict[str, Any]) -> dict[str, Any]:
-        tasks: list[dict[str, Any]] = []
-        def walk(nodes: list[dict[str, Any]]) -> None:
-            for task in nodes:
-                children = task.get("children", [])
+        descendants: dict[str, list[str]] = {}
+        leaves: list[dict[str, Any]] = []
+
+        def collect(nodes):
+            result = []
+            for node in nodes:
+                children = node.get("children", [])
                 if children:
-                    walk(children)
-                elif is_executable(task):
-                    tasks.append({
-                        "task_id": task["id"], "title": task["title"],
-                        "method": task["method"], "inputs": task["inputs"],
-                        "expected_outputs": task["expected_outputs"],
-                        "acceptance_criteria": task["acceptance_criteria"],
-                        "required_skills": task.get("required_skills", []),
-                        "permissions": task.get("permissions", {"level": "read_only", "requires_user_approval": True}),
-                        "status": "awaiting_approval"
-                    })
-        walk(plan["tasks"])
+                    ids = collect(children)
+                elif is_executable(node):
+                    ids = [node["id"]]
+                    leaves.append(node)
+                else:
+                    ids = []
+                descendants[node["id"]] = ids
+                result.extend(ids)
+            return result
+
+        collect(plan["tasks"])
+        tasks = []
+
+        def walk(node, inherited):
+            deps = list(inherited) + list(node.get("dependencies", []))
+            children = node.get("children", [])
+            if children:
+                for child in children:
+                    walk(child, deps)
+                return
+            if not is_executable(node):
+                return
+            expanded = []
+            for dep in deps:
+                if dep not in descendants:
+                    raise ValueError("Unknown task dependency: " + dep)
+                expanded.extend(descendants[dep])
+            expanded = sorted(set(x for x in expanded if x != node["id"]))
+            tasks.append({
+                "task_id": node["id"], "title": node["title"],
+                "method": node["method"], "inputs": node["inputs"],
+                "expected_outputs": node["expected_outputs"],
+                "acceptance_criteria": node["acceptance_criteria"],
+                "required_skills": node.get("required_skills", []),
+                "dependencies": expanded,
+                "permissions": node.get("permissions", {"level": "read_only", "requires_user_approval": True}),
+                "status": "awaiting_approval"
+            })
+
+        for root in plan["tasks"]:
+            walk(root, [])
         return {
             "protocol": "ITP-1.0", "project_id": plan["project_id"],
-            "execution_policy": "manual_approval_required",
-            "tasks": tasks
+            "execution_policy": "manual_approval_required", "tasks": tasks
         }
