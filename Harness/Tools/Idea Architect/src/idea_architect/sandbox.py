@@ -21,6 +21,10 @@ class SandboxPolicy:
     timeout_seconds: int = 30
     max_input_bytes: int = 1024 * 1024
     max_output_bytes: int = 1024 * 1024
+    cpu_seconds: int = 20
+    memory_bytes: int = 512 * 1024 * 1024
+    max_file_bytes: int = 16 * 1024 * 1024
+    max_processes: int = 16
 
 
 class BubblewrapCommandHandler:
@@ -32,6 +36,9 @@ class BubblewrapCommandHandler:
         executable_path = Path(executable)
         if not executable_path.is_absolute() or not executable_path.is_file():
             raise ValueError("executable must be an existing absolute file path")
+        executable_path = executable_path.resolve()
+        if not any(executable_path.is_relative_to(Path(root)) for root in ("/usr", "/bin")):
+            raise ValueError("executable must reside under /usr or /bin, visible in the sandbox")
         if any("\x00" in arg for arg in fixed_args):
             raise ValueError("arguments cannot contain NUL bytes")
         self.executable = str(executable_path)
@@ -39,7 +46,9 @@ class BubblewrapCommandHandler:
         self.policy = policy or SandboxPolicy()
         self.bubblewrap = shutil.which(bubblewrap)
         if self.policy.timeout_seconds < 1 or min(
-            self.policy.max_input_bytes, self.policy.max_output_bytes
+            self.policy.max_input_bytes, self.policy.max_output_bytes,
+            self.policy.cpu_seconds, self.policy.memory_bytes,
+            self.policy.max_file_bytes, self.policy.max_processes
         ) < 1:
             raise ValueError("sandbox limits must be positive")
 
@@ -53,26 +62,34 @@ class BubblewrapCommandHandler:
         project_dir.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="icarus-skill-", dir=project_dir) as tmp:
             workspace = Path(tmp).resolve()
-            command = [
-                self.bubblewrap, "--unshare-all", "--die-with-parent",
-                "--ro-bind", "/usr", "/usr",
-                "--ro-bind", "/bin", "/bin",
-                "--ro-bind", "/lib", "/lib",
+            command = [self.bubblewrap, "--unshare-all", "--die-with-parent"]
+            for system_path in ("/usr", "/bin", "/lib", "/lib64", "/etc"):
+                if Path(system_path).exists():
+                    command.extend(["--ro-bind", system_path, system_path])
+            command.extend([
                 "--proc", "/proc", "--dev", "/dev",
                 "--tmpfs", "/tmp",
-                "--ro-bind", "/etc", "/etc",
                 "--bind", str(workspace), "/workspace",
                 "--chdir", "/workspace",
                 "--", self.executable, *self.fixed_args
-            ]
+            ])
             env = {"PATH": "/usr/bin:/bin", "HOME": "/workspace",
                    "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"}
+            def apply_resource_limits() -> None:
+                resource.setrlimit(resource.RLIMIT_CPU, (self.policy.cpu_seconds, self.policy.cpu_seconds))
+                resource.setrlimit(resource.RLIMIT_AS, (self.policy.memory_bytes, self.policy.memory_bytes))
+                resource.setrlimit(resource.RLIMIT_FSIZE, (self.policy.max_file_bytes, self.policy.max_file_bytes))
+                resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
+                if hasattr(resource, "RLIMIT_NPROC"):
+                    resource.setrlimit(resource.RLIMIT_NPROC, (self.policy.max_processes, self.policy.max_processes))
+
             with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
                 try:
                     proc = subprocess.Popen(
                         command, stdin=subprocess.PIPE, stdout=stdout_file,
                         stderr=stderr_file, cwd=str(workspace), env=env,
-                        close_fds=True, start_new_session=True
+                        close_fds=True, start_new_session=True,
+                        preexec_fn=apply_resource_limits
                     )
                     try:
                         proc.communicate(input=payload, timeout=self.policy.timeout_seconds)
