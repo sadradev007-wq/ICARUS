@@ -76,6 +76,11 @@ class System2Replanner:
         proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
         if proposal.get("status") != "pending_approval":
             raise ReplanError("Proposal is not pending approval")
+        self._validate({
+            "model_role": "system2", "task_id": proposal.get("task_id"),
+            "rationale": proposal.get("rationale"),
+            "revised_task": proposal.get("revised_task")
+        }, proposal.get("task_id"))
         queue = json.loads(self.queue_path.read_text(encoding="utf-8"))
         matches = [x for x in queue.get("tasks", []) if x.get("task_id") == proposal["task_id"]]
         if len(matches) != 1 or matches[0].get("status") != "failed":
