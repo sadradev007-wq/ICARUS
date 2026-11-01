@@ -34,8 +34,17 @@ class TaskHandler(Protocol):
     def __call__(self, task: dict[str, Any], project_dir: Path) -> HandlerResult | dict[str, Any]: ...
 
 
+@dataclass
+class EvaluationResult:
+    status: str
+    explanation: str
+    details: dict[str, Any] | None = None
+
+
 class ResultEvaluator(Protocol):
-    def __call__(self, task: dict[str, Any], outputs: dict[str, Any]) -> tuple[bool, str]: ...
+    def __call__(
+        self, task: dict[str, Any], outputs: dict[str, Any]
+    ) -> tuple[bool, str] | EvaluationResult: ...
 
 
 class HandlerRegistry:
