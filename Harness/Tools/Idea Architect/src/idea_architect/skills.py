@@ -137,5 +137,18 @@ class SkillRegistry:
             bound.append(record["repository"])
         return bound
 
+    def get_approved_handler(self, repository: str, handlers: HandlerRegistry):
+        """Resolve one approved skill to its pre-registered trusted host handler."""
+        matches = [
+            item for item in self._load()
+            if item.get("repository") == repository and item.get("status") == "approved"
+        ]
+        if len(matches) != 1:
+            raise KeyError(f"Skill is not uniquely approved: {repository}")
+        handler_id = matches[0].get("handler_id")
+        if not isinstance(handler_id, str) or not handler_id:
+            raise ValueError("Approved skill has no handler binding")
+        return handlers.get(handler_id)
+
     def list_candidates(self) -> list[dict[str, Any]]:
         return self._load()
