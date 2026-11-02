@@ -217,6 +217,41 @@ class ExecutionEngine:
         return task
 
     @_serialized
+    def review(
+        self, task_id: str, *, decision: str, reviewed_by: str, reason: str
+    ) -> dict[str, Any]:
+        """Record an explicit human decision for a result awaiting review."""
+        if decision not in {"accept", "reject"}:
+            raise ValueError("decision must be 'accept' or 'reject'")
+        if not reviewed_by.strip() or not reason.strip():
+            raise ValueError("reviewed_by and reason are required")
+        queue = self._read_queue()
+        task = self._find_task(queue, task_id)
+        if task.get("status") != "awaiting_review":
+            raise ExecutionError("Only tasks awaiting review can receive a human decision")
+        task["status"] = "completed" if decision == "accept" else "failed"
+        task["human_review"] = {
+            "decision": decision,
+            "reviewed_by": reviewed_by,
+            "reason": reason,
+            "reviewed_at": _now(),
+        }
+        task.pop("audit_warning", None)
+        self._write_queue(queue)
+        try:
+            self._audit("human_review_recorded", task_id, decision=decision,
+                        reviewed_by=reviewed_by, reason=reason)
+        except Exception as exc:
+            # The authoritative queue snapshot is already durable. An audit sink failure
+            # must never rewrite a reviewed successful task as failed.
+            task["audit_warning"] = f"{type(exc).__name__}: {exc}"
+            try:
+                self._write_queue(queue)
+            except Exception:
+                pass
+        return task
+
+    @_serialized
     def run(self, task_id: str) -> dict[str, Any]:
         queue = self._read_queue()
         task = self._find_task(queue, task_id)
@@ -298,8 +333,17 @@ class ExecutionEngine:
             attempt["finished_at"] = _now()
             attempt["result_file"] = task.get("result_file")
             self._write_queue(queue)
-            self._audit("task_finished", task_id, status=task["status"],
-                        result_file=task["result_file"])
+            try:
+                self._audit("task_finished", task_id, status=task["status"],
+                            result_file=task["result_file"])
+            except Exception as audit_error:
+                # Handler output and task state are already committed. Never classify a
+                # completed side effect as a failed execution merely because audit I/O failed.
+                task["audit_warning"] = f"{type(audit_error).__name__}: {audit_error}"
+                try:
+                    self._write_queue(queue)
+                except Exception:
+                    pass
             return task
         except Exception as exc:
             task["status"] = "failed"
