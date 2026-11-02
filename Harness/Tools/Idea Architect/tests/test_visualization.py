@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from idea_architect.orchestrator import ProjectOrchestrator
+from idea_architect.crash_recovery import DurableJournal
 from idea_architect.visualization import export_project_graph, render_html, render_mermaid, render_svg
 
 
@@ -82,6 +83,12 @@ class GraphVisualizationTests(unittest.TestCase):
             )
             self.assertIn("visualization", result)
             self.assertTrue(Path(result["visualization"]["html"]).is_file())
+            journal = DurableJournal(
+                Path(directory) / "project-graph" / "execution" / "event_journal.jsonl"
+            )
+            event_types = [event["event_type"] for event in journal.read_events()]
+            self.assertIn("plan_snapshot", event_types)
+            self.assertIn("queue_snapshot", event_types)
 
 
 if __name__ == "__main__":
