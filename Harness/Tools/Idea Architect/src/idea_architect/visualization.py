@@ -175,14 +175,14 @@ def render_mermaid(plan: dict[str, Any], queue: dict[str, Any]) -> str:
 def render_html(plan: dict[str, Any], queue: dict[str, Any]) -> str:
     svg = render_svg(plan, queue)
     project_name = html.escape(str(plan.get("objective", plan.get("project_id", "ICARUS"))))
-    return """<!doctype html>
+    page = """<!doctype html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>نقشهٔ پروژه — %s</title>
 <style>
 :root{color-scheme:light;font-family:Vazirmatn,"Noto Sans Arabic",Tahoma,sans-serif;background:#eef2ff;color:#172033}
-*{box-sizing:border-box}body{margin:0;padding:28px;background:linear-gradient(135deg,#eef2ff,#f8fafc 55%%,#f5f3ff)}
+*{box-sizing:border-box}body{margin:0;padding:28px;background:linear-gradient(135deg,#eef2ff,#f8fafc 55%,#f5f3ff)}
 main{max-width:1500px;margin:auto}.top{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
 h1{font-size:clamp(22px,3vw,34px);margin:0 0 8px}.sub{color:#64748b;margin:0 0 22px}
 .toolbar{display:flex;gap:8px}.toolbar button{border:1px solid #cbd5e1;background:#fff;border-radius:12px;padding:9px 14px;font:inherit;cursor:pointer}
@@ -200,7 +200,8 @@ svg{max-width:none;height:auto}.legend{display:flex;gap:12px;flex-wrap:wrap;marg
 const svg=document.querySelector('.canvas svg');let scale=1;
 function zoom(f){scale=Math.max(.35,Math.min(2.5,scale*f));svg.style.width=(svg.viewBox.baseVal.width*scale)+'px'}
 function resetZoom(){scale=1;svg.style.width=''}
-</script></body></html>""" % (project_name, project_name, svg)
+</script></body></html>"""
+    return page.replace("%s", project_name, 1).replace("%s", project_name, 1).replace("%s", svg, 1)
 
 
 def export_project_graph(project_dir: Path, plan: dict[str, Any],
