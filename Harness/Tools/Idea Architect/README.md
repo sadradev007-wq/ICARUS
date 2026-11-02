@@ -156,7 +156,7 @@ Idea Architect/
     ├── test_feedback.py
     ├── test_replanning.py
     ├── test_scheduler.py
-    └── test_orchestrator.py
+    ├── test_orchestrator.py\n    └── test_task_companion.py
 ```
 
 ## اجرا در حالت آزمایشی آفلاین
