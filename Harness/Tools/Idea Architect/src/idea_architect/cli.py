@@ -78,6 +78,7 @@ def main() -> None:
     parser.add_argument("--status", action="store_true", help="Show the current task queue")
     parser.add_argument("--approve-task", help="Approve one task for a specific trusted handler")
     parser.add_argument("--handler-id", help="Allow-listed handler ID for --approve-task")
+    parser.add_argument("--approved-by", help="Human approving the handler binding")
     parser.add_argument("--run-task", help="Run one previously approved task")
     parser.add_argument(
         "--trusted-handler-module",
@@ -113,9 +114,9 @@ def main() -> None:
         result: dict[str, Any] = {"project_dir": str(project_dir)}
 
         if args.approve_task:
-            if not args.handler_id:
-                parser.error("--approve-task requires --handler-id")
-            engine.approve(args.approve_task, args.handler_id, approved_by="cli-user")
+            if not args.handler_id or not args.approved_by:
+                parser.error("--approve-task requires --handler-id and --approved-by")
+            engine.approve(args.approve_task, args.handler_id, approved_by=args.approved_by)
             result["approved_task"] = args.approve_task
         if args.run_task:
             task = engine.run(args.run_task)
