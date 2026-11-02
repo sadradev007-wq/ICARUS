@@ -133,7 +133,7 @@ Idea Architect/
 └── tests/
     ├── test_protocol.py
     ├── test_execution.py
-│   ├── test_crash_recovery.py
+    ├── test_crash_recovery.py
     ├── test_sandbox.py
     ├── test_skills.py
     ├── test_feedback.py

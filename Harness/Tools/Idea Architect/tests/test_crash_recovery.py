@@ -20,7 +20,7 @@ class CrashRecoveryTests(unittest.TestCase):
         self.queue = {
             "project_id": "test",
             "execution_policy": "manual_approval_required",
-            "tasks": [{"task_id": "T-1", "status": "approved",
+            "tasks": [{"task_id": "T-1", "status": "running",
                        "method": ["run"], "inputs": ["x"],
                        "expected_outputs": ["y"], "acceptance_criteria": ["y exists"],
                        "approval": {"handler_id": "test.handler"},
