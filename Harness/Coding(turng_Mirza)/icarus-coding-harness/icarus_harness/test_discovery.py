@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json
 import subprocess
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 from .workspace import Workspace, WorkspaceError
@@ -133,7 +133,7 @@ class TestDiscovery:
                 tuple(related or (dotnet_tests if not changed else ()))))
 
         return {"workspace": str(self.workspace.root), "changed_paths": changed,
-                "execution_performed": False, "profiles": [asdict(p) for p in profiles],
+                "execution_performed": False, "profiles": [{"language": p.language, "command": list(p.command), "confidence": p.confidence, "reason": p.reason, "test_files": list(p.test_files), "related_tests": list(p.related_tests)} for p in profiles],
                 "notes": ["Discovery is read-only; no test command was executed.",
                           "Run tests only through the approval-gated command tool.",
                           "Some suggested commands require an explicit policy allowlist entry."]}
