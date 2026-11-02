@@ -1,0 +1,75 @@
+[submodule "aider"]
+	path = aider
+	url = https://github.com/Aider-AI/aider.git
+
+[submodule "deepseek-harness"]
+	path = deepseek-harness
+	url = https://github.com/deepseek-ai/deepseek-harness.git
+
+[submodule "factory"]
+	path = factory
+	url = https://github.com/Factory-AI/factory.git
+
+[submodule "forgecode"]
+	path = forgecode
+	url = https://github.com/tailcallhq/forgecode.git
+
+[submodule "gemini-cli"]
+	path = gemini-cli
+	url = https://github.com/google-gemini/gemini-cli.git
+
+[submodule "goose"]
+	path = goose
+	url = https://github.com/aaif-goose/goose.git
+
+[submodule "grok-build"]
+	path = grok-build
+	url = https://github.com/xai-org/grok-build.git
+
+[submodule "jcode"]
+	path = jcode
+	url = https://github.com/1jehuang/jcode.git
+
+[submodule "kander"]
+	path = kander
+	url = https://github.com/dualface/kander.git
+
+[submodule "kilocode"]
+	path = kilocode
+	url = https://github.com/Kilo-Org/kilocode.git
+
+[submodule "langchain"]
+	path = langchain
+	url = https://github.com/langchain-ai/langchain.git
+
+[submodule "open-design"]
+	path = open-design
+	url = https://github.com/nexu-io/open-design.git
+
+[submodule "openclaw"]
+	path = openclaw
+	url = https://github.com/openclaw/openclaw.git
+
+[submodule "opencode"]
+	path = opencode
+	url = https://github.com/anomalyco/opencode.git
+
+[submodule "openhands"]
+	path = openhands
+	url = https://github.com/OpenHands/OpenHands.git
+
+[submodule "qwen-code"]
+	path = qwen-code
+	url = https://github.com/QwenLM/qwen-code.git
+
+[submodule "roo-code"]
+	path = roo-code
+	url = https://github.com/RooCodeInc/Roo-Code.git
+
+[submodule "ruflo"]
+	path = ruflo
+	url = https://github.com/ruvnet/ruflo.git
+
+[submodule "zcode"]
+	path = zcode
+	url = https://github.com/zai-org/ZCode.git
