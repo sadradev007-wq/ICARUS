@@ -34,7 +34,9 @@ class ReplanningTests(unittest.TestCase):
             "tasks": [{
                 "task_id": "T1", "title": "Old task", "status": "failed",
                 "method": ["Old"], "inputs": ["x"], "expected_outputs": ["y"],
-                "acceptance_criteria": ["y exists"]
+                "acceptance_criteria": ["y exists"],
+                "idempotency_scope": "old-revision-scope",
+                "idempotency_key": "old-revision-key"
             }]
         })
         self.replanner = System2Replanner(ProposalModel(), self.root)
@@ -58,6 +60,35 @@ class ReplanningTests(unittest.TestCase):
         self.assertEqual(task["title"], "Revised task")
         self.assertEqual(task["status"], "awaiting_approval")
         self.assertNotIn("approval", task)
+        self.assertNotEqual(task["idempotency_scope"], "old-revision-scope")
+        self.assertNotIn("idempotency_key", task)
+        journal = self.root / "execution" / "event_journal.jsonl"
+        self.assertTrue(journal.is_file())
+        latest = json.loads(journal.read_text(encoding="utf-8").splitlines()[-2])
+        self.assertEqual(latest["event_type"], "queue_snapshot")
+
+    def test_reapplying_after_queue_commit_does_not_duplicate_revision(self):
+        proposal = self.replanner.propose(
+            {"task_id": "T1", "acceptance_criteria": ["y exists"]},
+            execution_feedback={"reason": "failed"}
+        )
+        first = self.replanner.approve_and_apply(
+            proposal["proposal_id"], approved_by="human"
+        )
+        proposal_path = (
+            self.root / "replanning" / "proposals" /
+            f"{proposal['proposal_id']}.json"
+        )
+        saved_proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
+        saved_proposal["status"] = "pending_approval"
+        write_json(proposal_path, saved_proposal)
+
+        recovered = self.replanner.approve_and_apply(
+            proposal["proposal_id"], approved_by="human"
+        )
+        self.assertEqual(recovered["idempotency_scope"], first["idempotency_scope"])
+        self.assertEqual(len(recovered["revision_history"]), 1)
+        self.assertEqual(recovered["status"], "awaiting_approval")
 
     def test_unknown_proposal_rejected(self):
         with self.assertRaises(ReplanError):
