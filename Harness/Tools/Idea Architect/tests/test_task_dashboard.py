@@ -46,9 +46,12 @@ class TaskDashboardTests(unittest.TestCase):
             "project_id": "ICARUS", "tags": "UI, فرم",
         }).encode()
         request = urllib.request.Request(self.base + "/tasks", data=payload, method="POST")
-        with self.assertRaises(urllib.error.HTTPError) as caught:
-            urllib.request.urlopen(request)
-        self.assertEqual(caught.exception.code, 303)
+        opener = urllib.request.build_opener(
+            urllib.request.HTTPRedirectHandler()
+        )
+        response = opener.open(request)
+        self.assertEqual(response.status, 200)
+        self.assertTrue(response.geturl().endswith("/"))
         task = self.store.list_tasks()[0]
         self.assertEqual(task["title"], "طراحی فرم")
         self.assertEqual(task["priority"], "high")
