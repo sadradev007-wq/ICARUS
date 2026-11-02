@@ -73,3 +73,403 @@
 [submodule "zcode"]
 	path = Harness/Coding(turng_Mirza)/sample/zcode
 	url = https://github.com/zai-org/ZCode.git
+
+[submodule "sample-ecc"]
+	path = Harness/Coding(turng_Mirza)/sample/ecc
+	url = https://github.com/affaan-m/ECC.git
+
+[submodule "sample-cc-switch"]
+	path = Harness/Coding(turng_Mirza)/sample/cc-switch
+	url = https://github.com/farion1231/cc-switch.git
+
+[submodule "sample-deer-flow"]
+	path = Harness/Coding(turng_Mirza)/sample/deer-flow
+	url = https://github.com/bytedance/deer-flow.git
+
+[submodule "sample-learn-claude-code"]
+	path = Harness/Coding(turng_Mirza)/sample/learn-claude-code
+	url = https://github.com/shareAI-lab/learn-claude-code.git
+
+[submodule "sample-free-claude-code"]
+	path = Harness/Coding(turng_Mirza)/sample/free-claude-code
+	url = https://github.com/Alishahryar1/free-claude-code.git
+
+[submodule "sample-open-code-review"]
+	path = Harness/Coding(turng_Mirza)/sample/open-code-review
+	url = https://github.com/alibaba/open-code-review.git
+
+[submodule "sample-cowagent"]
+	path = Harness/Coding(turng_Mirza)/sample/cowagent
+	url = https://github.com/zhayujie/CowAgent.git
+
+[submodule "sample-openhuman"]
+	path = Harness/Coding(turng_Mirza)/sample/openhuman
+	url = https://github.com/tinyhumansai/openhuman.git
+
+[submodule "sample-agents"]
+	path = Harness/Coding(turng_Mirza)/sample/agents
+	url = https://github.com/wshobson/agents.git
+
+[submodule "sample-dsh-desktop-anywhere-labs"]
+	path = Harness/Coding(turng_Mirza)/sample/dsh-desktop-anywhere-labs
+	url = https://github.com/anywhere-labs/dsh-desktop.git
+
+[submodule "sample-deepagents"]
+	path = Harness/Coding(turng_Mirza)/sample/deepagents
+	url = https://github.com/langchain-ai/deepagents.git
+
+[submodule "sample-openai-agents-python"]
+	path = Harness/Coding(turng_Mirza)/sample/openai-agents-python
+	url = https://github.com/openai/openai-agents-python.git
+
+[submodule "sample-agentmemory"]
+	path = Harness/Coding(turng_Mirza)/sample/agentmemory
+	url = https://github.com/rohitg00/agentmemory.git
+
+[submodule "sample-archon"]
+	path = Harness/Coding(turng_Mirza)/sample/archon
+	url = https://github.com/coleam00/Archon.git
+
+[submodule "sample-learn-harness-engineering"]
+	path = Harness/Coding(turng_Mirza)/sample/learn-harness-engineering
+	url = https://github.com/walkinglabs/learn-harness-engineering.git
+
+[submodule "sample-awesome-dsh-plugin"]
+	path = Harness/Coding(turng_Mirza)/sample/awesome-dsh-plugin
+	url = https://github.com/awesome-dsh-plugin/awesome-dsh-plugin.git
+
+[submodule "sample-harness2"]
+	path = Harness/Coding(turng_Mirza)/sample/harness2
+	url = https://github.com/google-research/harness2.git
+
+[submodule "sample-pydantic-ai"]
+	path = Harness/Coding(turng_Mirza)/sample/pydantic-ai
+	url = https://github.com/pydantic/pydantic-ai.git
+
+[submodule "sample-browser-harness"]
+	path = Harness/Coding(turng_Mirza)/sample/browser-harness
+	url = https://github.com/browser-use/browser-harness.git
+
+[submodule "sample-dsh-desktop-dataelement"]
+	path = Harness/Coding(turng_Mirza)/sample/dsh-desktop-dataelement
+	url = https://github.com/dataelement/dsh-desktop.git
+
+[submodule "sample-deepcode"]
+	path = Harness/Coding(turng_Mirza)/sample/deepcode
+	url = https://github.com/HKUDS/DeepCode.git
+
+[submodule "sample-openharness"]
+	path = Harness/Coding(turng_Mirza)/sample/openharness
+	url = https://github.com/HKUDS/OpenHarness.git
+
+[submodule "sample-qm"]
+	path = Harness/Coding(turng_Mirza)/sample/qm
+	url = https://github.com/yc-software/qm.git
+
+[submodule "sample-dsh-purge-yujunzhixue"]
+	path = Harness/Coding(turng_Mirza)/sample/dsh-purge-yujunzhixue
+	url = https://github.com/YuJunZhiXue/dsh-purge.git
+
+[submodule "sample-trellis"]
+	path = Harness/Coding(turng_Mirza)/sample/trellis
+	url = https://github.com/mindfold-ai/Trellis.git
+
+[submodule "sample-memu"]
+	path = Harness/Coding(turng_Mirza)/sample/memu
+	url = https://github.com/NevaMind-AI/memU.git
+
+[submodule "sample-memos"]
+	path = Harness/Coding(turng_Mirza)/sample/memos
+	url = https://github.com/MemTensor/MemOS.git
+
+[submodule "sample-omnigent"]
+	path = Harness/Coding(turng_Mirza)/sample/omnigent
+	url = https://github.com/omnigent-ai/omnigent.git
+
+[submodule "sample-hive"]
+	path = Harness/Coding(turng_Mirza)/sample/hive
+	url = https://github.com/aden-hive/hive.git
+
+[submodule "sample-dsh-market"]
+	path = Harness/Coding(turng_Mirza)/sample/dsh-market
+	url = https://github.com/dsh-market/dsh-market.git
+
+[submodule "sample-dsh-web"]
+	path = Harness/Coding(turng_Mirza)/sample/dsh-web
+	url = https://github.com/zhu1090093659/dsh-web.git
+
+[submodule "sample-harness"]
+	path = Harness/Coding(turng_Mirza)/sample/harness
+	url = https://github.com/revfactory/harness.git
+
+[submodule "sample-munder-difflin"]
+	path = Harness/Coding(turng_Mirza)/sample/munder-difflin
+	url = https://github.com/HarnessMD/munder-difflin.git
+
+[submodule "sample-awesome-prompts"]
+	path = Harness/Coding(turng_Mirza)/sample/awesome-prompts
+	url = https://github.com/ai-boost/awesome-prompts.git
+
+[submodule "sample-harness-sdk"]
+	path = Harness/Coding(turng_Mirza)/sample/harness-sdk
+	url = https://github.com/strands-agents/harness-sdk.git
+
+[submodule "sample-deepsec"]
+	path = Harness/Coding(turng_Mirza)/sample/deepsec
+	url = https://github.com/vercel-labs/deepsec.git
+
+[submodule "sample-osaurus"]
+	path = Harness/Coding(turng_Mirza)/sample/osaurus
+	url = https://github.com/osaurus-ai/osaurus.git
+
+[submodule "sample-defending-code-reference-harness"]
+	path = Harness/Coding(turng_Mirza)/sample/defending-code-reference-harness
+	url = https://github.com/anthropics/defending-code-reference-harness.git
+
+[submodule "sample-codex-with-chatgpt"]
+	path = Harness/Coding(turng_Mirza)/sample/codex-with-chatgpt
+	url = https://github.com/XiaoDuoYa/codex-with-chatgpt.git
+
+[submodule "sample-pi-desktop"]
+	path = Harness/Coding(turng_Mirza)/sample/pi-desktop
+	url = https://github.com/vastsa/PI-Desktop.git
+
+[submodule "sample-yuxi"]
+	path = Harness/Coding(turng_Mirza)/sample/yuxi
+	url = https://github.com/xerrors/Yuxi.git
+
+[submodule "sample-ipollowork"]
+	path = Harness/Coding(turng_Mirza)/sample/ipollowork
+	url = https://github.com/Devin-AXIS/iPolloWork.git
+
+[submodule "sample-failproofai"]
+	path = Harness/Coding(turng_Mirza)/sample/failproofai
+	url = https://github.com/FailproofAI/failproofai.git
+
+[submodule "sample-t3mp3st"]
+	path = Harness/Coding(turng_Mirza)/sample/t3mp3st
+	url = https://github.com/elder-plinius/T3MP3ST.git
+
+[submodule "sample-trueforge"]
+	path = Harness/Coding(turng_Mirza)/sample/trueforge
+	url = https://github.com/truefoundry/trueforge.git
+
+[submodule "sample-harness-engineering"]
+	path = Harness/Coding(turng_Mirza)/sample/harness-engineering
+	url = https://github.com/deusyu/harness-engineering.git
+
+[submodule "sample-agentscope-java"]
+	path = Harness/Coding(turng_Mirza)/sample/agentscope-java
+	url = https://github.com/agentscope-ai/agentscope-java.git
+
+[submodule "sample-nexent"]
+	path = Harness/Coding(turng_Mirza)/sample/nexent
+	url = https://github.com/ModelEngine-Group/nexent.git
+
+[submodule "sample-raven"]
+	path = Harness/Coding(turng_Mirza)/sample/raven
+	url = https://github.com/EverMind-AI/Raven.git
+
+[submodule "sample-baoyu-design"]
+	path = Harness/Coding(turng_Mirza)/sample/baoyu-design
+	url = https://github.com/JimLiu/baoyu-design.git
+
+[submodule "sample-eve"]
+	path = Harness/Coding(turng_Mirza)/sample/eve
+	url = https://github.com/vercel/eve.git
+
+[submodule "sample-openagent"]
+	path = Harness/Coding(turng_Mirza)/sample/openagent
+	url = https://github.com/the-open-agent/openagent.git
+
+[submodule "sample-frontieragent"]
+	path = Harness/Coding(turng_Mirza)/sample/frontieragent
+	url = https://github.com/ApodexAI/FrontierAgent.git
+
+[submodule "sample-devspace"]
+	path = Harness/Coding(turng_Mirza)/sample/devspace
+	url = https://github.com/Waishnav/devspace.git
+
+[submodule "sample-awesome-harness-engineering-ai-boost"]
+	path = Harness/Coding(turng_Mirza)/sample/awesome-harness-engineering-ai-boost
+	url = https://github.com/ai-boost/awesome-harness-engineering.git
+
+[submodule "sample-oh-my-hermes"]
+	path = Harness/Coding(turng_Mirza)/sample/oh-my-hermes
+	url = https://github.com/rlaope/oh-my-hermes.git
+
+[submodule "sample-dsh-go"]
+	path = Harness/Coding(turng_Mirza)/sample/dsh-go
+	url = https://github.com/ccch1mneyyy/dsh-Go.git
+
+[submodule "sample-ds-bot"]
+	path = Harness/Coding(turng_Mirza)/sample/ds-bot
+	url = https://github.com/Fei2411/DS-Bot.git
+
+[submodule "sample-evoscientist"]
+	path = Harness/Coding(turng_Mirza)/sample/evoscientist
+	url = https://github.com/EvoScientist/EvoScientist.git
+
+[submodule "sample-solace-agent-mesh"]
+	path = Harness/Coding(turng_Mirza)/sample/solace-agent-mesh
+	url = https://github.com/SolaceProducts/solace-agent-mesh.git
+
+[submodule "sample-agenta"]
+	path = Harness/Coding(turng_Mirza)/sample/agenta
+	url = https://github.com/Agenta-AI/agenta.git
+
+[submodule "sample-learnharness"]
+	path = Harness/Coding(turng_Mirza)/sample/learnharness
+	url = https://github.com/amosblomqvist/learnharness.git
+
+[submodule "sample-modlens"]
+	path = Harness/Coding(turng_Mirza)/sample/modlens
+	url = https://github.com/liustack/modlens.git
+
+[submodule "sample-awesome-harness-engineering-walkinglabs"]
+	path = Harness/Coding(turng_Mirza)/sample/awesome-harness-engineering-walkinglabs
+	url = https://github.com/walkinglabs/awesome-harness-engineering.git
+
+[submodule "sample-autoagent"]
+	path = Harness/Coding(turng_Mirza)/sample/autoagent
+	url = https://github.com/thirdlayerinc/autoagent.git
+
+[submodule "sample-desktop-cc-gui"]
+	path = Harness/Coding(turng_Mirza)/sample/desktop-cc-gui
+	url = https://github.com/zhukunpenglinyutong/desktop-cc-gui.git
+
+[submodule "sample-claude-code-book"]
+	path = Harness/Coding(turng_Mirza)/sample/claude-code-book
+	url = https://github.com/lintsinghua/claude-code-book.git
+
+[submodule "sample-command-code"]
+	path = Harness/Coding(turng_Mirza)/sample/command-code
+	url = https://github.com/CommandCodeAI/command-code.git
+
+[submodule "sample-langroid"]
+	path = Harness/Coding(turng_Mirza)/sample/langroid
+	url = https://github.com/langroid/langroid.git
+
+[submodule "sample-dsh-purge-kingcharleslzy-ai"]
+	path = Harness/Coding(turng_Mirza)/sample/dsh-purge-kingcharleslzy-ai
+	url = https://github.com/kingcharleslzy-ai/dsh-purge.git
+
+[submodule "sample-dsh-context"]
+	path = Harness/Coding(turng_Mirza)/sample/dsh-context
+	url = https://github.com/bowenliang123/dsh-context.git
+
+[submodule "sample-lazycodex"]
+	path = Harness/Coding(turng_Mirza)/sample/lazycodex
+	url = https://github.com/code-yeongyu/lazycodex.git
+
+[submodule "sample-harnessrouter"]
+	path = Harness/Coding(turng_Mirza)/sample/harnessrouter
+	url = https://github.com/HarnessRouter/harnessrouter.git
+
+[submodule "sample-desloppify"]
+	path = Harness/Coding(turng_Mirza)/sample/desloppify
+	url = https://github.com/peteromallet/desloppify.git
+
+[submodule "sample-cc-sdd"]
+	path = Harness/Coding(turng_Mirza)/sample/cc-sdd
+	url = https://github.com/gotalab/cc-sdd.git
+
+[submodule "sample-polyaxon"]
+	path = Harness/Coding(turng_Mirza)/sample/polyaxon
+	url = https://github.com/polyaxon/polyaxon.git
+
+[submodule "sample-pstack-claude"]
+	path = Harness/Coding(turng_Mirza)/sample/pstack-claude
+	url = https://github.com/michael-denyer/pstack-claude.git
+
+[submodule "sample-dsh-anchored-standard"]
+	path = Harness/Coding(turng_Mirza)/sample/dsh-anchored-standard
+	url = https://github.com/xiaobright/dsh-anchored-standard.git
+
+[submodule "sample-codex"]
+	path = Harness/Coding(turng_Mirza)/sample/codex
+	url = https://github.com/openai/codex.git
+
+[submodule "sample-cline"]
+	path = Harness/Coding(turng_Mirza)/sample/cline
+	url = https://github.com/cline/cline.git
+
+[submodule "sample-pi"]
+	path = Harness/Coding(turng_Mirza)/sample/pi
+	url = https://github.com/earendil-works/pi.git
+
+[submodule "sample-continue"]
+	path = Harness/Coding(turng_Mirza)/sample/continue
+	url = https://github.com/continuedev/continue.git
+
+[submodule "sample-mini-swe-agent"]
+	path = Harness/Coding(turng_Mirza)/sample/mini-swe-agent
+	url = https://github.com/SWE-agent/mini-swe-agent.git
+
+[submodule "sample-openinterpreter"]
+	path = Harness/Coding(turng_Mirza)/sample/openinterpreter
+	url = https://github.com/OpenInterpreter/openinterpreter.git
+
+[submodule "sample-codewhale"]
+	path = Harness/Coding(turng_Mirza)/sample/codewhale
+	url = https://github.com/codewhale-hq/Codewhale.git
+
+[submodule "sample-deepseek-reasonix"]
+	path = Harness/Coding(turng_Mirza)/sample/deepseek-reasonix
+	url = https://github.com/esengine/DeepSeek-Reasonix.git
+
+[submodule "sample-gpt-pilot"]
+	path = Harness/Coding(turng_Mirza)/sample/gpt-pilot
+	url = https://github.com/Pythagora-io/gpt-pilot.git
+
+[submodule "sample-oh-my-pi"]
+	path = Harness/Coding(turng_Mirza)/sample/oh-my-pi
+	url = https://github.com/can1357/oh-my-pi.git
+
+[submodule "sample-crush"]
+	path = Harness/Coding(turng_Mirza)/sample/crush
+	url = https://github.com/charmbracelet/crush.git
+
+[submodule "sample-dyad"]
+	path = Harness/Coding(turng_Mirza)/sample/dyad
+	url = https://github.com/dyad-sh/dyad.git
+
+[submodule "sample-swe-agent"]
+	path = Harness/Coding(turng_Mirza)/sample/swe-agent
+	url = https://github.com/SWE-agent/SWE-agent.git
+
+[submodule "sample-prime-agent"]
+	path = Harness/Coding(turng_Mirza)/sample/prime-agent
+	url = https://github.com/PrimeIntellect-ai/prime-agent.git
+
+[submodule "sample-devika"]
+	path = Harness/Coding(turng_Mirza)/sample/devika
+	url = https://github.com/stitionai/devika.git
+
+[submodule "sample-bolt.new"]
+	path = Harness/Coding(turng_Mirza)/sample/bolt.new
+	url = https://github.com/stackblitz/bolt.new.git
+
+[submodule "sample-plandex"]
+	path = Harness/Coding(turng_Mirza)/sample/plandex
+	url = https://github.com/plandex-ai/plandex.git
+
+[submodule "sample-mimo-code"]
+	path = Harness/Coding(turng_Mirza)/sample/mimo-code
+	url = https://github.com/XiaomiMiMo/MiMo-Code.git
+
+[submodule "sample-trae-agent"]
+	path = Harness/Coding(turng_Mirza)/sample/trae-agent
+	url = https://github.com/bytedance/trae-agent.git
+
+[submodule "sample-freebuff"]
+	path = Harness/Coding(turng_Mirza)/sample/freebuff
+	url = https://github.com/CodebuffAI/freebuff.git
+
+[submodule "sample-kimi-cli"]
+	path = Harness/Coding(turng_Mirza)/sample/kimi-cli
+	url = https://github.com/MoonshotAI/kimi-cli.git
+
+[submodule "sample-claude-engineer"]
+	path = Harness/Coding(turng_Mirza)/sample/claude-engineer
+	url = https://github.com/Doriandarko/claude-engineer.git
