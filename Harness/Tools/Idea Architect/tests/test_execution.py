@@ -89,6 +89,11 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(result["attempt_count"], 2)
         self.assertEqual(len(result["attempts"]), 2)
         self.assertNotEqual(result["attempts"][0].get("result_file"), result["attempts"][1]["result_file"])
+        self.assertEqual(
+            result["attempts"][0]["idempotency_key"],
+            result["attempts"][1]["idempotency_key"],
+            "Retries of one logical task must reuse the same external idempotency key",
+        )
 
     def test_retry_limit_is_enforced(self):
         registry = HandlerRegistry()
