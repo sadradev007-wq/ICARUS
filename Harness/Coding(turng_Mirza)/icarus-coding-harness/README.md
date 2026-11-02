@@ -8,7 +8,7 @@ An original, approval-first coding-agent runtime informed by patterns across the
 - Workspace-contained file listing, reading, writing, and text search.
 - Unified diff patch proposals with source-version checks and per-hunk approval.
 - Local Git checkpoints stored in private refs; path-scoped rollback with per-path approval.
-- Read-only test discovery for Python, JavaScript/TypeScript, Rust, Go, Maven, Gradle, and .NET; maps changed files to likely tests.
+- Read-only test and dependency-ecosystem discovery across Python, JavaScript/TypeScript, Rust, Go, Java, .NET, PHP, Ruby, Dart/Flutter, Swift, C/C++, Elixir, Haskell, and R. pnpm is the default JavaScript package manager.
 - Allowlisted test/build commands; writes and commands require approval by default.
 - Git status/diff inspection and workspace-local project memory.
 - Python standard library only; Python 3.11+.
@@ -28,7 +28,9 @@ Run:
     icarus-harness inspect --workspace .
     icarus-harness run "Inspect the project and fix the parser bug" --workspace .
 
-## Test discovery
+## Package ecosystems and test discovery
+The `discover_tests` tool reports detected dependency manifests, lockfiles, package managers, candidate install commands, test commands, and likely related test files. JavaScript/TypeScript uses `pnpm` rather than `npm`. Discovery is read-only: it does not install packages, contact registries, or execute test commands. The catalog describes package ecosystems; it does not vendor or bundle every third-party library.
+
 The agent can call `discover_tests` to identify language profiles, test files, likely tests related to changed paths, and candidate commands. Discovery is read-only and never launches a test process. Suggested commands still pass through the command allowlist and interactive approval. Some ecosystems (for example Maven, Gradle, and .NET) may require an explicit allowlist entry before execution.
 
 ## Checkpoint workflow

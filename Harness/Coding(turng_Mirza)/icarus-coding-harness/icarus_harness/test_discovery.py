@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 from .workspace import Workspace, WorkspaceError
+from .ecosystems import discover_ecosystems
 
 @dataclass(frozen=True)
 class TestProfile:
@@ -92,7 +93,7 @@ class TestDiscovery:
                         or Path(p).name.casefold() in {"jest.config.js", "jest.config.ts", "vitest.config.js", "vitest.config.ts"}]
             if isinstance(scripts, dict) and isinstance(scripts.get("test"), str):
                 related = self._related(changed, js_tests)
-                profiles.append(TestProfile("javascript/typescript", ("npm", "test"), "high" if js_tests else "medium",
+                profiles.append(TestProfile("javascript/typescript", ("pnpm", "test"), "high" if js_tests else "medium",
                     "package.json defines a test script.", tuple(js_tests),
                     tuple(related or (js_tests if not changed else ()))))
 
@@ -133,7 +134,7 @@ class TestDiscovery:
                 tuple(related or (dotnet_tests if not changed else ()))))
 
         return {"workspace": str(self.workspace.root), "changed_paths": changed,
-                "execution_performed": False, "profiles": [{"language": p.language, "command": list(p.command), "confidence": p.confidence, "reason": p.reason, "test_files": list(p.test_files), "related_tests": list(p.related_tests)} for p in profiles],
+                "execution_performed": False, "ecosystems": discover_ecosystems(files), "profiles": [{"language": p.language, "command": list(p.command), "confidence": p.confidence, "reason": p.reason, "test_files": list(p.test_files), "related_tests": list(p.related_tests)} for p in profiles],
                 "notes": ["Discovery is read-only; no test command was executed.",
                           "Run tests only through the approval-gated command tool.",
                           "Some suggested commands require an explicit policy allowlist entry."]}

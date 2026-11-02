@@ -23,6 +23,12 @@ The runtime is deliberately bounded. Workspace resolves every path against a can
 
 Checkpoints are local Git refs, not remote backups. They do not include untracked files. Checkpoint metadata is versioned and stored in Git objects. No automatic commit, push, branch reset, or force operation is used.
 
+## Package ecosystem and test discovery flow
+1. The ecosystem catalog detects dependency manifests and lockfiles for major language ecosystems and reports package managers plus candidate install/test commands.
+2. JavaScript/TypeScript defaults to `pnpm`; the harness does not recommend `npm`.
+3. Discovery never installs packages, contacts registries, or executes candidate commands. Any future install action must be separately policy-gated and approved.
+4. Third-party library contents are not copied into ICARUS; dependencies remain managed by each ecosystem's package manager.
+
 ## Test discovery flow
 1. `discover_tests` inspects workspace filenames and selected manifest/configuration files without executing project code.
 2. It identifies supported language profiles and candidate test commands.

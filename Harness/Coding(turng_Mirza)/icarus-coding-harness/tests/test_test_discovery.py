@@ -37,8 +37,27 @@ class TestDiscoveryTests(unittest.TestCase):
         self.write("src/app.test.ts", "")
         profile = self.discover(["src/app.ts"])["profiles"][0]
         self.assertEqual(profile["language"], "javascript/typescript")
-        self.assertEqual(profile["command"], ["npm", "test"])
+        self.assertEqual(profile["command"], ["pnpm", "test"])
         self.assertEqual(profile["related_tests"], ["src/app.test.ts"])
+    def test_pnpm_is_preferred_and_lockfile_is_reported(self):
+        self.write("package.json", json.dumps({"packageManager": "pnpm@10.0.0", "scripts": {"test": "vitest run"}}))
+        self.write("pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
+        result = self.discover()
+        ecosystem = next(item for item in result["ecosystems"] if item["language"] == "javascript/typescript")
+        self.assertEqual(ecosystem["manager"], "pnpm")
+        self.assertEqual(ecosystem["install_command"], ["pnpm", "install", "--frozen-lockfile"])
+        self.assertEqual(ecosystem["lockfiles"], ["pnpm-lock.yaml"])
+        self.assertEqual(next(p for p in result["profiles"] if p["language"] == "javascript/typescript")["command"], ["pnpm", "test"])
+
+    def test_major_ecosystems_are_discovered(self):
+        for marker in ("pyproject.toml", "Cargo.toml", "go.mod", "pom.xml", "composer.json",
+                       "Gemfile", "pubspec.yaml", "Package.swift", "CMakeLists.txt", "mix.exs",
+                       "stack.yaml", "Demo.csproj"):
+            self.write(marker, "")
+        languages = {item["language"] for item in self.discover()["ecosystems"]}
+        self.assertTrue({"python", "rust", "go", "java", "php", "ruby", "dart/flutter",
+                         "swift", "c/c++", "elixir", "haskell", "dotnet"}.issubset(languages))
+
     def test_rust_and_go_profiles(self):
         self.write("Cargo.toml", "[package]\nname='demo'\n")
         self.write("src/lib.rs", "")
