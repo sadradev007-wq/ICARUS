@@ -74,7 +74,7 @@ class TestDiscovery:
                 except (OSError, WorkspaceError):
                     pass
             uses_pytest = "pytest.ini" in file_set or "conftest.py" in file_set or "[tool.pytest" in config_text or "pytest" in config_text
-            command = ("pytest", "-q") if uses_pytest else ("python", "-m", "unittest", "discover", "-v")
+            command = ("pytest", "-q") if uses_pytest else (("python", "-m", "unittest", "discover", "-s", "tests", "-v") if "tests" in file_set else (("python", "-m", "unittest", "discover", "-s", "test", "-v") if "test" in file_set else ("python", "-m", "unittest", "discover", "-v")))
             related = self._related(changed, python_tests)
             profiles.append(TestProfile("python", command, "high" if python_tests else "medium",
                 "Python project markers and test files detected." if python_tests else "Python project marker detected; no test files were found.",
