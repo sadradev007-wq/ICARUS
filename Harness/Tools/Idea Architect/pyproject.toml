@@ -12,6 +12,7 @@ dependencies = []
 
 [project.scripts]
 icarus-idea = "idea_architect.cli:main"
+icarus-tasks = "idea_architect.task_cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
