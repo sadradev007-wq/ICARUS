@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .planner import PlanningEngine
+from .crash_recovery import DurableJournal, persist_queue
 from .protocol import write_json, is_executable
 from .visualization import export_project_graph
 
@@ -23,6 +24,8 @@ class ProjectOrchestrator:
             raise FileExistsError(f"Project already exists: {project_id}")
         plan = self.planner.create_plan(idea, project_id)
         project_dir.mkdir(parents=True)
+        journal = DurableJournal(project_dir / "execution" / "event_journal.jsonl")
+        journal.append("plan_snapshot", {"plan": plan})
         write_json(project_dir / "idea.json", {
             "project_id": project_id, "idea": idea,
             "created_at": datetime.now(timezone.utc).isoformat()
@@ -34,7 +37,7 @@ class ProjectOrchestrator:
             "protocol": "ITP-1.0"
         })
         queue = self._execution_queue(plan)
-        write_json(project_dir / "execution" / "execution_queue.json", queue)
+        persist_queue(project_dir / "execution" / "execution_queue.json", journal, queue)
         graph_files = export_project_graph(project_dir, plan, queue)
         return {"project_id": project_id, "directory": str(project_dir), "plan": plan,
                 "execution_queue": queue, "visualization": graph_files}
