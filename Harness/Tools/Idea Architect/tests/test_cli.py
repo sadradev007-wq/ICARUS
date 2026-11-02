@@ -86,6 +86,7 @@ class CliLifecycleTests(unittest.TestCase):
 
         status = self._run_cli("--project-dir", self.project, "--status")
         self.assertEqual(status["queue"]["status_counts"], {"completed": 1})
+        self.assertEqual(status["queue"]["task_count"], 1)
         self.assertEqual(status["queue"]["tasks"][0]["human_review"]["decision"], "accept")
 
 
