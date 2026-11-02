@@ -8,6 +8,7 @@ An original, approval-first coding-agent runtime informed by patterns across the
 - Workspace-contained file listing, reading, writing, and text search.
 - Unified diff patch proposals with source-version checks and per-hunk approval.
 - Local Git checkpoints stored in private refs; path-scoped rollback with per-path approval.
+- Read-only test discovery for Python, JavaScript/TypeScript, Rust, Go, Maven, Gradle, and .NET; maps changed files to likely tests.
 - Allowlisted test/build commands; writes and commands require approval by default.
 - Git status/diff inspection and workspace-local project memory.
 - Python standard library only; Python 3.11+.
@@ -26,6 +27,9 @@ Set environment:
 Run:
     icarus-harness inspect --workspace .
     icarus-harness run "Inspect the project and fix the parser bug" --workspace .
+
+## Test discovery
+The agent can call `discover_tests` to identify language profiles, test files, likely tests related to changed paths, and candidate commands. Discovery is read-only and never launches a test process. Suggested commands still pass through the command allowlist and interactive approval. Some ecosystems (for example Maven, Gradle, and .NET) may require an explicit allowlist entry before execution.
 
 ## Checkpoint workflow
 The agent calls `create_checkpoint` before a risky task. Checkpoints refuse untracked files and unresolved index conflicts, and they do not change the working tree. The returned ID can later be passed to `rollback_checkpoint`. Rollback refuses if HEAD has moved, asks approval for each captured path, and restores only approved paths. Checkpoints remain local; they are not backups on GitHub.

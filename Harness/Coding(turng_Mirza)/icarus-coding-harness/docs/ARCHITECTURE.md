@@ -1,7 +1,7 @@
 # Architecture
 
 CLI -> AgentRuntime -> OpenAI-compatible model adapter
-                 -> ToolRegistry -> Workspace / Git / patch engine / checkpoint manager
+                 -> ToolRegistry -> Workspace / Git / patch engine / checkpoint manager / test discovery
                  -> PolicyEngine -> interactive approval
                  -> ProjectMemory
 
@@ -23,4 +23,11 @@ The runtime is deliberately bounded. Workspace resolves every path against a can
 
 Checkpoints are local Git refs, not remote backups. They do not include untracked files. Checkpoint metadata is versioned and stored in Git objects. No automatic commit, push, branch reset, or force operation is used.
 
-Current limitations: first returned tool call only; no streaming, parallel calls, durable patch queue outside Git refs, test discovery, semantic retrieval, multi-agent delegation, or GUI.
+## Test discovery flow
+1. `discover_tests` inspects workspace filenames and selected manifest/configuration files without executing project code.
+2. It identifies supported language profiles and candidate test commands.
+3. Changed paths are mapped to conventionally named tests where possible; otherwise the full discovered test set is returned when no changed paths were supplied.
+4. The tool returns candidate commands only. Execution remains a separate `run_command` action subject to command-prefix allowlisting and interactive approval.
+5. Supplied paths are resolved through Workspace; paths outside the workspace are rejected.
+
+Current limitations: first returned tool call only; no streaming, parallel calls, durable patch queue outside Git refs, semantic retrieval, independent reviewer, multi-agent delegation, or GUI. Test-to-source mapping is convention-based and may miss custom test layouts.

@@ -11,7 +11,7 @@
 ## Phase 1 — engineering safety
 - [x] Unified diff proposal/apply with per-hunk approval and stale-source detection
 - [x] Git checkpoints and path-scoped, per-path approved rollback
-- Test discovery and language profiles
+- [x] Read-only test discovery and language profiles (Python, JS/TS, Rust, Go, Maven, Gradle, .NET)
 - Structured logs and resumable sessions
 - Secret redaction and binary/size guards
 
