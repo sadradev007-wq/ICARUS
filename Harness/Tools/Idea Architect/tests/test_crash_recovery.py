@@ -101,7 +101,7 @@ class CrashRecoveryTests(unittest.TestCase):
             "execution_policy": "manual_approval_required",
             "tasks": [],
         })
-        ExecutionEngine(self.root, HandlerRegistry())
+        engine = ExecutionEngine(self.root, HandlerRegistry())
         self.assertEqual(json.loads(plan_path.read_text(encoding="utf-8")), plan)
         self.assertEqual(engine.journal.replay_plan(), plan)
 
