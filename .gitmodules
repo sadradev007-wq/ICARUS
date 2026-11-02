@@ -1,75 +1,75 @@
 [submodule "aider"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/aider
+	path = Harness/Coding(turng_Mirza)/sample/aider
 	url = https://github.com/Aider-AI/aider.git
 
 [submodule "deepseek-harness"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/deepseek-harness
+	path = Harness/Coding(turng_Mirza)/sample/deepseek-harness
 	url = https://github.com/deepseek-ai/deepseek-harness.git
 
 [submodule "factory"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/factory
+	path = Harness/Coding(turng_Mirza)/sample/factory
 	url = https://github.com/Factory-AI/factory.git
 
 [submodule "forgecode"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/forgecode
+	path = Harness/Coding(turng_Mirza)/sample/forgecode
 	url = https://github.com/tailcallhq/forgecode.git
 
 [submodule "gemini-cli"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/gemini-cli
+	path = Harness/Coding(turng_Mirza)/sample/gemini-cli
 	url = https://github.com/google-gemini/gemini-cli.git
 
 [submodule "goose"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/goose
+	path = Harness/Coding(turng_Mirza)/sample/goose
 	url = https://github.com/aaif-goose/goose.git
 
 [submodule "grok-build"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/grok-build
+	path = Harness/Coding(turng_Mirza)/sample/grok-build
 	url = https://github.com/xai-org/grok-build.git
 
 [submodule "jcode"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/jcode
+	path = Harness/Coding(turng_Mirza)/sample/jcode
 	url = https://github.com/1jehuang/jcode.git
 
 [submodule "kander"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/kander
+	path = Harness/Coding(turng_Mirza)/sample/kander
 	url = https://github.com/dualface/kander.git
 
 [submodule "kilocode"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/kilocode
+	path = Harness/Coding(turng_Mirza)/sample/kilocode
 	url = https://github.com/Kilo-Org/kilocode.git
 
 [submodule "langchain"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/langchain
+	path = Harness/Coding(turng_Mirza)/sample/langchain
 	url = https://github.com/langchain-ai/langchain.git
 
 [submodule "open-design"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/open-design
+	path = Harness/Coding(turng_Mirza)/sample/open-design
 	url = https://github.com/nexu-io/open-design.git
 
 [submodule "openclaw"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/openclaw
+	path = Harness/Coding(turng_Mirza)/sample/openclaw
 	url = https://github.com/openclaw/openclaw.git
 
 [submodule "opencode"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/opencode
+	path = Harness/Coding(turng_Mirza)/sample/opencode
 	url = https://github.com/anomalyco/opencode.git
 
 [submodule "openhands"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/openhands
+	path = Harness/Coding(turng_Mirza)/sample/openhands
 	url = https://github.com/OpenHands/OpenHands.git
 
 [submodule "qwen-code"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/qwen-code
+	path = Harness/Coding(turng_Mirza)/sample/qwen-code
 	url = https://github.com/QwenLM/qwen-code.git
 
 [submodule "roo-code"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/roo-code
+	path = Harness/Coding(turng_Mirza)/sample/roo-code
 	url = https://github.com/RooCodeInc/Roo-Code.git
 
 [submodule "ruflo"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/ruflo
+	path = Harness/Coding(turng_Mirza)/sample/ruflo
 	url = https://github.com/ruvnet/ruflo.git
 
 [submodule "zcode"]
-	path = Harness/کدینگ)تورینگ میرزا)/سمپل/zcode
+	path = Harness/Coding(turng_Mirza)/sample/zcode
 	url = https://github.com/zai-org/ZCode.git
