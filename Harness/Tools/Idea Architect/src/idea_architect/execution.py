@@ -173,7 +173,7 @@ class ExecutionEngine:
         self.journal.append("audit_event", record)
         try:
             with self.audit_path.open("a", encoding="utf-8") as stream:
-                stream.write(json.dumps(record, ensure_ascii=False) + "\\n")
+                stream.write(json.dumps(record, ensure_ascii=False) + "\n")
                 stream.flush()
                 os.fsync(stream.fileno())
         except OSError:
@@ -186,7 +186,7 @@ class ExecutionEngine:
             and isinstance(event.get("payload"), dict)
         ]
         data = b"".join(
-            (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\\n").encode("utf-8")
+            (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
             for record in records
         )
         temporary = self.audit_path.with_name(
