@@ -24,6 +24,25 @@ def _competing_approval_worker(project_dir, barrier, results):
         results.put("rejected")
 
 
+def _competing_run_worker(project_dir, marker_path, barrier, results):
+    registry = HandlerRegistry()
+
+    def handler(task, root):
+        with Path(marker_path).open("a", encoding="utf-8") as stream:
+            stream.write("executed\\n")
+            stream.flush()
+        return {"y": "done"}
+
+    registry.register("test.handler", handler)
+    engine = ExecutionEngine(Path(project_dir), registry)
+    barrier.wait(timeout=15)
+    try:
+        task = engine.run("T-1")
+        results.put(task["status"])
+    except ExecutionError:
+        results.put("rejected")
+
+
 class CrashRecoveryTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -117,6 +136,44 @@ class CrashRecoveryTests(unittest.TestCase):
         self.assertEqual(outcomes, ["approved", "rejected"])
         saved = json.loads(self.queue_path.read_text(encoding="utf-8"))
         self.assertEqual(saved["tasks"][0]["status"], "approved")
+
+    def test_two_processes_cannot_execute_the_same_approved_task_twice(self):
+        marker = self.root / "side_effects.txt"
+        queue = {
+            "project_id": "parallel-run",
+            "execution_policy": "manual_approval_required",
+            "tasks": [{
+                "task_id": "T-1", "status": "approved",
+                "method": ["run"], "inputs": ["x"],
+                "expected_outputs": ["y"], "acceptance_criteria": ["y exists"],
+                "dependencies": [], "approval": {
+                    "handler_id": "test.handler", "approved_by": "operator"
+                }
+            }]
+        }
+        write_json(self.queue_path, queue)
+        registry = HandlerRegistry()
+        registry.register("test.handler", lambda task, root: {"y": "done"})
+        ExecutionEngine(self.root, registry)
+
+        context = multiprocessing.get_context("spawn")
+        barrier = context.Barrier(2)
+        results = context.Queue()
+        processes = [
+            context.Process(
+                target=_competing_run_worker,
+                args=(str(self.root), str(marker), barrier, results),
+            )
+            for _ in range(2)
+        ]
+        for process in processes:
+            process.start()
+        for process in processes:
+            process.join(25)
+        self.assertEqual([process.exitcode for process in processes], [0, 0])
+        outcomes = sorted(results.get(timeout=5) for _ in processes)
+        self.assertEqual(outcomes, ["awaiting_review", "rejected"])
+        self.assertEqual(marker.read_text(encoding="utf-8").splitlines(), ["executed"])
 
     def test_hash_chain_detects_tampering(self):
         persist_queue(self.queue_path, self.journal, self.queue)
