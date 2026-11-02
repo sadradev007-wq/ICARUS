@@ -38,7 +38,8 @@ def main() -> None:
         "project_id": result["project_id"],
         "directory": result["directory"],
         "executable_task_count": len(result["execution_queue"]["tasks"]),
-        "execution_policy": result["execution_queue"]["execution_policy"]
+        "execution_policy": result["execution_queue"]["execution_policy"],
+        "visualization": result["visualization"]
     }, ensure_ascii=False, indent=2))
 
 

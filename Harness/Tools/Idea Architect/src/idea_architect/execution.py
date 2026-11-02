@@ -9,6 +9,8 @@ import hashlib
 import json
 import os
 import uuid
+from contextlib import contextmanager
+from functools import wraps
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -69,6 +71,16 @@ class HandlerRegistry:
             raise ExecutionError(f"Handler is not allow-listed: {handler_id}") from exc
 
 
+
+
+def _serialized(method):
+    """Serialize queue mutations across processes; handlers run while holding the lock."""
+    @wraps(method)
+    def wrapped(self, *args, **kwargs):
+        with self._queue_lock():
+            return method(self, *args, **kwargs)
+    return wrapped
+
 class ExecutionEngine:
     """Run one approved leaf task and persist every state transition.
 
@@ -97,13 +109,40 @@ class ExecutionEngine:
             raise ValueError("max_retries cannot be negative")
         self.registry, self.evaluator = registry, evaluator
         self.max_retries = max_retries
-        queue, restored = restore_queue(self.queue_path, self.journal)
-        interrupted = recover_interrupted_tasks(queue)
-        if interrupted:
-            persist_queue(self.queue_path, self.journal, queue)
-            self._audit("startup_recovery", "*", interrupted_task_ids=interrupted)
-        elif not restored:
-            persist_queue(self.queue_path, self.journal, queue)
+        with self._queue_lock():
+            queue, restored = restore_queue(self.queue_path, self.journal)
+            interrupted = recover_interrupted_tasks(queue)
+            if interrupted:
+                persist_queue(self.queue_path, self.journal, queue)
+                self._audit("startup_recovery", "*", interrupted_task_ids=interrupted)
+            elif not restored:
+                persist_queue(self.queue_path, self.journal, queue)
+
+    @contextmanager
+    def _queue_lock(self):
+        """Hold an OS-level exclusive lock for the complete queue transaction."""
+        lock_path = self.execution_dir / ".queue.lock"
+        with lock_path.open("a+b") as stream:
+            if os.name == "nt":
+                import msvcrt
+                stream.seek(0, os.SEEK_END)
+                if stream.tell() == 0:
+                    stream.write(bytes([0]))
+                    stream.flush()
+                stream.seek(0)
+                msvcrt.locking(stream.fileno(), msvcrt.LK_LOCK, 1)
+                try:
+                    yield
+                finally:
+                    stream.seek(0)
+                    msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+                try:
+                    yield
+                finally:
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
     def _read_queue(self) -> dict[str, Any]:
         queue = json.loads(self.queue_path.read_text(encoding="utf-8"))
@@ -129,6 +168,7 @@ class ExecutionEngine:
             os.fsync(stream.fileno())
         self.journal.append("audit_event", record)
 
+    @_serialized
     def approve(self, task_id: str, handler_id: str, *, approved_by: str) -> dict[str, Any]:
         if not approved_by.strip():
             raise ValueError("approved_by is required")
@@ -149,6 +189,7 @@ class ExecutionEngine:
         self._audit("task_approved", task_id, approved_by=approved_by, handler_id=handler_id)
         return task
 
+    @_serialized
     def retry(self, task_id: str, *, requested_by: str, reason: str) -> dict[str, Any]:
         """Request a fresh human approval for another attempt of a failed task."""
         if not requested_by.strip() or not reason.strip():
@@ -175,6 +216,7 @@ class ExecutionEngine:
                     retry_count=task["retry_count"], reason=reason)
         return task
 
+    @_serialized
     def run(self, task_id: str) -> dict[str, Any]:
         queue = self._read_queue()
         task = self._find_task(queue, task_id)

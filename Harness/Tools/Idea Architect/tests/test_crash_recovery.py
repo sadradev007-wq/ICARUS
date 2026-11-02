@@ -62,6 +62,7 @@ class CrashRecoveryTests(unittest.TestCase):
             return {"y": "done"}
         registry.register("test.handler", handler)
         engine = ExecutionEngine(self.root, registry)
+        self.assertTrue((self.root / "execution" / ".queue.lock").exists())
         saved = json.loads(self.queue_path.read_text(encoding="utf-8"))
         self.assertEqual(saved["tasks"][0]["status"], "awaiting_review")
         with self.assertRaises(ExecutionError):

@@ -9,6 +9,7 @@ from typing import Any
 
 from .planner import PlanningEngine
 from .protocol import write_json, is_executable
+from .visualization import export_project_graph
 
 
 class ProjectOrchestrator:
@@ -34,7 +35,9 @@ class ProjectOrchestrator:
         })
         queue = self._execution_queue(plan)
         write_json(project_dir / "execution" / "execution_queue.json", queue)
-        return {"project_id": project_id, "directory": str(project_dir), "plan": plan, "execution_queue": queue}
+        graph_files = export_project_graph(project_dir, plan, queue)
+        return {"project_id": project_id, "directory": str(project_dir), "plan": plan,
+                "execution_queue": queue, "visualization": graph_files}
 
     def _execution_queue(self, plan: dict[str, Any]) -> dict[str, Any]:
         descendants: dict[str, list[str]] = {}
