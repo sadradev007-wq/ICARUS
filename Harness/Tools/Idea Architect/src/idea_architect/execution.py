@@ -275,8 +275,9 @@ class ExecutionEngine:
         # Keep the key stable across retries of the same logical task. A handler that
         # forwards this key to an idempotent external service can then prevent duplicate
         # side effects when a human-approved retry follows an uncertain outcome.
+        idempotency_scope = task.setdefault("idempotency_scope", uuid.uuid4().hex)
         idempotency_key = hashlib.sha256(
-            f"{queue.get('project_id', self.project_dir.name)}:{task_id}".encode("utf-8")
+            f"{queue.get('project_id', self.project_dir.name)}:{task_id}:{idempotency_scope}".encode("utf-8")
         ).hexdigest()
         task["idempotency_key"] = idempotency_key
         attempt = {
