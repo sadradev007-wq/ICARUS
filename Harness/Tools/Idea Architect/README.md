@@ -79,6 +79,15 @@ sudo apt update && sudo apt install bubblewrap
 
 این sandbox به تنظیمات کرنل و میزبان وابسته است و جایگزین VM یا sandbox سخت‌افزاری نیست. پیش از اجرای کد ناشناس باید روی دستگاه هدف آزمایش امنیتی شود.
 
+## بازیابی پس از توقف ناگهانی (مرحلهٔ ۹، هستهٔ اولیه)
+
+- `protocol.write_json` از فایل موقت یکتا، `fsync` و جایگزینی اتمیک استفاده می‌کند.
+- `event_journal.jsonl` یک journal افزایشیِ hash-chain است؛ snapshot صف پیش از جایگزینی فایل صف ثبت و پایدار می‌شود.
+- در شروع `ExecutionEngine`، آخرین snapshot معتبر journal برای بازسازی صف استفاده می‌شود؛ journal خراب باعث توقف fail-closed می‌شود.
+- وظیفه‌ای که هنگام توقف در وضعیت `running` مانده باشد، به `awaiting_review` منتقل و تلاش آن `interrupted` علامت‌گذاری می‌شود؛ هیچ handler به‌طور خودکار دوباره اجرا نمی‌شود.
+- برای هر تلاش `idempotency_key` پایدار به handler داده می‌شود. این کلید فقط امکان deduplication را فراهم می‌کند؛ تضمین exactly-once برای handler یا سرویس بیرونی‌ای که آن را رعایت نکند ایجاد نمی‌کند.
+- این مرحله هنوز قفل بین‌فرایندی، تراکنش چندفایلی و تصمیم‌گیری خودکار دربارهٔ اثر جانبی نامعلوم را فراهم نمی‌کند. وظایف interrupted نیازمند بررسی انسانی هستند.
+
 ## بازخورد System 2 و ارزیابی
 
 `System2FeedbackEvaluator` خروجی واقعی Handler و معیارهای پذیرش را به System 2 می‌فرستد. پاسخ باید برای هر معیار وضعیت `met`, `not_met` یا `unknown` و شواهد متنی داشته باشد.
@@ -114,6 +123,7 @@ Idea Architect/
 │   ├── planner.py
 │   ├── orchestrator.py
 │   ├── execution.py
+│   ├── crash_recovery.py
 │   ├── sandbox.py
 │   ├── skills.py
 │   ├── feedback.py
@@ -123,6 +133,7 @@ Idea Architect/
 └── tests/
     ├── test_protocol.py
     ├── test_execution.py
+│   ├── test_crash_recovery.py
     ├── test_sandbox.py
     ├── test_skills.py
     ├── test_feedback.py
@@ -167,7 +178,7 @@ icarus-idea "ساخت دستیار فایل آفلاین" --system1-model MODEL_
 | ۶ | ارزیابی معیارهای پذیرش | انجام شد؛ تکمیل خودکار نیازمند verifier میزبان است |
 | ۷ | retry و بازبرنامه‌ریزی | انجام شد؛ با تأیید انسانی |
 | ۸ | زمان‌بندی وابستگی‌ها | اجرای ترتیبی انجام شد؛ موازی‌سازی باقی است |
-| ۹ | بازیابی پس از crash | باقی است |
+| ۹ | بازیابی پس از crash | هستهٔ اولیه: snapshot پایدار، journal hash-chain و علامت‌گذاری امن وظایف interrupted؛ قفل بین‌فرایندی و بررسی روی میزبان باقی است |
 | ۱۰ | رابط کاربری و آزمون end-to-end | باقی است |
 
 ## محدودیت‌های فعلی

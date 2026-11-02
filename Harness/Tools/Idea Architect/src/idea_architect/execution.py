@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -14,6 +15,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .protocol import write_json
+from .crash_recovery import DurableJournal, persist_queue, recover_interrupted_tasks, restore_queue
 from .scheduler import DependencyError, task_is_ready, topological_batches
 
 
@@ -86,14 +88,22 @@ class ExecutionEngine:
         self.execution_dir.mkdir(parents=True, exist_ok=True)
         self.queue_path = self.execution_dir / "execution_queue.json"
         self.audit_path = self.execution_dir / "audit_log.jsonl"
+        self.journal = DurableJournal(self.execution_dir / "event_journal.jsonl")
         self.results_dir = self.execution_dir / "results"
         self.results_dir.mkdir(parents=True, exist_ok=True)
-        if not self.queue_path.exists():
+        if not self.queue_path.exists() and self.journal.latest_queue_snapshot() is None:
             raise FileNotFoundError(f"Execution queue not found: {self.queue_path}")
         if max_retries < 0:
             raise ValueError("max_retries cannot be negative")
         self.registry, self.evaluator = registry, evaluator
         self.max_retries = max_retries
+        queue, restored = restore_queue(self.queue_path, self.journal)
+        interrupted = recover_interrupted_tasks(queue)
+        if interrupted:
+            persist_queue(self.queue_path, self.journal, queue)
+            self._audit("startup_recovery", "*", interrupted_task_ids=interrupted)
+        elif not restored:
+            persist_queue(self.queue_path, self.journal, queue)
 
     def _read_queue(self) -> dict[str, Any]:
         queue = json.loads(self.queue_path.read_text(encoding="utf-8"))
@@ -108,13 +118,16 @@ class ExecutionEngine:
         return queue
 
     def _write_queue(self, queue: dict[str, Any]) -> None:
-        write_json(self.queue_path, queue)
+        persist_queue(self.queue_path, self.journal, queue)
 
     def _audit(self, event: str, task_id: str, **details: Any) -> None:
         record = {"event_id": uuid.uuid4().hex, "timestamp": _now(),
                   "event": event, "task_id": task_id, **details}
         with self.audit_path.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(record, ensure_ascii=False) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        self.journal.append("audit_event", record)
 
     def approve(self, task_id: str, handler_id: str, *, approved_by: str) -> dict[str, Any]:
         if not approved_by.strip():
@@ -175,9 +188,14 @@ class ExecutionEngine:
         task["status"] = "running"
         task["started_at"] = _now()
         task["attempt_count"] = int(task.get("attempt_count", 0)) + 1
+        idempotency_key = hashlib.sha256(
+            f"{queue.get('project_id', self.project_dir.name)}:{task_id}:{task['attempt_count']}".encode("utf-8")
+        ).hexdigest()
+        task["idempotency_key"] = idempotency_key
         attempt = {
             "attempt": task["attempt_count"], "started_at": task["started_at"],
-            "handler_id": handler_id, "status": "running"
+            "handler_id": handler_id, "status": "running",
+            "idempotency_key": idempotency_key
         }
         task.setdefault("attempts", []).append(attempt)
         self._write_queue(queue)
