@@ -1,75 +1,75 @@
 [submodule "aider"]
-	path = aider
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/aider
 	url = https://github.com/Aider-AI/aider.git
 
 [submodule "deepseek-harness"]
-	path = deepseek-harness
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/deepseek-harness
 	url = https://github.com/deepseek-ai/deepseek-harness.git
 
 [submodule "factory"]
-	path = factory
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/factory
 	url = https://github.com/Factory-AI/factory.git
 
 [submodule "forgecode"]
-	path = forgecode
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/forgecode
 	url = https://github.com/tailcallhq/forgecode.git
 
 [submodule "gemini-cli"]
-	path = gemini-cli
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/gemini-cli
 	url = https://github.com/google-gemini/gemini-cli.git
 
 [submodule "goose"]
-	path = goose
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/goose
 	url = https://github.com/aaif-goose/goose.git
 
 [submodule "grok-build"]
-	path = grok-build
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/grok-build
 	url = https://github.com/xai-org/grok-build.git
 
 [submodule "jcode"]
-	path = jcode
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/jcode
 	url = https://github.com/1jehuang/jcode.git
 
 [submodule "kander"]
-	path = kander
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/kander
 	url = https://github.com/dualface/kander.git
 
 [submodule "kilocode"]
-	path = kilocode
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/kilocode
 	url = https://github.com/Kilo-Org/kilocode.git
 
 [submodule "langchain"]
-	path = langchain
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/langchain
 	url = https://github.com/langchain-ai/langchain.git
 
 [submodule "open-design"]
-	path = open-design
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/open-design
 	url = https://github.com/nexu-io/open-design.git
 
 [submodule "openclaw"]
-	path = openclaw
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/openclaw
 	url = https://github.com/openclaw/openclaw.git
 
 [submodule "opencode"]
-	path = opencode
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/opencode
 	url = https://github.com/anomalyco/opencode.git
 
 [submodule "openhands"]
-	path = openhands
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/openhands
 	url = https://github.com/OpenHands/OpenHands.git
 
 [submodule "qwen-code"]
-	path = qwen-code
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/qwen-code
 	url = https://github.com/QwenLM/qwen-code.git
 
 [submodule "roo-code"]
-	path = roo-code
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/roo-code
 	url = https://github.com/RooCodeInc/Roo-Code.git
 
 [submodule "ruflo"]
-	path = ruflo
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/ruflo
 	url = https://github.com/ruvnet/ruflo.git
 
 [submodule "zcode"]
-	path = zcode
+	path = Harness/کدینگ)تورینگ میرزا)/سمپل/zcode
 	url = https://github.com/zai-org/ZCode.git
