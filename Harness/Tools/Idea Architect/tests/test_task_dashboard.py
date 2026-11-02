@@ -67,6 +67,18 @@ class TaskDashboardTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, 400)
         self.assertEqual(self.store.list_tasks(), [])
 
+    def test_invalid_status_does_not_create_partial_task(self):
+        _, page = self.get()
+        token = page.split('name="csrf" value="', 1)[1].split('"', 1)[0]
+        payload = urllib.parse.urlencode({
+            "csrf": token, "title": "Invalid status", "status": "run_now",
+        }).encode()
+        request = urllib.request.Request(self.base + "/tasks", data=payload, method="POST")
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(request)
+        self.assertEqual(caught.exception.code, 400)
+        self.assertEqual(self.store.list_tasks(), [])
+
     def test_server_refuses_non_loopback_binding(self):
         with self.assertRaises(ValueError):
             create_task_server(self.store, host="0.0.0.0")
