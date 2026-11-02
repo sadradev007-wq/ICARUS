@@ -129,6 +129,7 @@ class DurableJournal:
         """Compatibility accessor for the most recent plan checkpoint."""
         return self.replay_plan()
 
+
 def persist_queue(path: Path, journal: DurableJournal, queue: dict[str, Any]) -> None:
     """Write-ahead journal first, then atomically materialize the queue."""
     journal.append("queue_snapshot", {"queue": queue})
