@@ -51,6 +51,7 @@ class DashboardTests(unittest.TestCase):
             with urlopen(base, timeout=5) as response:
                 page = response.read().decode("utf-8")
             self.assertIn("نمایش نمودار زنده", page)
+            self.assertIn("name=\"csrf\"", page)
             self.assertNotIn("<script>unsafe</script>", page)
             token = re.search(r'name="csrf" value="([^"]+)"', page).group(1)
             bad_data = urlencode({
