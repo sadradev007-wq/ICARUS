@@ -6,7 +6,7 @@ from pathlib import Path
 
 from idea_architect.crash_recovery import (
     DurableJournal, JournalCorruptionError, persist_queue,
-    recover_interrupted_tasks, restore_queue,
+    recover_interrupted_tasks, restore_plan, restore_queue,
 )
 from idea_architect.execution import ExecutionEngine, ExecutionError, HandlerRegistry
 from idea_architect.protocol import write_json
@@ -61,6 +61,48 @@ class CrashRecoveryTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def test_journal_replays_latest_queue_checkpoint(self):
+        first = {
+            "project_id": "replay", "execution_policy": "manual_approval_required",
+            "tasks": [{"task_id": "T-1", "status": "awaiting_approval"}],
+        }
+        second = {
+            "project_id": "replay", "execution_policy": "manual_approval_required",
+            "tasks": [{"task_id": "T-1", "status": "completed"}],
+        }
+        persist_queue(self.queue_path, self.journal, first)
+        persist_queue(self.queue_path, self.journal, second)
+        self.assertEqual(self.journal.replay_queue(), second)
+
+    def test_journal_rejects_a_sequence_gap(self):
+        persist_queue(self.queue_path, self.journal, self.queue)
+        path = self.root / "execution" / "event_journal.jsonl"
+        record = json.loads(path.read_text(encoding="utf-8"))
+        record["sequence"] = 9
+        path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+        with self.assertRaises(JournalCorruptionError):
+            self.journal.read_events()
+
+    def test_engine_restores_the_full_plan_checkpoint(self):
+        plan = {
+            "project_id": "plan-recovery",
+            "objective": "Restore the complete tree",
+            "tasks": [{"id": "ROOT", "title": "Root", "children": [
+                {"id": "LEAF", "title": "Leaf", "children": []}
+            ]}],
+        }
+        plan_path = self.root / "system1" / "initial_plan.json"
+        plan_path.parent.mkdir(parents=True)
+        self.journal.append("plan_snapshot", {"plan": plan})
+        plan_path.write_text("{broken", encoding="utf-8")
+        write_json(self.queue_path, {
+            "project_id": "plan-recovery",
+            "execution_policy": "manual_approval_required",
+            "tasks": [],
+        })
+        ExecutionEngine(self.root, HandlerRegistry())
+        self.assertEqual(json.loads(plan_path.read_text(encoding="utf-8")), plan)
 
     def test_journal_snapshot_restores_missing_queue(self):
         persist_queue(self.queue_path, self.journal, self.queue)
