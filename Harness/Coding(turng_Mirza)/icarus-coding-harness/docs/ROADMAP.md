@@ -9,7 +9,7 @@
 - Standard-library tests
 
 ## Phase 1 — engineering safety
-- Unified diff proposal/apply with per-hunk approval
+- [x] Unified diff proposal/apply with per-hunk approval and stale-source detection
 - Git checkpoint and rollback
 - Test discovery and language profiles
 - Structured logs and resumable sessions
