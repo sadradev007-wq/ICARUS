@@ -12,6 +12,8 @@ import threading
 from typing import Any
 from uuid import uuid4
 
+from .models import JsonModel
+
 from .protocol import write_json
 
 PRIORITY_RANK = {"critical": 0, "high": 1, "normal": 2, "low": 3}
@@ -121,3 +123,89 @@ class TaskStore:
 
     def archive(self, task_id: str) -> dict[str, Any]:
         return self.update(task_id, status="archived")
+
+
+
+class TaskAssistant:
+    """LLM-backed task planner; suggestions are inert until the user accepts them."""
+
+    SYSTEM_PROMPT = """You are the ICARUS Task Companion.
+Turn the user's goal into a practical, small, ordered task plan.
+Return exactly one JSON object with keys: objective, rationale, tasks.
+Each task must contain title, description, priority, and depends_on (array of
+zero-based indexes referring only to earlier tasks). Priority must be one of
+critical, high, normal, low. Keep tasks concrete and independently actionable.
+Do not invent due dates. Do not claim to have executed anything. If the goal is
+already a single actionable task, return one task. Output JSON only."""
+
+    def __init__(self, model: JsonModel, store: TaskStore):
+        self.model = model
+        self.store = store
+
+    def draft_plan(self, request: str, *, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        request = request.strip()
+        if not request:
+            raise ValueError("Task request cannot be empty")
+        result = self.model.generate_json(
+            role="system2",
+            system_prompt=self.SYSTEM_PROMPT,
+            payload={"request": request, "context": context or {}},
+        )
+        if not isinstance(result.get("objective"), str) or not result["objective"].strip():
+            raise ValueError("Task plan must include a non-empty objective")
+        if not isinstance(result.get("tasks"), list) or not result["tasks"]:
+            raise ValueError("Task plan must include at least one task")
+        validated = []
+        for index, item in enumerate(result["tasks"]):
+            if not isinstance(item, dict):
+                raise ValueError(f"Task {index} must be an object")
+            title = item.get("title")
+            description = item.get("description", "")
+            priority = item.get("priority", "normal")
+            dependencies = item.get("depends_on", [])
+            if not isinstance(title, str) or not title.strip():
+                raise ValueError(f"Task {index} requires a title")
+            if not isinstance(description, str):
+                raise ValueError(f"Task {index} description must be text")
+            if priority not in PRIORITY_RANK:
+                raise ValueError(f"Task {index} has invalid priority")
+            if not isinstance(dependencies, list) or any(
+                not isinstance(dep, int) or dep < 0 or dep >= index for dep in dependencies
+            ):
+                raise ValueError(f"Task {index} has invalid dependencies")
+            validated.append({
+                "title": title.strip(), "description": description.strip(),
+                "priority": priority, "depends_on": dependencies,
+            })
+        return {
+            "objective": result["objective"].strip(),
+            "rationale": str(result.get("rationale", "")),
+            "tasks": validated,
+            "requires_user_approval": True,
+        }
+
+    def accept_plan(self, plan: dict[str, Any], *, source: str = "task_companion") -> list[dict[str, Any]]:
+        """Persist a previously reviewed plan; caller must invoke only after user approval."""
+        if plan.get("requires_user_approval") is not True or not plan.get("tasks"):
+            raise ValueError("Only a validated, approval-gated task plan can be accepted")
+        created: list[dict[str, Any]] = []
+        ids: list[str] = []
+        for item in plan["tasks"]:
+            dependencies = [ids[index] for index in item["depends_on"]]
+            task = self.store.add(
+                item["title"], description=item["description"],
+                priority=item["priority"], source=source,
+                tags=["task-companion"],
+            )
+            task["depends_on"] = dependencies
+            # Dependencies are stored as ordinary metadata; they do not trigger execution.
+            with self.store._lock:
+                data = self.store._read()
+                for stored in data["tasks"]:
+                    if stored["id"] == task["id"]:
+                        stored["depends_on"] = dependencies
+                        self.store._write(data)
+                        break
+            ids.append(task["id"])
+            created.append(task)
+        return created
