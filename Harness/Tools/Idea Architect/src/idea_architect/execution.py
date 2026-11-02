@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .protocol import write_json
-from .crash_recovery import DurableJournal, persist_queue, recover_interrupted_tasks, restore_queue
+from .crash_recovery import DurableJournal, persist_queue, recover_interrupted_tasks, restore_plan, restore_queue
 from .scheduler import DependencyError, task_is_ready, topological_batches
 
 
@@ -115,6 +115,9 @@ class ExecutionEngine:
         self.max_retries = max_retries
         self.audit_projection_dirty = False
         with self._queue_lock():
+            restore_plan(
+                self.project_dir / "system1" / "initial_plan.json", self.journal
+            )
             queue, restored = restore_queue(self.queue_path, self.journal)
             interrupted = recover_interrupted_tasks(queue)
             if interrupted:
