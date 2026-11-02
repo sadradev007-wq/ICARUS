@@ -52,11 +52,11 @@ class TestDiscoveryTests(unittest.TestCase):
     def test_major_ecosystems_are_discovered(self):
         for marker in ("pyproject.toml", "Cargo.toml", "go.mod", "pom.xml", "composer.json",
                        "Gemfile", "pubspec.yaml", "Package.swift", "CMakeLists.txt", "mix.exs",
-                       "stack.yaml", "Demo.csproj"):
+                       "stack.yaml", "Demo.csproj", "build.sbt", "deps.edn", "demo.rockspec", "cpanfile", "Project.toml"):
             self.write(marker, "")
         languages = {item["language"] for item in self.discover()["ecosystems"]}
         self.assertTrue({"python", "rust", "go", "java", "php", "ruby", "dart/flutter",
-                         "swift", "c/c++", "elixir", "haskell", "dotnet"}.issubset(languages))
+                         "swift", "c/c++", "elixir", "haskell", "dotnet", "scala", "clojure", "lua", "perl", "julia"}.issubset(languages))
 
     def test_rust_and_go_profiles(self):
         self.write("Cargo.toml", "[package]\nname='demo'\n")

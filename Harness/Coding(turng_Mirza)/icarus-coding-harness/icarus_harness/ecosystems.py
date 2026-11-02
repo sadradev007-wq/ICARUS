@@ -19,25 +19,32 @@ ECOSYSTEMS: tuple[Ecosystem, ...] = (
     Ecosystem("python", "uv", ("pyproject.toml", "requirements.txt", "setup.py", "setup.cfg"), ("uv.lock",), ("uv", "sync", "--frozen"), ("uv", "run", "pytest", "-q")),
     Ecosystem("rust", "cargo", ("Cargo.toml",), ("Cargo.lock",), ("cargo", "fetch", "--locked"), ("cargo", "test")),
     Ecosystem("go", "go modules", ("go.mod",), ("go.sum",), ("go", "mod", "download"), ("go", "test", "./...")),
-    Ecosystem("java", "maven", ("pom.xml",), ("pom.xml",), ("mvn", "-B", "dependency:go-offline"), ("mvn", "test")),
+    Ecosystem("java", "maven", ("pom.xml",), (), ("mvn", "-B", "dependency:go-offline"), ("mvn", "test")),
     Ecosystem("java/kotlin/scala", "gradle", ("build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts"), ("gradle.lockfile",), ("gradle", "dependencies"), ("gradle", "test")),
     Ecosystem("dotnet", "NuGet/dotnet", (".csproj", ".fsproj", ".vbproj", ".sln"), ("packages.lock.json",), ("dotnet", "restore", "--locked-mode"), ("dotnet", "test")),
     Ecosystem("php", "Composer", ("composer.json",), ("composer.lock",), ("composer", "install", "--no-interaction", "--prefer-dist"), ("composer", "test")),
     Ecosystem("ruby", "Bundler", ("Gemfile",), ("Gemfile.lock",), ("bundle", "install", "--frozen"), ("bundle", "exec", "rake", "test")),
     Ecosystem("dart/flutter", "Pub", ("pubspec.yaml",), ("pubspec.lock",), ("dart", "pub", "get"), ("dart", "test")),
     Ecosystem("swift", "Swift Package Manager", ("Package.swift",), ("Package.resolved",), ("swift", "package", "resolve"), ("swift", "test")),
-    Ecosystem("c/c++", "CMake", ("CMakeLists.txt",), ("CMakeCache.txt",), ("cmake", "-S", ".", "-B", "build"), ("ctest", "--test-dir", "build")),
+    Ecosystem("c/c++", "CMake", ("CMakeLists.txt",), (), ("cmake", "-S", ".", "-B", "build"), ("ctest", "--test-dir", "build")),
     Ecosystem("c/c++", "Conan", ("conanfile.py", "conanfile.txt"), ("conan.lock",), ("conan", "install", "."), ("ctest", "--test-dir", "build")),
     Ecosystem("elixir", "Mix", ("mix.exs",), ("mix.lock",), ("mix", "deps.get"), ("mix", "test")),
     Ecosystem("haskell", "Cabal", ("*.cabal", "cabal.project"), ("cabal.project.freeze",), ("cabal", "update"), ("cabal", "test")),
     Ecosystem("haskell", "Stack", ("stack.yaml",), ("stack.yaml.lock",), ("stack", "setup"), ("stack", "test")),
     Ecosystem("r", "renv", ("renv.lock", "DESCRIPTION"), ("renv.lock",), ("Rscript", "-e", "renv::restore()"), ("Rscript", "-e", "devtools::test()")),
+    Ecosystem("scala", "sbt", ("build.sbt",), ("build.sbt",), ("sbt", "update"), ("sbt", "test")),
+    Ecosystem("clojure", "Clojure CLI", ("deps.edn",), ("deps.edn",), ("clojure", "-P"), ("clojure", "-M:test")),
+    Ecosystem("lua", "LuaRocks", ("*.rockspec",), ("luarocks.lock",), ("luarocks", "install", "--only-deps"), ("busted",)),
+    Ecosystem("perl", "Carton/CPAN", ("cpanfile",), ("cpanfile.snapshot",), ("carton", "install"), ("prove", "-lr", "t")),
+    Ecosystem("julia", "Pkg", ("Project.toml",), ("Manifest.toml",), ("julia", "--project", "-e", "using Pkg; Pkg.instantiate()"), ("julia", "--project", "-e", "using Pkg; Pkg.test()")),
 )
 
 
 def _matches(path: str, marker: str) -> bool:
     if marker.startswith("*."):
         return path.endswith(marker[1:])
+    if marker.startswith("."):
+        return path.endswith(marker)
     return path == marker or path.endswith("/" + marker)
 
 
