@@ -101,8 +101,9 @@ class CrashRecoveryTests(unittest.TestCase):
             "execution_policy": "manual_approval_required",
             "tasks": [],
         })
-        ExecutionEngine(self.root, HandlerRegistry())
+        engine = ExecutionEngine(self.root, HandlerRegistry())
         self.assertEqual(json.loads(plan_path.read_text(encoding="utf-8")), plan)
+        self.assertEqual(engine.journal.replay_plan(), plan)
 
     def test_journal_snapshot_restores_missing_queue(self):
         persist_queue(self.queue_path, self.journal, self.queue)
