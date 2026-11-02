@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from .models import JsonModel
+from .execution import ExecutionEngine, HandlerRegistry
 from .protocol import write_json
 
 
@@ -82,35 +82,11 @@ class System2Replanner:
             "rationale": proposal.get("rationale"),
             "revised_task": proposal.get("revised_task")
         }, proposal.get("task_id"))
-        queue = json.loads(self.queue_path.read_text(encoding="utf-8"))
-        matches = [x for x in queue.get("tasks", []) if x.get("task_id") == proposal["task_id"]]
-        if len(matches) != 1 or matches[0].get("status") != "failed":
-            raise ReplanError("Only one matching failed task can be revised")
-        task = matches[0]
-        # A revised task is a new logical operation; retries of this revision share
-        # a key, while the new revision must not be deduplicated against the old one.
-        task["idempotency_scope"] = uuid.uuid4().hex
-        task.pop("idempotency_key", None)
-        task.setdefault("revision_history", []).append({
-            "revised_at": datetime.now(timezone.utc).isoformat(),
-            "previous_title": task.get("title"),
-            "previous_method": task.get("method", [])
-        })
-        revised = proposal["revised_task"]
-        for field in (
-            "title", "description", "priority", "method", "inputs",
-            "expected_outputs", "acceptance_criteria", "required_skills",
-            "dependencies", "risks", "permissions"
-        ):
-            task[field] = revised[field]
-        task.pop("approval", None)
-        task["status"] = "awaiting_approval"
-        task["revision_approval"] = {
-            "approved_by": approved_by,
-            "approved_at": datetime.now(timezone.utc).isoformat(),
-            "proposal_id": proposal_id
-        }
-        write_json(self.queue_path, queue)
+        engine = ExecutionEngine(self.project_dir, HandlerRegistry())
+        task = engine.apply_revision(
+            proposal["task_id"], proposal["revised_task"],
+            proposal_id=proposal_id, approved_by=approved_by,
+        )
         proposal["status"] = "applied"
         proposal["applied_by"] = approved_by
         proposal["applied_at"] = datetime.now(timezone.utc).isoformat()
