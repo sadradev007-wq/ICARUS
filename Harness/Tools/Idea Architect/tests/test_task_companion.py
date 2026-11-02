@@ -2,7 +2,20 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from idea_architect.task_companion import TaskStore
+from idea_architect.task_companion import TaskAssistant, TaskStore
+from idea_architect.models import JsonModel
+
+
+class FakeModel(JsonModel):
+    def generate_json(self, *, role, system_prompt, payload):
+        return {
+            "objective": "Prepare a study session",
+            "rationale": "Split into actionable steps",
+            "tasks": [
+                {"title": "Collect materials", "description": "Gather notes", "priority": "high", "depends_on": []},
+                {"title": "Review notes", "description": "Read the notes", "priority": "normal", "depends_on": [0]},
+            ],
+        }
 
 
 class TaskStoreTests(unittest.TestCase):
@@ -26,6 +39,16 @@ class TaskStoreTests(unittest.TestCase):
         self.store.complete(task["id"])
         self.assertEqual(self.store.list_tasks(), [])
         self.assertEqual(self.store.list_tasks(include_closed=True)[0]["status"], "completed")
+
+    def test_assistant_drafts_plan_but_requires_acceptance(self):
+        assistant = TaskAssistant(FakeModel(), self.store)
+        plan = assistant.draft_plan("Help me prepare")
+        self.assertTrue(plan["requires_user_approval"])
+        self.assertEqual(self.store.list_tasks(), [])
+        created = assistant.accept_plan(plan)
+        self.assertEqual(len(created), 2)
+        stored = {task["id"]: task for task in self.store.list_tasks()}
+        self.assertEqual(stored[created[1]["id"]]["depends_on"], [created[0]["id"]])
 
     def test_rejects_invalid_values(self):
         with self.assertRaises(ValueError):
