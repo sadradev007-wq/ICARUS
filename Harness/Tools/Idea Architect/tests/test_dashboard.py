@@ -53,6 +53,15 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("نمایش نمودار زنده", page)
             self.assertNotIn("<script>unsafe</script>", page)
             token = re.search(r'name="csrf" value="([^"]+)"', page).group(1)
+            bad_data = urlencode({
+                "csrf": "invalid-token", "action": "review", "task_id": "T-1",
+                "decision": "accept", "reviewed_by": "attacker", "reason": "bad token",
+            }).encode("utf-8")
+            bad_request = Request(base, data=bad_data, method="POST")
+            with self.assertRaises(HTTPError) as error:
+                urlopen(bad_request, timeout=5)
+            self.assertEqual(error.exception.code, 400)
+
             data = urlencode({
                 "csrf": token, "action": "review", "task_id": "T-1",
                 "decision": "accept", "reviewed_by": "tester",
