@@ -67,6 +67,40 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(task["status"], "completed")
 
 
+    def test_human_review_accepts_or_rejects_only_pending_results(self):
+        self.engine.approve("LEAF-1", "test.report", approved_by="user")
+        pending = self.engine.run("LEAF-1")
+        self.assertEqual(pending["status"], "awaiting_review")
+        accepted = self.engine.review(
+            "LEAF-1", decision="accept", reviewed_by="user", reason="Output checked"
+        )
+        self.assertEqual(accepted["status"], "completed")
+        self.assertEqual(accepted["human_review"]["decision"], "accept")
+        with self.assertRaises(ExecutionError):
+            self.engine.review(
+                "LEAF-1", decision="reject", reviewed_by="user", reason="Duplicate"
+            )
+
+    def test_audit_failure_after_handler_success_never_marks_task_failed(self):
+        engine = ExecutionEngine(
+            self.project, self.registry,
+            evaluator=lambda task, outputs: (True, "verified")
+        )
+        engine.approve("LEAF-1", "test.report", approved_by="user")
+        original_audit = engine._audit
+
+        def fail_finished_audit(event, task_id, **details):
+            if event == "task_finished":
+                raise OSError("audit disk unavailable")
+            return original_audit(event, task_id, **details)
+
+        engine._audit = fail_finished_audit
+        task = engine.run("LEAF-1")
+        self.assertEqual(task["status"], "completed")
+        self.assertIn("audit_warning", task)
+        saved = json.loads((self.project / "execution" / "execution_queue.json").read_text())
+        self.assertEqual(saved["tasks"][0]["status"], "completed")
+
     def test_retry_requires_new_approval_and_preserves_attempts(self):
         calls = {"count": 0}
         def flaky(task, root):
