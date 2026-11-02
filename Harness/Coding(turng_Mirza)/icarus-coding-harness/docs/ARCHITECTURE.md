@@ -1,19 +1,26 @@
 # Architecture
 
 CLI -> AgentRuntime -> OpenAI-compatible model adapter
-                 -> ToolRegistry -> Workspace / Git / patch engine / test runner
+                 -> ToolRegistry -> Workspace / Git / patch engine / checkpoint manager
                  -> PolicyEngine -> interactive approval
                  -> ProjectMemory
 
 The runtime is deliberately bounded. Workspace resolves every path against a canonical root. Tool schemas are explicit. The policy layer centralizes approval and command allowlisting. Git is observed but never automatically committed or pushed.
 
-Patch flow:
+## Patch flow
 1. propose_patch reads an existing UTF-8 file and returns a unified diff without writing.
 2. The proposal records a SHA-256 digest of the source and remains in memory for the current runtime.
-3. apply_patch rechecks the digest to reject stale proposals, then requests approval independently for each changed hunk.
-4. Rejected hunks retain their original lines. Accepted hunks are written through Workspace, preserving workspace path checks.
-5. Patch proposals are single-use and are not persisted across process restarts.
+3. apply_patch rechecks the digest and requests approval independently for each changed hunk.
+4. Rejected hunks retain their original lines. Accepted hunks are written through Workspace.
+5. Proposals are single-use and expire when the runtime exits.
 
-Patch size is capped at 200,000 characters per source/proposed file. Binary files are rejected. The patch engine does not create or delete files.
+## Git checkpoint flow
+1. Checkpoints require the workspace to be the Git repository root, a resolvable HEAD, no untracked files, and no unresolved index conflicts.
+2. `git stash create` snapshots tracked index/worktree state without changing the worktree or index.
+3. Snapshot and JSON metadata are retained under private `refs/icarus/*` refs; no files are written into the project.
+4. Rollback requires the original HEAD to remain unchanged, validates every manifest path through Workspace, and asks separately before restoring each path.
+5. Only paths changed at checkpoint time are targeted. Unrelated paths are not restored; checkpoint refs remain available after rollback.
 
-Current limitations: first returned tool call only; no streaming, parallel calls, durable patch queue, Git checkpoint/rollback, semantic retrieval, multi-agent delegation, or GUI.
+Checkpoints are local Git refs, not remote backups. They do not include untracked files. Checkpoint metadata is versioned and stored in Git objects. No automatic commit, push, branch reset, or force operation is used.
+
+Current limitations: first returned tool call only; no streaming, parallel calls, durable patch queue outside Git refs, test discovery, semantic retrieval, multi-agent delegation, or GUI.
