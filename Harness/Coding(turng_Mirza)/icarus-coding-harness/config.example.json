@@ -1,0 +1,19 @@
+{
+  "model": {
+    "base_url": "http://localhost:11434/v1",
+    "model": "qwen2.5-coder:7b",
+    "api_key_env": "ICARUS_API_KEY",
+    "temperature": 0.1,
+    "timeout_seconds": 120
+  },
+  "agent": {"max_steps": 12, "max_context_chars": 24000},
+  "policy": {
+    "approval_required_for_writes": true,
+    "approval_required_for_commands": true,
+    "allowed_commands": [
+      ["python", "-m", "unittest"], ["pytest"], ["ruff", "check"],
+      ["mypy"], ["npm", "test"], ["npm", "run", "build"],
+      ["cargo", "test"], ["go", "test"]
+    ]
+  }
+}

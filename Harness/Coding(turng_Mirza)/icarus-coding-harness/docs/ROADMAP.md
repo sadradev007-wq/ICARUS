@@ -1,0 +1,36 @@
+# Roadmap
+
+## Phase 0 — reliable seed (included)
+- Workspace-contained file tools and traversal protection
+- OpenAI-compatible local/remote model adapter
+- Bounded tool loop
+- Approval-gated writes and allowlisted commands
+- Git status/diff and project memory
+- Standard-library tests
+
+## Phase 1 — engineering safety
+- Unified diff proposal/apply with per-hunk approval
+- Git checkpoint and rollback
+- Test discovery and language profiles
+- Structured logs and resumable sessions
+- Secret redaction and binary/size guards
+
+## Phase 2 — coding intelligence
+- Repository map and dependency graph
+- Context retrieval and token budgeting
+- Explicit plans and acceptance criteria
+- Independent reviewer pass
+- Bounded diagnosis/repair cycle
+
+## Phase 3 — multi-agent
+- Planner, implementer, tester, reviewer roles
+- Shared artifact protocol and isolated worktrees
+- Delegation budgets and conflict resolution
+
+## Phase 4 — ICARUS integration
+- Task Companion and Idea Architect handoff
+- Harness UI and priority queue
+- Local model profiles for constrained hardware
+- Offline-first docs and model management
+
+Early non-goals: claims of consciousness, unrestricted shell access, automatic remote pushes, or unsupervised self-modification.
