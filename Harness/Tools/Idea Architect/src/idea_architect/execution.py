@@ -64,6 +64,10 @@ class HandlerRegistry:
             raise ValueError(f"Handler already registered: {handler_id}")
         self._handlers[handler_id] = handler
 
+    def handler_ids(self) -> tuple[str, ...]:
+        """Return registered handler identifiers without exposing handler objects."""
+        return tuple(sorted(self._handlers))
+
     def get(self, handler_id: str) -> TaskHandler:
         try:
             return self._handlers[handler_id]
