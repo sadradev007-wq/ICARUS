@@ -113,6 +113,7 @@ class ExecutionEngine:
             raise ValueError("max_retries cannot be negative")
         self.registry, self.evaluator = registry, evaluator
         self.max_retries = max_retries
+        self.audit_projection_dirty = False
         with self._queue_lock():
             queue, restored = restore_queue(self.queue_path, self.journal)
             interrupted = recover_interrupted_tasks(queue)
@@ -121,6 +122,7 @@ class ExecutionEngine:
                 self._audit("startup_recovery", "*", interrupted_task_ids=interrupted)
             elif not restored:
                 persist_queue(self.queue_path, self.journal, queue)
+            self._rebuild_audit_projection()
 
     @contextmanager
     def _queue_lock(self):
@@ -166,11 +168,49 @@ class ExecutionEngine:
     def _audit(self, event: str, task_id: str, **details: Any) -> None:
         record = {"event_id": uuid.uuid4().hex, "timestamp": _now(),
                   "event": event, "task_id": task_id, **details}
-        with self.audit_path.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(record, ensure_ascii=False) + "\n")
-            stream.flush()
-            os.fsync(stream.fileno())
+        # The hash-chained journal is authoritative. audit_log.jsonl is a rebuildable
+        # human-readable projection, never a second source of truth.
         self.journal.append("audit_event", record)
+        try:
+            with self.audit_path.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(record, ensure_ascii=False) + "\\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+        except OSError:
+            self.audit_projection_dirty = True
+
+    def _rebuild_audit_projection(self) -> None:
+        records = [
+            event["payload"] for event in self.journal.read_events()
+            if event.get("event_type") == "audit_event"
+            and isinstance(event.get("payload"), dict)
+        ]
+        data = b"".join(
+            (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\\n").encode("utf-8")
+            for record in records
+        )
+        temporary = self.audit_path.with_name(
+            f".{self.audit_path.name}.{uuid.uuid4().hex}.tmp"
+        )
+        try:
+            with temporary.open("xb") as stream:
+                stream.write(data)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, self.audit_path)
+            if os.name != "nt":
+                descriptor = os.open(self.audit_path.parent, os.O_RDONLY)
+                try:
+                    os.fsync(descriptor)
+                finally:
+                    os.close(descriptor)
+            self.audit_projection_dirty = False
+        except OSError:
+            self.audit_projection_dirty = True
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     @_serialized
     def approve(self, task_id: str, handler_id: str, *, approved_by: str) -> dict[str, Any]:
