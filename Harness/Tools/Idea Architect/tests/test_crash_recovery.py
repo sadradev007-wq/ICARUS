@@ -1,4 +1,5 @@
 import json
+import multiprocessing
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +10,18 @@ from idea_architect.crash_recovery import (
 )
 from idea_architect.execution import ExecutionEngine, ExecutionError, HandlerRegistry
 from idea_architect.protocol import write_json
+
+
+def _competing_approval_worker(project_dir, barrier, results):
+    registry = HandlerRegistry()
+    registry.register("test.handler", lambda task, root: {"y": "done"})
+    engine = ExecutionEngine(Path(project_dir), registry)
+    barrier.wait(timeout=15)
+    try:
+        engine.approve("T-1", "test.handler", approved_by="parallel-test")
+        results.put("approved")
+    except ExecutionError:
+        results.put("rejected")
 
 
 class CrashRecoveryTests(unittest.TestCase):
@@ -68,6 +81,42 @@ class CrashRecoveryTests(unittest.TestCase):
         with self.assertRaises(ExecutionError):
             engine.run("T-1")
         self.assertEqual(calls["count"], 0)
+
+    def test_two_processes_cannot_approve_the_same_task_twice(self):
+        queue = {
+            "project_id": "parallel-test",
+            "execution_policy": "manual_approval_required",
+            "tasks": [{
+                "task_id": "T-1", "status": "awaiting_approval",
+                "method": ["run"], "inputs": ["x"],
+                "expected_outputs": ["y"], "acceptance_criteria": ["y exists"],
+                "dependencies": []
+            }]
+        }
+        write_json(self.queue_path, queue)
+        registry = HandlerRegistry()
+        registry.register("test.handler", lambda task, root: {"y": "done"})
+        ExecutionEngine(self.root, registry)
+
+        context = multiprocessing.get_context("spawn")
+        barrier = context.Barrier(2)
+        results = context.Queue()
+        processes = [
+            context.Process(
+                target=_competing_approval_worker,
+                args=(str(self.root), barrier, results),
+            )
+            for _ in range(2)
+        ]
+        for process in processes:
+            process.start()
+        for process in processes:
+            process.join(25)
+        self.assertEqual([process.exitcode for process in processes], [0, 0])
+        outcomes = sorted(results.get(timeout=5) for _ in processes)
+        self.assertEqual(outcomes, ["approved", "rejected"])
+        saved = json.loads(self.queue_path.read_text(encoding="utf-8"))
+        self.assertEqual(saved["tasks"][0]["status"], "approved")
 
     def test_hash_chain_detects_tampering(self):
         persist_queue(self.queue_path, self.journal, self.queue)
