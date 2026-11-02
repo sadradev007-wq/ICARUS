@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .execution import ExecutionEngine, HandlerRegistry
+from .dashboard import serve_dashboard
 from .feedback import System2FeedbackEvaluator
 from .models import OfflineDemoModel, OllamaJsonModel
 from .orchestrator import ProjectOrchestrator
@@ -91,11 +92,13 @@ def main() -> None:
     parser.add_argument("--reviewed-by", help="Human recording the result review")
     parser.add_argument("--reason", help="Reason for retry or human review")
     parser.add_argument("--refresh-graph", action="store_true", help="Regenerate SVG, HTML and Mermaid")
+    parser.add_argument("--serve", action="store_true", help="Open the local interactive dashboard")
+    parser.add_argument("--port", type=int, default=8765, help="Local dashboard port")
     args = parser.parse_args()
 
     project_actions = any((
         args.status, args.approve_task, args.run_task, args.retry_task,
-        args.review_task, args.refresh_graph,
+        args.review_task, args.refresh_graph, args.serve,
     ))
     if project_actions:
         if args.idea or not args.project_dir:
@@ -110,6 +113,9 @@ def main() -> None:
                 base_url=args.ollama_url,
             )
             evaluator = System2FeedbackEvaluator(model, project_dir / "feedback")
+        if args.serve:
+            serve_dashboard(project_dir, registry, evaluator=evaluator, port=args.port)
+            return
         engine = ExecutionEngine(project_dir, registry, evaluator=evaluator)
         result: dict[str, Any] = {"project_dir": str(project_dir)}
 
