@@ -24,7 +24,7 @@ class TestDiscoveryTests(unittest.TestCase):
         result = self.discover(["src/parser.py"])
         profile = result["profiles"][0]
         self.assertEqual(profile["language"], "python")
-        self.assertEqual(profile["command"], ["python", "-m", "unittest", "discover", "-v"])
+        self.assertEqual(profile["command"], ["python", "-m", "unittest", "discover", "-s", "tests", "-v"])
         self.assertEqual(profile["related_tests"], ["tests/test_parser.py"])
         self.assertFalse(result["execution_performed"])
     def test_pytest_profile_detected_from_configuration(self):
