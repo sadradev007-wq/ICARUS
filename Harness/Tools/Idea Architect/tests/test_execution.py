@@ -76,6 +76,7 @@ class ExecutionTests(unittest.TestCase):
         )
         self.assertEqual(accepted["status"], "completed")
         self.assertEqual(accepted["human_review"]["decision"], "accept")
+        self.assertEqual(accepted["attempts"][-1]["status"], "completed")
         with self.assertRaises(ExecutionError):
             self.engine.review(
                 "LEAF-1", decision="reject", reviewed_by="user", reason="Duplicate"
