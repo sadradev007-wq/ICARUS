@@ -158,6 +158,8 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                 description = values.get("description", "").strip()
                 priority = values.get("priority", "normal")
                 status = values.get("status", "inbox")
+                if status not in {"inbox", "next", "in_progress", "waiting"}:
+                    raise ValueError("وضعیت اولیه نامعتبر است.")
                 due_raw = values.get("due_at", "").strip()
                 due_at = due_raw.replace("T", " ") if due_raw else None
                 project_id = values.get("project_id", "").strip() or None
