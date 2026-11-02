@@ -127,6 +127,33 @@ class CrashRecoveryTests(unittest.TestCase):
         with self.assertRaises(JournalCorruptionError):
             self.journal.read_events()
 
+    def test_audit_projection_is_rebuilt_from_authoritative_journal(self):
+        queue = {
+            "project_id": "audit-recovery",
+            "execution_policy": "manual_approval_required",
+            "tasks": [{
+                "task_id": "T-1", "status": "awaiting_approval",
+                "method": ["run"], "inputs": ["x"],
+                "expected_outputs": ["y"], "acceptance_criteria": ["y exists"],
+                "dependencies": []
+            }]
+        }
+        write_json(self.queue_path, queue)
+        registry = HandlerRegistry()
+        registry.register("test.handler", lambda task, root: {"y": "done"})
+        engine = ExecutionEngine(self.root, registry)
+        engine.approve("T-1", "test.handler", approved_by="operator")
+        audit_path = self.root / "execution" / "audit_log.jsonl"
+        audit_path.write_text("corrupt projection", encoding="utf-8")
+
+        recovered = ExecutionEngine(self.root, registry)
+        records = [
+            json.loads(line) for line in audit_path.read_text(encoding="utf-8").splitlines()
+        ]
+        self.assertTrue(records)
+        self.assertIn("task_approved", [record["event"] for record in records])
+        self.assertFalse(recovered.audit_projection_dirty)
+
     def test_incomplete_final_append_is_ignored_and_removed_before_next_append(self):
         persist_queue(self.queue_path, self.journal, self.queue)
         path = self.root / "execution" / "event_journal.jsonl"
