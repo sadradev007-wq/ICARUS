@@ -234,6 +234,61 @@ class ExecutionEngine:
         return task
 
     @_serialized
+    def apply_revision(
+        self, task_id: str, revised_task: dict[str, Any], *,
+        proposal_id: str, approved_by: str,
+    ) -> dict[str, Any]:
+        """Atomically apply a validated replan through the durable queue transaction."""
+        if not approved_by.strip() or not proposal_id.strip():
+            raise ValueError("approved_by and proposal_id are required")
+        required = (
+            "title", "description", "priority", "method", "inputs",
+            "expected_outputs", "acceptance_criteria", "required_skills",
+            "dependencies", "risks", "permissions",
+        )
+        if not isinstance(revised_task, dict) or any(
+            field not in revised_task for field in required
+        ):
+            raise ExecutionError("Revised task is missing required fields")
+        queue = self._read_queue()
+        task = self._find_task(queue, task_id)
+        revision = task.get("revision_approval", {})
+        if (
+            task.get("status") == "awaiting_approval"
+            and isinstance(revision, dict)
+            and revision.get("proposal_id") == proposal_id
+        ):
+            # Idempotent recovery if the queue commit succeeded but proposal metadata
+            # had not yet been marked applied when the process stopped.
+            return task
+        if task.get("status") != "failed":
+            raise ExecutionError("Only a failed task can receive a new revision")
+        task["idempotency_scope"] = uuid.uuid4().hex
+        task.pop("idempotency_key", None)
+        task.setdefault("revision_history", []).append({
+            "revised_at": _now(),
+            "previous_title": task.get("title"),
+            "previous_method": task.get("method", []),
+        })
+        for field in required:
+            task[field] = revised_task[field]
+        task.pop("approval", None)
+        task["status"] = "awaiting_approval"
+        task["revision_approval"] = {
+            "approved_by": approved_by,
+            "approved_at": _now(),
+            "proposal_id": proposal_id,
+        }
+        try:
+            topological_batches(queue["tasks"])
+        except DependencyError as exc:
+            raise ExecutionError(f"Revised dependency graph is invalid: {exc}") from exc
+        self._write_queue(queue)
+        self._audit("task_revision_applied", task_id, proposal_id=proposal_id,
+                    approved_by=approved_by)
+        return task
+
+    @_serialized
     def retry(self, task_id: str, *, requested_by: str, reason: str) -> dict[str, Any]:
         """Request a fresh human approval for another attempt of a failed task."""
         if not requested_by.strip() or not reason.strip():
