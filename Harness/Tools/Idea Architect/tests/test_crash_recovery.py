@@ -29,7 +29,7 @@ def _competing_run_worker(project_dir, marker_path, barrier, results):
 
     def handler(task, root):
         with Path(marker_path).open("a", encoding="utf-8") as stream:
-            stream.write("executed\\n")
+            stream.write("executed\n")
             stream.flush()
         return {"y": "done"}
 
