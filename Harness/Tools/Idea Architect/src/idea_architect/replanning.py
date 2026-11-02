@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -86,6 +87,10 @@ class System2Replanner:
         if len(matches) != 1 or matches[0].get("status") != "failed":
             raise ReplanError("Only one matching failed task can be revised")
         task = matches[0]
+        # A revised task is a new logical operation; retries of this revision share
+        # a key, while the new revision must not be deduplicated against the old one.
+        task["idempotency_scope"] = uuid.uuid4().hex
+        task.pop("idempotency_key", None)
         task.setdefault("revision_history", []).append({
             "revised_at": datetime.now(timezone.utc).isoformat(),
             "previous_title": task.get("title"),
