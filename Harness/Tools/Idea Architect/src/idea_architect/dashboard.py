@@ -70,6 +70,22 @@ def _page(project_dir: Path, engine: ExecutionEngine, registry: HandlerRegistry,
                 '<label>دلیل تلاش مجدد <input name="reason" required></label>'
                 '<button>درخواست تلاش مجدد</button></form>'
             )
+        detail_data = {
+            "روش اجرا": task.get("method", []),
+            "ورودی‌ها": task.get("inputs", []),
+            "خروجی‌های مورد انتظار": task.get("expected_outputs", []),
+            "معیارهای پذیرش": task.get("acceptance_criteria", []),
+            "خروجی واقعی": task.get("outputs"),
+            "ارزیابی": task.get("evaluation"),
+            "بازیابی": task.get("recovery"),
+            "خطا": task.get("error"),
+            "بازبینی انسانی": task.get("human_review"),
+        }
+        details = (
+            '<details><summary>جزئیات و شواهد وظیفه</summary><pre>' +
+            html.escape(json.dumps(detail_data, ensure_ascii=False, indent=2)) +
+            '</pre></details>'
+        )
         result_file = task.get("result_file")
         result = (
             f'<p class="muted">خروجی: {html.escape(str(result_file))}</p>'
@@ -81,7 +97,7 @@ def _page(project_dir: Path, engine: ExecutionEngine, registry: HandlerRegistry,
             f'<div><small>{safe_id}</small><h2>{title}</h2></div>'
             f'<span class="status">{html.escape(status)}</span></div>'
             f'<p class="muted">پیش‌نیازها: {html.escape(dependencies)}</p>'
-            f'{result}<div class="actions">{"".join(actions)}</div></article>'
+            f'{details}{result}<div class="actions">{"".join(actions)}</div></article>'
         )
     body = "".join(cards) or '<p>هنوز وظیفه‌ای در صف وجود ندارد.</p>'
     status_message = f'<p class="message">{html.escape(message)}</p>' if message else ""
@@ -104,7 +120,7 @@ form{{display:flex;flex-wrap:wrap;gap:8px;align-items:end;background:#111a29;pad
 label{{display:grid;gap:4px;font-size:.85rem}}input,select,button{{font:inherit;border-radius:8px;padding:8px;border:1px solid #50617e}}
 button{{background:#6554a4;color:white;cursor:pointer}}button:hover{{filter:brightness(1.15)}}
 .graph{{overflow:auto;background:#fff;color:#111;border-radius:12px;padding:10px}}
-.graph svg{{max-width:100%;height:auto}}summary{{cursor:pointer;padding:12px}}
+.graph svg{{max-width:100%;height:auto}}summary{{cursor:pointer;padding:12px}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;background:#111a29;padding:12px;border-radius:10px}}
 </style></head><body><header><h1>ایکاروس · داشبورد پروژه</h1>
 <div>شناسهٔ پروژه: {html.escape(str(queue.get("project_id", "")))}</div></header>
 <main>{status_message}<details class="graph"><summary>نمایش نمودار زندهٔ برنامه و وضعیت وظایف</summary>{svg}</details>
