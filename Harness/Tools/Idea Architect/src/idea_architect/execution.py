@@ -234,6 +234,9 @@ class ExecutionEngine:
         if task.get("status") != "awaiting_review":
             raise ExecutionError("Only tasks awaiting review can receive a human decision")
         task["status"] = "completed" if decision == "accept" else "failed"
+        if task.get("attempts"):
+            task["attempts"][-1]["status"] = task["status"]
+            task["attempts"][-1]["reviewed_at"] = _now()
         task["human_review"] = {
             "decision": decision,
             "reviewed_by": reviewed_by,
