@@ -6,12 +6,12 @@
 - Bounded tool loop
 - Approval-gated writes and allowlisted commands
 - Git status/diff and project memory
-- Standard-library tests
 
 ## Phase 1 — engineering safety
 - [x] Unified diff proposal/apply with per-hunk approval and stale-source detection
 - [x] Git checkpoints and path-scoped, per-path approved rollback
 - [x] Read-only test and dependency-ecosystem discovery (Python, JS/TS with pnpm, Rust, Go, Java, .NET, PHP, Ruby, Dart, Swift, C/C++, Elixir, Haskell, R)
+- [x] Separate read-only reviewer pass required after mutations
 - Structured logs and resumable sessions
 - Secret redaction and binary/size guards
 
@@ -19,7 +19,6 @@
 - Repository map and dependency graph
 - Context retrieval and token budgeting
 - Explicit plans and acceptance criteria
-- Independent reviewer pass
 - Bounded diagnosis/repair cycle
 
 ## Phase 3 — multi-agent

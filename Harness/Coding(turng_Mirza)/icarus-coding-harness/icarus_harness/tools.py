@@ -18,8 +18,8 @@ class Tool:
     handler: Callable[[dict[str, Any]], str]
 
 class ToolRegistry:
-    def __init__(self, workspace: Workspace, policy: PolicyEngine):
-        self.workspace, self.policy = workspace, policy
+    def __init__(self, workspace: Workspace, policy: PolicyEngine, reviewer: Any | None = None):
+        self.workspace, self.policy, self.reviewer = workspace, policy, reviewer
         self.patch_engine = PatchEngine(workspace, policy.approve)
         # Git support is lazy so non-Git workspaces keep working for ordinary file tasks.
         self._checkpoints: GitCheckpointManager | None = None
@@ -32,6 +32,7 @@ class ToolRegistry:
             "create_checkpoint": Tool("create_checkpoint", "Create a non-destructive local Git checkpoint. Refuses untracked files and unresolved conflicts.", self._schema({}), self._create_checkpoint),
             "rollback_checkpoint": Tool("rollback_checkpoint", "Restore only paths changed at a saved checkpoint, with per-path approval. Required checkpoint_id.", self._schema({"checkpoint_id":{"type":"string"}}, ["checkpoint_id"]), self._rollback_checkpoint),
             "discover_tests": Tool("discover_tests", "Read-only discovery of project test profiles and tests related to changed paths. Does not execute tests.", self._schema({"changed_paths":{"type":"array","items":{"type":"string"}}}), self._discover_tests),
+            "review_changes": Tool("review_changes", "Run a separate, read-only model review of bounded, heuristically redacted Git changes. Does not execute commands or edit files.", self._schema({}), self._review_changes),
             "search_text": Tool("search_text", "Search text in workspace. Required query.", self._schema({"query":{"type":"string"}}, ["query"]), self._search),
             "run_command": Tool("run_command", "Run allowlisted test/build command with approval. Required command string array.", self._schema({"command":{"type":"array","items":{"type":"string"}}}, ["command"]), self._command),
             "git_status": Tool("git_status", "Show Git status.", self._schema({}), lambda _: git_status(self.workspace.root)),
@@ -85,6 +86,11 @@ class ToolRegistry:
     def _discover_tests(self, args: dict[str, Any]) -> str:
         result = TestDiscovery(self.workspace).discover(args.get("changed_paths"))
         return json.dumps(result, ensure_ascii=False, indent=2)
+
+    def _review_changes(self, args: dict[str, Any]) -> str:
+        if self.reviewer is None:
+            return "review_status=unavailable\nIndependent reviewer is not configured."
+        return self.reviewer.review()
 
     def _search(self, args: dict[str, Any]) -> str:
         return "\n".join(self.workspace.search(args["query"])) or "No matches."

@@ -19,11 +19,13 @@ class OpenAICompatibleModel:
         payload = {
             "model": self.config.model, "messages": messages,
             "temperature": self.config.temperature,
-            "tools": [{"type":"function","function":{
-                "name":t["name"],"description":t["description"],"parameters":t["parameters"]
-            }} for t in tools],
-            "tool_choice": "auto"
         }
+        # Omitting tool fields makes reviewer calls explicitly tool-free.
+        if tools:
+            payload["tools"] = [{"type":"function","function":{
+                "name":t["name"],"description":t["description"],"parameters":t["parameters"]
+            }} for t in tools]
+            payload["tool_choice"] = "auto"
         req = urllib.request.Request(
             self.config.base_url + "/chat/completions",
             data=json.dumps(payload).encode(),
