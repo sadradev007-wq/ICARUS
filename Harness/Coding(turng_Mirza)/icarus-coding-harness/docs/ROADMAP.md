@@ -6,6 +6,7 @@
 - Bounded tool loop
 - Approval-gated writes and allowlisted commands
 - Git status/diff and project memory
+- Standard-library tests
 
 ## Phase 1 — engineering safety
 - [x] Unified diff proposal/apply with per-hunk approval and stale-source detection

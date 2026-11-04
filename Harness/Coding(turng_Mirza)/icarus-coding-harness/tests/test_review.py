@@ -72,10 +72,10 @@ class ReviewTests(unittest.TestCase):
 
 
     def test_harness_metadata_is_not_sent_to_reviewer(self):
-        (self.root / "app.py").write_text("value = 2\\n", encoding="utf-8")
+        (self.root / "app.py").write_text("value = 2\n", encoding="utf-8")
         metadata = self.root / ".icarus" / "memory.md"
         metadata.parent.mkdir()
-        metadata.write_text("private project note\\n", encoding="utf-8")
+        metadata.write_text("private project note\n", encoding="utf-8")
         captured = {}
 
         def complete(messages, tools):
@@ -99,7 +99,7 @@ class ReviewTests(unittest.TestCase):
 
 
     def test_incomplete_reviewer_schema_is_rejected(self):
-        (self.root / "app.py").write_text("value = 2\\n", encoding="utf-8")
+        (self.root / "app.py").write_text("value = 2\n", encoding="utf-8")
         result = IndependentReviewer(self.workspace, lambda *_: "{}").review()
         self.assertIn("review_status=invalid_output", result)
 
@@ -114,7 +114,7 @@ class ReviewTests(unittest.TestCase):
         self.assertIn('"file": null', result)
 
     def test_redacts_common_credential_shapes(self):
-        text = 'password="hello-world"\\nAuthorization: Bearer abc.def.ghi\\nhttps://user:pass@example.com'
+        text = 'password="hello-world"\nAuthorization: Bearer abc.def.ghi\nhttps://user:pass@example.com'
         redacted = redact_secrets(text)
         self.assertNotIn("hello-world", redacted)
         self.assertNotIn("abc.def.ghi", redacted)
