@@ -6,7 +6,7 @@ from . import __version__
 from .config import HarnessConfig
 from .git import diff, status
 from .runtime import AgentRuntime
-from .task_bridge import load_task_prompt
+from .task_bridge import load_task_prompt, write_execution_event
 from .workspace import Workspace
 
 
@@ -23,7 +23,7 @@ def main() -> None:
     run = sub.add_parser("run")
     run.add_argument("task", nargs="?")
     run.add_argument("--workspace", default=".")
-    run.add_argument("--task-store", help="Path to Task Companion tasks.json (read-only)")
+    run.add_argument("--task-store", help="Path to Task Companion tasks.json (read-only input)")
     run.add_argument("--task-id", help="Run one active Task Companion task by ID")
     inspect = sub.add_parser("inspect")
     inspect.add_argument("--workspace", default=".")
@@ -58,7 +58,16 @@ def main() -> None:
         elif args.action == "run":
             task = load_task_prompt(Path(args.task_store), args.task_id) if args.task_id else args.task
             result = AgentRuntime(ws, HarnessConfig.load(ws.root), _approve).run(task)
-            print(json.dumps({"status": result.status, "steps": result.steps, "summary": result.summary}, ensure_ascii=False, indent=2))
+            event_path = None
+            if args.task_id and result.status in {"completed", "step_limit"}:
+                proposed = "completed" if result.status == "completed" else "in_progress"
+                if _approve(f"Save a Task Companion result suggestion ({proposed}) for {args.task_id}? This does not change task status."):
+                    event_path = write_execution_event(Path(args.task_store), args.task_id, result.status, result.summary)
+            print(json.dumps({
+                "status": result.status, "steps": result.steps, "summary": result.summary,
+                "task_companion_feedback": str(event_path) if event_path else None,
+                "feedback_requires_task_companion_confirmation": bool(event_path),
+            }, ensure_ascii=False, indent=2))
             if result.status != "completed":
                 sys.exit(2)
     except Exception as exc:
