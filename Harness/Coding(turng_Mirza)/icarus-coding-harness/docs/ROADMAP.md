@@ -31,7 +31,7 @@
 - Delegation budgets and conflict resolution
 
 ## Phase 4 — ICARUS integration
-- [ ] Task Companion UI: pending event inbox with approve/reject controls
+- [x] Task Companion UI: pending event inbox with approve/reject controls
 - [ ] Task Companion execution-state callback in the main dashboard
 - [ ] Harness UI and priority queue
 - [ ] Local model profiles for constrained hardware
