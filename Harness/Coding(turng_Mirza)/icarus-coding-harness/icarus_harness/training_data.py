@@ -97,10 +97,11 @@ class TaskDatasetWriter:
                     tests_reported = True
 
         record_id = uuid.uuid4().hex
+        now = datetime.now(timezone.utc)
         payload = {
             "schema_version": "1.0.0",
             "record_id": record_id,
-            "created_at": "",
+            "created_at": now.isoformat(),
             "task": redact_text(str(task), 8000),
             "status": getattr(result, "status", "error"),
             "summary": redact_text(str(getattr(result, "summary", "")), 4000),
@@ -115,8 +116,6 @@ class TaskDatasetWriter:
             },
         }
 
-        now = datetime.now(timezone.utc)
-        payload["created_at"] = now.isoformat()
         output_fd = self._open_output_directory()
         destination_name = f"{now.strftime('%Y%m%dT%H%M%S')}-{record_id}.json"
         temporary_name = f".icarus-task-{record_id}.tmp"

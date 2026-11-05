@@ -44,30 +44,23 @@ class TaskDatasetWriterTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp, tempfile.TemporaryDirectory() as outside:
             root = Path(temp)
             tasks_dir = root / "Local LLM" / "Train Data" / "tasks"
-            original_open = os.open
-            swapped = False
+            held_dir = tasks_dir.with_name("tasks-pinned")
 
-            def swap_after_open(path, *args, **kwargs):
-                nonlocal swapped
-                descriptor = original_open(path, *args, **kwargs)
-                if path == "tasks" and kwargs.get("dir_fd") is not None and not swapped:
-                    held_dir = tasks_dir.with_name("tasks-pinned")
+            class SwappingWriter(TaskDatasetWriter):
+                def _open_output_directory(self):
+                    descriptor = super()._open_output_directory()
                     tasks_dir.rename(held_dir)
                     try:
                         tasks_dir.symlink_to(outside, target_is_directory=True)
                     except (OSError, NotImplementedError):
-                        original_close = os.close
-                        original_close(descriptor)
+                        os.close(descriptor)
                         self.skipTest("directory symlinks are unavailable")
-                    swapped = True
-                return descriptor
+                    return descriptor
 
             result = RunResult("completed", "Pinned write", 1, [])
-            with patch("icarus_harness.training_data.os.open", side_effect=swap_after_open):
-                TaskDatasetWriter(root).record("race regression", result)
+            SwappingWriter(root).record("race regression", result)
 
-            self.assertTrue(swapped)
-            self.assertEqual(len(list((root / "Local LLM" / "Train Data" / "tasks-pinned").glob("*.json"))), 1)
+            self.assertEqual(len(list(held_dir.glob("*.json"))), 1)
             self.assertEqual(list(Path(outside).glob("*.json")), [])
 
     def test_refuses_symlinked_parent_component(self):
