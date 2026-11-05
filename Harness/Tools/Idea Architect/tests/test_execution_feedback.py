@@ -42,6 +42,11 @@ class ExecutionFeedbackTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "already applied"):
             self.store.apply_execution_event(self.event, user_approved=True)
 
+    def test_rejects_mismatched_run_status_mapping(self):
+        invalid = dict(self.event, run_status="step_limit")
+        with self.assertRaisesRegex(ValueError, "status mapping"):
+            self.store.apply_execution_event(invalid, user_approved=True)
+
     def test_refuses_stale_event_for_closed_task(self):
         self.store.complete(self.task["id"])
         with self.assertRaisesRegex(ValueError, "no longer active"):
