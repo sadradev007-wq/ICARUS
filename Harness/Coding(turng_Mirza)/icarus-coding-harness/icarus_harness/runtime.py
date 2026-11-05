@@ -46,7 +46,7 @@ class AgentRuntime:
     def run(self, task: str) -> RunResult:
         messages = [
             {"role":"system","content":SYSTEM_PROMPT},
-            {"role":"user","content":f"WORKSPACE: {self.workspace.root}\\nPROJECT MEMORY:\\n{self.memory.read()}\\nTASK:\\n{task}\\nInspect and proceed safely."}
+            {"role":"user","content":f"WORKSPACE: {self.workspace.root}\nPROJECT MEMORY:\n{self.memory.read()}\nTASK:\n{task}\nInspect and proceed safely."}
         ]
         transcript = []
         review_required = False
@@ -79,7 +79,7 @@ class AgentRuntime:
                 review_current = False
             elif name == "review_changes" and output.startswith(("review_status=completed", "review_status=no_changes")):
                 review_current = True
-            messages += [{"role":"assistant","content":raw},{"role":"user","content":f"TOOL RESULT ({name}):\\n{output}\\nContinue or finish."}]
+            messages += [{"role":"assistant","content":raw},{"role":"user","content":f"TOOL RESULT ({name}):\n{output}\nContinue or finish."}]
         summary = "Stopped at configured step limit; inspect Git diff before continuing."
         if review_required and not review_current:
             summary += " A successful independent review is still required."
