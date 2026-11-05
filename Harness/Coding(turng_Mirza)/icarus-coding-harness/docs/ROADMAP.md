@@ -13,6 +13,8 @@
 - [x] Git checkpoints and path-scoped, per-path approved rollback
 - [x] Read-only test and dependency-ecosystem discovery (Python, JS/TS with pnpm, Rust, Go, Java, .NET, PHP, Ruby, Dart, Swift, C/C++, Elixir, Haskell, R)
 - [x] Separate read-only reviewer pass required after mutations
+- [x] Privacy-bounded task-run JSON capture for local curation
+- [x] Read-only Task Companion task-to-harness launch bridge
 - Structured logs and resumable sessions
 - Secret redaction and binary/size guards
 
@@ -28,7 +30,7 @@
 - Delegation budgets and conflict resolution
 
 ## Phase 4 — ICARUS integration
-- Task Companion and Idea Architect handoff
+- [ ] Task Companion execution-state callback (explicit opt-in; no implicit completion)
 - Harness UI and priority queue
 - Local model profiles for constrained hardware
 - Offline-first docs and model management

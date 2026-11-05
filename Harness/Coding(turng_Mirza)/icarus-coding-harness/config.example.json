@@ -12,7 +12,7 @@
     "approval_required_for_commands": true,
     "allowed_commands": [
       ["python", "-m", "unittest"], ["pytest"], ["ruff", "check"],
-      ["mypy"], ["npm", "test"], ["npm", "run", "build"],
+      ["mypy"], ["pnpm", "test"], ["pnpm", "run", "build"],
       ["cargo", "test"], ["go", "test"]
     ]
   }
