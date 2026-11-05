@@ -79,6 +79,55 @@ class TaskDashboardTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, 400)
         self.assertEqual(self.store.list_tasks(), [])
 
+    def test_pending_feedback_is_shown_and_requires_post_confirmation(self):
+        task = self.store.add("Finish harness task", priority="high")
+        event_dir = Path(str(self.store.path) + ".events")
+        event_dir.mkdir()
+        event = {
+            "schema": "icarus.execution-event.v1", "event_id": "E-dashboard-1",
+            "task_id": task["id"], "run_status": "completed",
+            "proposed_status": "completed", "summary": "Harness finished",
+            "created_at": "2026-11-05T08:00:00+00:00",
+        }
+        (event_dir / "E-dashboard-1.json").write_text(
+            __import__("json").dumps(event), encoding="utf-8"
+        )
+        _, page = self.get()
+        self.assertIn("پیشنهاد نتیجهٔ اجرای هارنس", page)
+        self.assertIn("پذیرش پیشنهاد و به‌روزرسانی کار", page)
+        self.assertEqual(self.store.list_tasks()[0]["status"], "inbox")
+        token = page.split('name="csrf" value="', 1)[1].split('"', 1)[0]
+        payload = urllib.parse.urlencode({"csrf": token, "event_id": event["event_id"]}).encode()
+        request = urllib.request.Request(self.base + "/events/apply", data=payload, method="POST")
+        opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler())
+        response = opener.open(request)
+        self.assertEqual(response.status, 200)
+        self.assertEqual(self.store.list_tasks(include_closed=True)[0]["status"], "completed")
+        self.assertEqual(self.store.pending_execution_events(), [])
+
+    def test_rejecting_feedback_does_not_change_task(self):
+        task = self.store.add("Keep task active")
+        event_dir = Path(str(self.store.path) + ".events")
+        event_dir.mkdir()
+        event = {
+            "schema": "icarus.execution-event.v1", "event_id": "E-dashboard-2",
+            "task_id": task["id"], "run_status": "completed",
+            "proposed_status": "completed", "summary": "Suggested complete",
+            "created_at": "2026-11-05T08:00:00+00:00",
+        }
+        (event_dir / "E-dashboard-2.json").write_text(
+            __import__("json").dumps(event), encoding="utf-8"
+        )
+        _, page = self.get()
+        token = page.split('name="csrf" value="', 1)[1].split('"', 1)[0]
+        payload = urllib.parse.urlencode({"csrf": token, "event_id": event["event_id"]}).encode()
+        request = urllib.request.Request(self.base + "/events/reject", data=payload, method="POST")
+        opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler())
+        response = opener.open(request)
+        self.assertEqual(response.status, 200)
+        self.assertEqual(self.store.list_tasks()[0]["status"], "inbox")
+        self.assertEqual(self.store.pending_execution_events(), [])
+
     def test_server_refuses_non_loopback_binding(self):
         with self.assertRaises(ValueError):
             create_task_server(self.store, host="0.0.0.0")
