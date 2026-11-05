@@ -24,7 +24,7 @@ class PolicyConfig:
     approval_required_for_commands: bool = True
     allowed_commands: list[list[str]] = field(default_factory=lambda: [
         ["python", "-m", "unittest"], ["pytest"], ["ruff", "check"],
-        ["mypy"], ["npm", "test"], ["npm", "run", "build"],
+        ["mypy"], ["pnpm", "test"], ["pnpm", "run", "build"],
         ["cargo", "test"], ["go", "test"]
     ])
 
