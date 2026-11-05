@@ -146,6 +146,7 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
         raise ValueError("Task Companion may only bind to 127.0.0.1")
     token = secrets.token_urlsafe(32)
     server = HTTPServer((host, port), None)
+    server.dashboard_message = ""
 
     class TaskHandler(BaseHTTPRequestHandler):
         def _respond(self, status: int, body: str, content_type: str = "text/html; charset=utf-8") -> None:
@@ -162,7 +163,9 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
         def do_GET(self) -> None:
             path = urlparse(self.path).path
             if path == "/":
-                self._respond(200, _page(store, token))
+                message = server.dashboard_message
+                server.dashboard_message = ""
+                self._respond(200, _page(store, token, message=message))
             elif path == "/health":
                 self._respond(200, '{"status":"ok"}', "application/json; charset=utf-8")
             else:
@@ -194,6 +197,7 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                     else:
                         store.dismiss_execution_event(event_id)
                         server_message = "پیشنهاد رد شد؛ وضعیت کار تغییری نکرد."
+                    server.dashboard_message = server_message
                     self.send_response(303)
                     self.send_header("Location", "/")
                     self.send_header("Content-Length", "0")
