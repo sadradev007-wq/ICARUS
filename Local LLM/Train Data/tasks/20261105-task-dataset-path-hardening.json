@@ -4,7 +4,7 @@
   "created_at": "2026-11-05T04:36:00+00:00",
   "task": "ایمن‌سازی نوشتن داده‌های اجرای Local LLM در برابر تعویض مسیر و symlink؛ افزودن آزمون بازتولید race و CI مستقل برای Coding Harness.",
   "status": "completed",
-  "summary": "TaskDatasetWriter اکنون زنجیرهٔ پوشه‌ها را با O_DIRECTORY و O_NOFOLLOW باز می‌کند و ایجاد فایل موقت، rename اتمیک و cleanup را با directory descriptor ثابت انجام می‌دهد. آزمون regression تعویض مسیر پس از بازشدن descriptor و آزمون symlink در مسیر والد افزوده شد. Workflow مستقل برای کامپایل و آزمون‌های Coding Harness روی Python 3.11 و 3.12 اضافه شد. نتایج CI پس از ثبت این رکورد باید از GitHub Actions بررسی شوند.",
+  "summary": "TaskDatasetWriter اکنون زنجیرهٔ پوشه‌ها را با O_DIRECTORY و O_NOFOLLOW باز می‌کند و ایجاد فایل موقت، rename اتمیک، cleanup و sync را با directory descriptor ثابت انجام می‌دهد. دو آزمون امنیتی برای symlink در مسیر والد و تعویض مسیر پس از بازشدن descriptor افزوده شد. Workflow مستقل Coding Harness روی Python 3.11 و 3.12 اجرا شد؛ کامپایل و هر ۴۶ آزمون در هر دو نسخه موفق شدند. دو workflow موجود Idea Architect نیز روی همین commit موفق شدند.",
   "steps": 6,
   "tools_called": [
     "repository_inspection",
@@ -12,10 +12,11 @@
     "descriptor_anchored_dataset_writer",
     "race_condition_regression_test",
     "coding_harness_ci_workflow",
-    "documentation_update"
+    "documentation_update",
+    "github_actions_ci_verification"
   ],
   "verification": {
-    "tests_reported": false,
+    "tests_reported": true,
     "review_status": "required"
   },
   "data_policy": {
