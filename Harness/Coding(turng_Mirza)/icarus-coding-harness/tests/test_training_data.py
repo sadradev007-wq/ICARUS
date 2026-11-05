@@ -29,6 +29,17 @@ class TaskDatasetWriterTests(unittest.TestCase):
         self.assertNotIn("super-secret", redact_text('api_key="super-secret"', 100))
         self.assertNotIn("abc.def.ghi", redact_text("Authorization: Bearer abc.def.ghi", 100))
 
+    def test_refuses_dataset_symlink_outside_workspace(self):
+        with tempfile.TemporaryDirectory() as temp, tempfile.TemporaryDirectory() as outside:
+            root = Path(temp)
+            (root / "Local LLM" / "Train Data").mkdir(parents=True)
+            try:
+                (root / "Local LLM" / "Train Data" / "tasks").symlink_to(outside, target_is_directory=True)
+            except (OSError, NotImplementedError):
+                self.skipTest("directory symlinks are unavailable")
+            with self.assertRaises(ValueError):
+                TaskDatasetWriter(root).record("task", RunResult("completed", "", 1, []))
+
     def test_can_disable_capture(self):
         with tempfile.TemporaryDirectory() as temp, patch.dict(os.environ, {"ICARUS_TRAINING_DATA": "0"}):
             self.assertIsNone(TaskDatasetWriter(Path(temp)).record("task", RunResult("completed", "", 1, [])))
