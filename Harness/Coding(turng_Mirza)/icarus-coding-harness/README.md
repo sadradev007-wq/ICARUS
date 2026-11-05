@@ -11,6 +11,7 @@ An original, approval-first coding-agent runtime developed alongside 119 pinned 
 - Read-only test and dependency-ecosystem discovery across Python, JavaScript/TypeScript, Rust, Go, Java, .NET, PHP, Ruby, Dart/Flutter, Swift, C/C++, Elixir, Haskell, and R. pnpm is the default JavaScript package manager.
 - Separate, read-only model review of changed files, with a runtime gate requiring a fresh review after mutations.
 - Privacy-bounded JSON task-run capture in the repository's `Local LLM/Train Data/tasks/` directory; one record per run.
+- Read-only launch bridge for active Task Companion tasks.
 - Allowlisted test/build commands; writes and commands require approval by default.
 - Git status/diff inspection and workspace-local project memory.
 - Python standard library only; Python 3.11+.
@@ -26,9 +27,13 @@ Set environment:
     export ICARUS_MODEL=qwen2.5-coder:7b
     export ICARUS_API_KEY=local
 
-Run:
-    icarus-harness inspect --workspace .
+Run a direct task:
     icarus-harness run "Inspect the project and fix the parser bug" --workspace .
+
+Run an active Task Companion task without copying its text:
+    icarus-harness run --workspace /path/to/project --task-store ~/.local/share/icarus/tasks.json --task-id T-0123456789ab
+
+The bridge reads the existing `icarus.tasks.v1` JSON store, verifies that the selected task is active, and builds a coding prompt. It is read-only: it does not change Task Companion status, mark work complete, or trigger the task dashboard. The task ID is included in the run prompt and therefore in the privacy-bounded run record.
 
 ## Local LLM task data
 Every completed or step-limited harness run creates a JSON record under `Local LLM/Train Data/tasks/`. Records contain a redacted task prompt, final summary, status, step count, tool names, and test/review indicators. File contents, tool arguments, raw tool output, raw model messages, and environment variables are excluded. Capture is enabled by default; set `ICARUS_TRAINING_DATA=0` to disable it. Records require human curation before being used as training examples. See `Local LLM/README.md`.
