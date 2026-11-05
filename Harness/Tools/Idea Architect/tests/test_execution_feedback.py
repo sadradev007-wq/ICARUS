@@ -39,13 +39,20 @@ class ExecutionFeedbackTests(unittest.TestCase):
         self.assertEqual(updated["status"], "completed")
         self.assertIsNotNone(updated["completed_at"])
         self.assertEqual(self.store.pending_execution_events(), [])
-        with self.assertRaisesRegex(ValueError, "already applied"):
+        with self.assertRaisesRegex(ValueError, "already handled"):
             self.store.apply_execution_event(self.event, user_approved=True)
 
     def test_rejects_mismatched_run_status_mapping(self):
         invalid = dict(self.event, run_status="step_limit")
         with self.assertRaisesRegex(ValueError, "status mapping"):
             self.store.apply_execution_event(invalid, user_approved=True)
+
+    def test_dismissal_hides_event_without_changing_task(self):
+        self.store.dismiss_execution_event(self.event["event_id"])
+        self.assertEqual(self.store.pending_execution_events(), [])
+        self.assertEqual(self.store.list_tasks()[0]["status"], "inbox")
+        with self.assertRaisesRegex(ValueError, "already handled"):
+            self.store.apply_execution_event(self.event, user_approved=True)
 
     def test_refuses_stale_event_for_closed_task(self):
         self.store.complete(self.task["id"])
