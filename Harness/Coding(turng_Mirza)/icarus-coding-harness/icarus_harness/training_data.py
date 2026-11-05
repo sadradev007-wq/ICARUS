@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import Any
 
 _SECRET_PATTERNS = (
-    re.compile(r"(?i)(api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret)(\\s*[=:]\\s*)[^\\s,;]+"),
-    re.compile(r"(?i)(authorization\\s*:\\s*bearer\\s+)[A-Za-z0-9._~+/-]+=*"),
-    re.compile(r"(https?://)[^/@\\s:]+:[^/@\\s]+@"),
+    re.compile(r"(?i)(api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret)(\s*[=:]\s*)[^\s,;]+"),
+    re.compile(r"(?i)(authorization\s*:\s*bearer\s+)[A-Za-z0-9._~+/-]+=*"),
+    re.compile(r"(https?://)[^/@\s:]+:[^/@\s]+@"),
 )
 
 
@@ -20,7 +20,7 @@ def redact_text(value: str, limit: int) -> str:
     text = value[:limit]
     text = _SECRET_PATTERNS[0].sub(lambda m: m.group(1) + m.group(2) + "[REDACTED]", text)
     text = _SECRET_PATTERNS[1].sub(lambda m: m.group(1) + "[REDACTED]", text)
-    text = _SECRET_PATTERNS[2].sub(r"\\1[REDACTED]@", text)
+    text = _SECRET_PATTERNS[2].sub(r"\1[REDACTED]@", text)
     return text
 
 
@@ -83,7 +83,7 @@ class TaskDatasetWriter:
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 json.dump(payload, stream, ensure_ascii=False, indent=2)
-                stream.write("\\n")
+                stream.write("\n")
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(temporary_name, destination)
