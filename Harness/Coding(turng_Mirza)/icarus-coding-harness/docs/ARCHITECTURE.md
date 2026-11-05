@@ -1,12 +1,20 @@
 # Architecture
 
-CLI -> AgentRuntime -> OpenAI-compatible model adapter
+CLI -> Task Companion JSON adapter (optional, read-only) -> AgentRuntime -> OpenAI-compatible model adapter
                  -> ToolRegistry -> Workspace / Git / patch engine / checkpoint manager / test discovery / independent reviewer
                  -> PolicyEngine -> interactive approval
                  -> ProjectMemory
                  -> TaskDatasetWriter -> Local LLM/Train Data/tasks (one JSON record per run)
 
 The runtime is deliberately bounded. Workspace resolves every path against a canonical root. Tool schemas are explicit. The policy layer centralizes approval and command allowlisting. Git is observed but never automatically committed or pushed.
+
+## Task Companion bridge
+The optional CLI bridge reads the Task Companion `icarus.tasks.v1` JSON store and resolves exactly one task by stable ID. It accepts only active statuses and converts title, description, priority, and optional due date into a coding prompt. It never mutates the task store or changes task status. This keeps personal task state separate from coding execution state: the Task Companion remains the source of truth for the task, while the Coding Harness records its own execution trace.
+
+Example:
+```bash
+icarus-harness run --workspace . --task-store ~/.local/share/icarus/tasks.json --task-id T-0123456789ab
+```
 
 ## Local LLM task data
 At the end of each completed or step-limited run, AgentRuntime writes one versioned JSON record below the workspace's `Local LLM/Train Data/tasks/` directory. The record contains a redacted task prompt, final summary, run status, step count, tool names, and test/review indicators. It excludes file contents, patch contents, tool arguments, raw tool output, raw model messages, and environment variables. Capture is enabled by default and can be disabled with `ICARUS_TRAINING_DATA=0`. A record is not automatically considered a training example; human curation is required before training.
