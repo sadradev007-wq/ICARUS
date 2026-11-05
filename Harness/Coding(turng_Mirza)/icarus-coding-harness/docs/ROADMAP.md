@@ -13,6 +13,7 @@
 - [x] Git checkpoints and path-scoped, per-path approved rollback
 - [x] Read-only test and dependency-ecosystem discovery (Python, JS/TS with pnpm, Rust, Go, Java, .NET, PHP, Ruby, Dart, Swift, C/C++, Elixir, Haskell, R)
 - [x] Separate read-only reviewer pass required after mutations
+- [x] Privacy-bounded task-run JSON capture for local curation
 - Structured logs and resumable sessions
 - Secret redaction and binary/size guards
 
