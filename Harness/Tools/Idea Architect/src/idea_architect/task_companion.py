@@ -151,11 +151,18 @@ class TaskStore:
             raise ValueError("Execution event status mapping is invalid")
         if not isinstance(event.get("summary"), str) or len(event["summary"]) > 1000:
             raise ValueError("Execution event summary is invalid")
+        event_path = Path(str(self.path) + ".events") / f"{event_id}.json"
+        if not event_path.is_file():
+            raise ValueError("Execution event file does not exist")
+        stored_event = json.loads(event_path.read_text(encoding="utf-8"))
+        if stored_event != event:
+            raise ValueError("Execution event does not match its stored record")
         with self._lock:
             data = self._read()
             applied = data.setdefault("applied_execution_events", [])
-            if event_id in applied:
-                raise ValueError("Execution event was already applied")
+            dismissed = data.setdefault("dismissed_execution_events", [])
+            if event_id in applied or event_id in dismissed:
+                raise ValueError("Execution event was already handled")
             task = next((item for item in data["tasks"] if item.get("id") == task_id), None)
             if task is None:
                 raise KeyError(task_id)
