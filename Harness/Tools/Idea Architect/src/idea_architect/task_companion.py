@@ -118,6 +118,52 @@ class TaskStore:
                     return dict(task)
         raise KeyError(task_id)
 
+    def pending_execution_events(self) -> list[dict[str, Any]]:
+        """Return unprocessed suggestions from the adjacent .events directory."""
+        event_dir = Path(str(self.path) + ".events")
+        if not event_dir.exists():
+            return []
+        with self._lock:
+            data = self._read()
+            applied = set(data.get("applied_execution_events", []))
+            events = []
+            for path in sorted(event_dir.glob("E-*.json")):
+                event = json.loads(path.read_text(encoding="utf-8"))
+                if event.get("schema") == "icarus.execution-event.v1" and event.get("event_id") not in applied:
+                    events.append(event)
+            return events
+
+    def apply_execution_event(self, event: dict[str, Any], *, user_approved: bool = False) -> dict[str, Any]:
+        """Apply a feedback suggestion only when the caller has explicit user approval."""
+        if not user_approved:
+            raise PermissionError("User confirmation is required to apply execution feedback")
+        if event.get("schema") != "icarus.execution-event.v1":
+            raise ValueError("Invalid execution event schema")
+        event_id, task_id = event.get("event_id"), event.get("task_id")
+        proposed = event.get("proposed_status")
+        if not isinstance(event_id, str) or not event_id.startswith("E-"):
+            raise ValueError("Invalid execution event ID")
+        if proposed not in {"completed", "in_progress"}:
+            raise ValueError("Unsupported proposed task status")
+        if event.get("run_status") not in {"completed", "step_limit"}:
+            raise ValueError("Unsupported harness run status")
+        with self._lock:
+            data = self._read()
+            applied = data.setdefault("applied_execution_events", [])
+            if event_id in applied:
+                raise ValueError("Execution event was already applied")
+            task = next((item for item in data["tasks"] if item.get("id") == task_id), None)
+            if task is None:
+                raise KeyError(task_id)
+            if task.get("status") not in ACTIVE_STATUSES:
+                raise ValueError("Task is no longer active; refusing stale feedback")
+            task["status"] = proposed
+            task["updated_at"] = _now()
+            task["completed_at"] = _now() if proposed == "completed" else None
+            applied.append(event_id)
+            self._write(data)
+            return dict(task)
+
     def complete(self, task_id: str) -> dict[str, Any]:
         return self.update(task_id, status="completed")
 
