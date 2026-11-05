@@ -14,7 +14,7 @@ The optional CLI bridge reads the Task Companion `icarus.tasks.v1` store and res
 
 After a completed or step-limited run, the CLI asks the operator whether to write a result suggestion. If accepted, it creates a separate immutable JSON file in the adjacent `tasks.json.events/` directory. The event includes a unique ID, task ID, harness run status, proposed task status, bounded summary, and timestamp. It does not directly update the task.
 
-Task Companion's `TaskStore.pending_execution_events()` lists unapplied events. The user-facing UI must present the event and obtain explicit confirmation before calling `apply_execution_event(event, user_approved=True)`. Application validates the event schema, run status, proposed status, target task and active state; it records the applied event ID in the same atomic task-store write. Duplicate and stale events are rejected. A step-limited run proposes `in_progress`, never `completed`.
+Task Companion's `TaskStore.pending_execution_events()` lists unapplied events. The Task Companion dashboard presents the event and obtains explicit confirmation through a CSRF-protected form before calling `apply_execution_event(event, user_approved=True)`. Application validates the event schema, run status, proposed status, target task and active state; it records the applied event ID in the same atomic task-store write. Duplicate and stale events are rejected. A step-limited run proposes `in_progress`, never `completed`.
 
 This separates three facts: the Coding Harness run result, the proposed task status, and the user's accepted task status. No model output can directly mark a task complete.
 
