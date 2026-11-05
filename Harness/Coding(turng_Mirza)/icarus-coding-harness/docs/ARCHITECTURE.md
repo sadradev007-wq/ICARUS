@@ -58,4 +58,4 @@ Checkpoints are local Git refs, not remote backups. They do not include untracke
 ## Reference study
 The `sample` directory contains 119 pinned repository submodules. They inform design decisions only; source files are not copied or vendored.
 
-Current limitations: no streaming, durable patch queue outside Git refs, semantic retrieval, multi-agent delegation, or GUI in the Coding Harness. The Task Companion UI still needs a pending-feedback view and explicit apply/reject controls. Test-to-source mapping is convention-based.
+Current limitations: no streaming, durable patch queue outside Git refs, semantic retrieval, multi-agent delegation, or GUI in the Coding Harness. The standalone Task Companion dashboard now shows pending feedback with explicit apply/reject controls; the global application shell still needs its own shared task drawer. Test-to-source mapping is convention-based.
