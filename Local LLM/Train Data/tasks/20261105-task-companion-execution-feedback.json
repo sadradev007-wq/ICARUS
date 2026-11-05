@@ -32,7 +32,8 @@
     "Harness/Tools/Idea Architect/src/idea_architect/task_dashboard.py",
     "Harness/Tools/Idea Architect/tests/test_execution_feedback.py",
     "Harness/Tools/Idea Architect/tests/test_task_dashboard.py",
-    "Harness/Tools/Task Companion/README.md"
+    "Harness/Tools/Task Companion/README.md",
+    "Local LLM/Train Data/schemas/execution-event.schema.json"
   ],
   "data_policy": {
     "redacted": true,
