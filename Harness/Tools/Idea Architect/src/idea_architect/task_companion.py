@@ -125,7 +125,7 @@ class TaskStore:
             return []
         with self._lock:
             data = self._read()
-            applied = set(data.get("applied_execution_events", []))
+            applied = set(data.get("applied_execution_events", [])) | set(data.get("dismissed_execution_events", []))
             events = []
             for path in sorted(event_dir.glob("E-*.json")):
                 event = json.loads(path.read_text(encoding="utf-8"))
@@ -141,12 +141,16 @@ class TaskStore:
             raise ValueError("Invalid execution event schema")
         event_id, task_id = event.get("event_id"), event.get("task_id")
         proposed = event.get("proposed_status")
+        run_status = event.get("run_status")
         if not isinstance(event_id, str) or not event_id.startswith("E-"):
             raise ValueError("Invalid execution event ID")
-        if proposed not in {"completed", "in_progress"}:
-            raise ValueError("Unsupported proposed task status")
-        if event.get("run_status") not in {"completed", "step_limit"}:
-            raise ValueError("Unsupported harness run status")
+        if not isinstance(task_id, str) or not task_id:
+            raise ValueError("Invalid execution event task ID")
+        expected = {"completed": "completed", "step_limit": "in_progress"}
+        if run_status not in expected or proposed != expected[run_status]:
+            raise ValueError("Execution event status mapping is invalid")
+        if not isinstance(event.get("summary"), str) or len(event["summary"]) > 1000:
+            raise ValueError("Execution event summary is invalid")
         with self._lock:
             data = self._read()
             applied = data.setdefault("applied_execution_events", [])
@@ -163,6 +167,19 @@ class TaskStore:
             applied.append(event_id)
             self._write(data)
             return dict(task)
+
+    def dismiss_execution_event(self, event_id: str) -> None:
+        """Dismiss a suggestion without changing the related task."""
+        if not isinstance(event_id, str) or not event_id.startswith("E-"):
+            raise ValueError("Invalid execution event ID")
+        with self._lock:
+            data = self._read()
+            if event_id in data.setdefault("applied_execution_events", []):
+                raise ValueError("Execution event was already handled")
+            dismissed = data.setdefault("dismissed_execution_events", [])
+            if event_id not in dismissed:
+                dismissed.append(event_id)
+                self._write(data)
 
     def complete(self, task_id: str) -> dict[str, Any]:
         return self.update(task_id, status="completed")
