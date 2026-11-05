@@ -4,8 +4,12 @@ CLI -> AgentRuntime -> OpenAI-compatible model adapter
                  -> ToolRegistry -> Workspace / Git / patch engine / checkpoint manager / test discovery / independent reviewer
                  -> PolicyEngine -> interactive approval
                  -> ProjectMemory
+                 -> TaskDatasetWriter -> Local LLM/Train Data/tasks (one JSON record per run)
 
 The runtime is deliberately bounded. Workspace resolves every path against a canonical root. Tool schemas are explicit. The policy layer centralizes approval and command allowlisting. Git is observed but never automatically committed or pushed.
+
+## Local LLM task data
+At the end of each completed or step-limited run, AgentRuntime writes one versioned JSON record below the workspace's `Local LLM/Train Data/tasks/` directory. The record contains a redacted task prompt, final summary, run status, step count, tool names, and test/review indicators. It excludes file contents, patch contents, tool arguments, raw tool output, raw model messages, and environment variables. Capture is enabled by default and can be disabled with `ICARUS_TRAINING_DATA=0`. A record is not automatically considered a training example; human curation is required before training.
 
 ## Patch flow
 1. propose_patch reads an existing UTF-8 file and returns a unified diff without writing.
@@ -44,14 +48,6 @@ Checkpoints are local Git refs, not remote backups. They do not include untracke
 5. A later mutation invalidates the previous review and requires another pass. The reviewer has a separate prompt and context but uses the same configured model endpoint; it is not an independent second model.
 
 ## Reference study (patterns only; no source code copied)
-
-The `sample` directory contains 119 pinned repository submodules. For this review feature, the following relevant pinned snapshots were inspected:
-
-- [OpenCodeReview](https://github.com/alibaba/open-code-review/tree/76ab46ac20f08a8bd8ac38881a8a826c7cb6495f) — canonical workspace-root and symlink containment patterns in its file resolver. License: Apache-2.0.
-- [DeepSec](https://github.com/vercel-labs/deepsec/tree/4fa67220aff67ac93dfc840206d3d32bfa4411ec) — changed-file-scoped review and explicit separation of findings from test execution. License: Apache-2.0.
-- [mini-swe-agent](https://github.com/SWE-agent/mini-swe-agent/tree/04d809ceab9df28f9adaed044884180159172930) — small bounded agent loop and explicit step limits. License: MIT.
-- [OpenHands](https://github.com/OpenHands/OpenHands/tree/99439d7e39a0d213a26d022d4884c882a5cc36fa) — review triage by ownership, scope, acceptance criteria, and verification evidence. License: MIT.
-
-These references informed design decisions only. No source files were copied or vendored, and no benchmark claim is made about the 119 repositories.
+The `sample` directory contains 119 pinned repository submodules. Relevant projects are consulted selectively for each feature. These references inform design decisions only; source files are not copied or vendored.
 
 Current limitations: no streaming, durable patch queue outside Git refs, semantic retrieval, multi-agent delegation, or GUI. Test-to-source mapping is convention-based and may miss custom test layouts. Review quality depends on the configured model, and the reviewer can miss defects or produce false positives.
