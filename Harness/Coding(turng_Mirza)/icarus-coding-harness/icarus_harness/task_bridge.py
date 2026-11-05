@@ -47,6 +47,8 @@ def write_execution_event(store_path: Path, task_id: str, run_status: str, summa
     """Write an immutable result suggestion; never changes Task Companion task state."""
     if run_status not in {"completed", "step_limit"}:
         raise ValueError("Only completed or step-limited runs can produce feedback")
+    # Re-check that the task is still active; a concurrent user update wins.
+    load_task_prompt(store_path, task_id)
     if not isinstance(summary, str):
         raise ValueError("Execution summary must be text")
     event_id = "E-" + uuid4().hex
