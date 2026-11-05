@@ -38,6 +38,8 @@ The bridge reads the `icarus.tasks.v1` store and accepts only one active task. A
 ## Local LLM task data
 Every completed or step-limited harness run creates a JSON record under `Local LLM/Train Data/tasks/`. Records contain a redacted task prompt, final summary, status, step count, tool names, and test/review indicators. File contents, tool arguments, raw tool output, raw model messages, and environment variables are excluded. Capture is enabled by default; set `ICARUS_TRAINING_DATA=0` to disable it. Records require human curation before being used as training examples. See `Local LLM/README.md`.
 
+On POSIX systems, the writer opens each directory component with no-follow flags and creates/renames files relative to the pinned directory descriptor. This prevents a path swap from redirecting a record write through a symlink. Capture fails closed on platforms without POSIX directory-descriptor support; a telemetry failure does not fail the coding run.
+
 ## Package ecosystems and test discovery
 The `discover_tests` tool reports detected dependency manifests, lockfiles, package managers, candidate install commands, test commands, and likely related test files. JavaScript/TypeScript uses `pnpm` rather than `npm`. Discovery is read-only: it does not install packages, contact registries, or execute test commands. The catalog describes package ecosystems; it does not vendor or bundle every third-party library.
 

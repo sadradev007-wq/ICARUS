@@ -21,6 +21,8 @@ This separates three facts: the Coding Harness run result, the proposed task sta
 ## Local LLM task data
 At the end of each completed or step-limited run, AgentRuntime writes one versioned JSON record below `Local LLM/Train Data/tasks/`. The record contains a redacted task prompt, final summary, run status, step count, tool names, and test/review indicators. It excludes file contents, patch contents, tool arguments, raw tool output, raw model messages, and environment variables. Capture is enabled by default and can be disabled with `ICARUS_TRAINING_DATA=0`. A record is not automatically a training example; human curation is required before training.
 
+Dataset writes traverse the three output directories using POSIX directory descriptors opened with `O_DIRECTORY | O_NOFOLLOW`. Temporary-file creation, atomic rename, cleanup, and directory sync are relative to the pinned final descriptor, so a later pathname swap cannot redirect the write. The writer fails closed when these descriptor APIs are unavailable; AgentRuntime treats capture errors as non-fatal telemetry failures.
+
 ## Patch flow
 1. propose_patch reads an existing UTF-8 file and returns a unified diff without writing.
 2. The proposal records a SHA-256 digest of the source and remains in memory for the current runtime.

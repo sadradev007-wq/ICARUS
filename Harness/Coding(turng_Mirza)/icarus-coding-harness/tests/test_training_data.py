@@ -40,6 +40,47 @@ class TaskDatasetWriterTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 TaskDatasetWriter(root).record("task", RunResult("completed", "", 1, []))
 
+    def test_pins_opened_directory_when_path_is_swapped_for_symlink(self):
+        with tempfile.TemporaryDirectory() as temp, tempfile.TemporaryDirectory() as outside:
+            root = Path(temp)
+            tasks_dir = root / "Local LLM" / "Train Data" / "tasks"
+            original_open = os.open
+            swapped = False
+
+            def swap_after_open(path, *args, **kwargs):
+                nonlocal swapped
+                descriptor = original_open(path, *args, **kwargs)
+                if path == "tasks" and kwargs.get("dir_fd") is not None and not swapped:
+                    held_dir = tasks_dir.with_name("tasks-pinned")
+                    tasks_dir.rename(held_dir)
+                    try:
+                        tasks_dir.symlink_to(outside, target_is_directory=True)
+                    except (OSError, NotImplementedError):
+                        original_close = os.close
+                        original_close(descriptor)
+                        self.skipTest("directory symlinks are unavailable")
+                    swapped = True
+                return descriptor
+
+            result = RunResult("completed", "Pinned write", 1, [])
+            with patch("icarus_harness.training_data.os.open", side_effect=swap_after_open):
+                TaskDatasetWriter(root).record("race regression", result)
+
+            self.assertTrue(swapped)
+            self.assertEqual(len(list((root / "Local LLM" / "Train Data" / "tasks-pinned").glob("*.json"))), 1)
+            self.assertEqual(list(Path(outside).glob("*.json")), [])
+
+    def test_refuses_symlinked_parent_component(self):
+        with tempfile.TemporaryDirectory() as temp, tempfile.TemporaryDirectory() as outside:
+            root = Path(temp)
+            try:
+                (root / "Local LLM").symlink_to(outside, target_is_directory=True)
+            except (OSError, NotImplementedError):
+                self.skipTest("directory symlinks are unavailable")
+            with self.assertRaises(ValueError):
+                TaskDatasetWriter(root).record("task", RunResult("completed", "", 1, []))
+            self.assertEqual(list(Path(outside).iterdir()), [])
+
     def test_can_disable_capture(self):
         with tempfile.TemporaryDirectory() as temp, patch.dict(os.environ, {"ICARUS_TRAINING_DATA": "0"}):
             self.assertIsNone(TaskDatasetWriter(Path(temp)).record("task", RunResult("completed", "", 1, [])))
