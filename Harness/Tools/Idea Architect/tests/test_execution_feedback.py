@@ -15,12 +15,12 @@ class ExecutionFeedbackTests(unittest.TestCase):
         self.event_dir = Path(str(self.path) + ".events")
         self.event_dir.mkdir()
         self.event = {
-            "schema": "icarus.execution-event.v1", "event_id": "E-test-001",
+            "schema": "icarus.execution-event.v1", "event_id": "E-00000000000000000000000000000001",
             "task_id": self.task["id"], "run_status": "completed",
             "proposed_status": "completed", "summary": "Done",
             "created_at": "2026-11-05T08:00:00+00:00",
         }
-        (self.event_dir / "E-test-001.json").write_text(json.dumps(self.event), encoding="utf-8")
+        (self.event_dir / "E-00000000000000000000000000000001.json").write_text(json.dumps(self.event), encoding="utf-8")
 
     def tearDown(self):
         self.temp.cleanup()
