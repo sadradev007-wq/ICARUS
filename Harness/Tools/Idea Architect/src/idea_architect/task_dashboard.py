@@ -38,6 +38,31 @@ def _page(store: TaskStore, token: str, *, message: str = "",
           error: str = "", values: dict[str, str] | None = None) -> str:
     values = values or {}
     tasks = store.list_tasks(include_closed=True)
+    events = store.pending_execution_events()
+    event_rows = []
+    for event in events:
+        event_id = _e(event.get("event_id"))
+        task_id = _e(event.get("task_id"))
+        proposed = STATUS_LABELS.get(event.get("proposed_status"), event.get("proposed_status"))
+        summary = _e(event.get("summary"))
+        event_rows.append(
+            '<article class="task feedback"><div class="task-title"><div><h3>پیشنهاد نتیجهٔ اجرای هارنس</h3>'
+            f'<p>کار: {task_id} · وضعیت پیشنهادی: {_e(proposed)}</p><p>{summary}</p></div></div>'
+            '<div class="actions">'
+            '<form method="post" action="/events/apply">'
+            f'<input type="hidden" name="csrf" value="{_e(token)}">'
+            f'<input type="hidden" name="event_id" value="{event_id}">'
+            '<button type="submit">پذیرش پیشنهاد و به‌روزرسانی کار</button></form>'
+            '<form method="post" action="/events/reject">'
+            f'<input type="hidden" name="csrf" value="{_e(token)}">'
+            f'<input type="hidden" name="event_id" value="{event_id}">'
+            '<button type="submit" class="secondary">رد پیشنهاد</button></form>'
+            '</div></article>'
+        )
+    feedback_section = (
+        '<section class="panel"><h2>بازخوردهای در انتظار تأیید (' + str(len(events)) + ')</h2>'
+        + "".join(event_rows) + '</section>'
+    ) if events else ""
     rows = []
     for task in tasks:
         priority = PRIORITY_LABELS.get(task["priority"], task["priority"])
@@ -77,6 +102,8 @@ button{{font:inherit;border:0;border-radius:10px;background:#8061c7;color:white;
 button:hover{{filter:brightness(1.12)}}.submit{{grid-column:1/-1;justify-self:start;min-width:170px}}
 .notice{{padding:12px 15px;border-radius:10px;margin:0 0 16px}}.success{{background:#18382f;color:#b8f3d9}}.error{{background:#47262e;color:#ffd0d5}}
 .task{{background:#191e2b;border:1px solid #30364a;border-radius:14px;padding:16px;margin:12px 0}}
+.feedback{{border-color:#8061c7}}.actions{{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}}
+.actions form{{display:block;background:transparent;padding:0}}.secondary{{background:#444b5e}}
 .task-title{{display:flex;align-items:start;justify-content:space-between;gap:12px}}h3{{margin:0 0 7px;font-size:1rem}}.task p{{margin:0;color:#aab2c8;white-space:pre-wrap;overflow-wrap:anywhere}}
 .priority{{white-space:nowrap;border-radius:30px;padding:5px 10px;font-size:.8rem;background:#33384a}}
 .critical{{background:#542d3c;color:#ffbdca}}.high{{background:#514126;color:#ffe0a1}}.normal{{background:#30364a;color:#d4d9e8}}.low{{background:#263e45;color:#b5e9ec}}
@@ -84,7 +111,7 @@ button:hover{{filter:brightness(1.12)}}.submit{{grid-column:1/-1;justify-self:st
 @media(max-width:640px){{form{{grid-template-columns:1fr}}.wide,.submit{{grid-column:1}}.task-title{{flex-direction:column}}}}
 </style></head><body>
 <header><h1>ICARUS · Task Companion</h1><small>ثبت و پیگیری کارهای شخصی و پروژه‌ای</small></header>
-<main>{notice}{error_box}
+<main>{notice}{error_box}{feedback_section}
 <section class="panel"><h2>＋ افزودن کار جدید</h2>
 <form method="post" action="/tasks">
 <input type="hidden" name="csrf" value="{_e(token)}">
@@ -142,7 +169,8 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                 self._respond(404, "Not found")
 
         def do_POST(self) -> None:
-            if urlparse(self.path).path != "/tasks":
+            route = urlparse(self.path).path
+            if route not in {"/tasks", "/events/apply", "/events/reject"}:
                 self._respond(404, "Not found")
                 return
             try:
@@ -154,6 +182,24 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                 values = {key: items[-1] for key, items in form.items() if items}
                 if not secrets.compare_digest(values.get("csrf", ""), token):
                     raise PermissionError("درخواست معتبر نیست؛ صفحه را تازه‌سازی کن.")
+                if route in {"/events/apply", "/events/reject"}:
+                    event_id = values.get("event_id", "")
+                    event = next((item for item in store.pending_execution_events()
+                                  if item.get("event_id") == event_id), None)
+                    if event is None:
+                        raise ValueError("پیشنهاد پیدا نشد یا قبلاً بررسی شده است.")
+                    if route == "/events/apply":
+                        updated = store.apply_execution_event(event, user_approved=True)
+                        server_message = f"پیشنهاد پذیرفته شد؛ وضعیت «{updated['status']}» ثبت شد."
+                    else:
+                        store.dismiss_execution_event(event_id)
+                        server_message = "پیشنهاد رد شد؛ وضعیت کار تغییری نکرد."
+                    self.send_response(303)
+                    self.send_header("Location", "/")
+                    self.send_header("Content-Length", "0")
+                    self.send_header("Cache-Control", "no-store")
+                    self.end_headers()
+                    return
                 title = values.get("title", "").strip()
                 description = values.get("description", "").strip()
                 priority = values.get("priority", "normal")
