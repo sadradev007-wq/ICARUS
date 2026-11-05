@@ -117,3 +117,6 @@
 هستهٔ API نیز این عملیات را ارائه می‌کند: `TaskStore.pending_execution_events()`، `TaskStore.apply_execution_event(event, user_approved=True)` و `TaskStore.dismiss_execution_event(event_id)`. رابط گرافیکی قبل از فراخوانی عملیات تغییر وضعیت، تأیید صریح را از طریق فرم محافظت‌شده با CSRF دریافت می‌کند.
 
 این طراحی سه مفهوم را جدا نگه می‌دارد: نتیجهٔ اجرای هارنس، پیشنهاد تغییر وضعیت، و وضعیت نهایی تأییدشده توسط کاربر.
+
+
+قرارداد رویداد در `Local LLM/Train Data/schemas/execution-event.schema.json` تعریف شده است. این فایل مستقل از schema اصلی `icarus.tasks.v1` است تا پیام اجرایی نتواند به‌جای وضعیت واقعی کار ثبت شود.
