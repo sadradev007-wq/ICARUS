@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import re
 from pathlib import Path
 import threading
 from typing import Any
@@ -142,7 +143,7 @@ class TaskStore:
         event_id, task_id = event.get("event_id"), event.get("task_id")
         proposed = event.get("proposed_status")
         run_status = event.get("run_status")
-        if not isinstance(event_id, str) or not event_id.startswith("E-"):
+        if not isinstance(event_id, str) or not re.fullmatch(r"E-[a-f0-9]{32}", event_id):
             raise ValueError("Invalid execution event ID")
         if not isinstance(task_id, str) or not task_id:
             raise ValueError("Invalid execution event task ID")
@@ -177,7 +178,7 @@ class TaskStore:
 
     def dismiss_execution_event(self, event_id: str) -> None:
         """Dismiss a suggestion without changing the related task."""
-        if not isinstance(event_id, str) or not event_id.startswith("E-"):
+        if not isinstance(event_id, str) or not re.fullmatch(r"E-[a-f0-9]{32}", event_id):
             raise ValueError("Invalid execution event ID")
         with self._lock:
             data = self._read()
