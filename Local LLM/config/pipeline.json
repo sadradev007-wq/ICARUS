@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0.0",
+  "enabled_by_default": true,
+  "environment_override": "ICARUS_TRAINING_DATA",
+  "output_directory": "Local LLM/Train Data/tasks",
+  "record_policy": {
+    "one_record_per_task_run": true,
+    "include_task_prompt": true,
+    "include_final_summary": true,
+    "include_tool_names": true,
+    "include_file_contents": false,
+    "include_tool_arguments": false,
+    "include_raw_tool_output": false,
+    "include_raw_model_messages": false,
+    "redact_common_credentials": true,
+    "max_task_characters": 8000,
+    "max_summary_characters": 4000
+  },
+  "curation": {
+    "automatic_training_eligibility": false,
+    "require_human_review_before_training": true,
+    "retain_failed_runs_for_diagnostics": true
+  }
+}
