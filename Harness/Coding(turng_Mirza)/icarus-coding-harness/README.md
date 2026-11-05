@@ -10,6 +10,7 @@ An original, approval-first coding-agent runtime developed alongside 119 pinned 
 - Local Git checkpoints stored in private refs; path-scoped rollback with per-path approval.
 - Read-only test and dependency-ecosystem discovery across Python, JavaScript/TypeScript, Rust, Go, Java, .NET, PHP, Ruby, Dart/Flutter, Swift, C/C++, Elixir, Haskell, and R. pnpm is the default JavaScript package manager.
 - Separate, read-only model review of changed files, with a runtime gate requiring a fresh review after mutations.
+- Privacy-bounded JSON task-run capture in the repository's `Local LLM/Train Data/tasks/` directory; one record per run.
 - Allowlisted test/build commands; writes and commands require approval by default.
 - Git status/diff inspection and workspace-local project memory.
 - Python standard library only; Python 3.11+.
@@ -28,6 +29,9 @@ Set environment:
 Run:
     icarus-harness inspect --workspace .
     icarus-harness run "Inspect the project and fix the parser bug" --workspace .
+
+## Local LLM task data
+Every completed or step-limited harness run creates a JSON record under `Local LLM/Train Data/tasks/`. Records contain a redacted task prompt, final summary, status, step count, tool names, and test/review indicators. File contents, tool arguments, raw tool output, raw model messages, and environment variables are excluded. Capture is enabled by default; set `ICARUS_TRAINING_DATA=0` to disable it. Records require human curation before being used as training examples. See `Local LLM/README.md`.
 
 ## Package ecosystems and test discovery
 The `discover_tests` tool reports detected dependency manifests, lockfiles, package managers, candidate install commands, test commands, and likely related test files. JavaScript/TypeScript uses `pnpm` rather than `npm`. Discovery is read-only: it does not install packages, contact registries, or execute test commands. The catalog describes package ecosystems; it does not vendor or bundle every third-party library.
