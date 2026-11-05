@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/task-run.schema.json",
+  "title": "ICARUS Harness Task Run",
+  "type": "object",
+  "required": ["schema_version", "record_id", "created_at", "task", "status", "steps", "tools_called", "verification", "data_policy"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "record_id": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "task": { "type": "string", "maxLength": 8000 },
+    "status": { "type": "string", "enum": ["completed", "step_limit", "error"] },
+    "summary": { "type": "string", "maxLength": 4000 },
+    "steps": { "type": "integer", "minimum": 0 },
+    "tools_called": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "verification": {
+      "type": "object",
+      "required": ["tests_reported", "review_status"],
+      "properties": {
+        "tests_reported": { "type": "boolean" },
+        "review_status": { "type": "string", "enum": ["completed", "no_changes", "required", "unavailable", "invalid_or_unknown"] }
+      },
+      "additionalProperties": false
+    },
+    "data_policy": {
+      "type": "object",
+      "required": ["redacted", "file_contents_included", "tool_arguments_included", "raw_tool_output_included"],
+      "properties": {
+        "redacted": { "type": "boolean" },
+        "file_contents_included": { "type": "boolean", "const": false },
+        "tool_arguments_included": { "type": "boolean", "const": false },
+        "raw_tool_output_included": { "type": "boolean", "const": false }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
