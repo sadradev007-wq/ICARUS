@@ -77,7 +77,12 @@ class TaskDatasetWriter:
             },
         }
 
+        # Refuse pre-existing symlinks that redirect dataset writes outside the workspace.
+        if not self.output_dir.resolve().is_relative_to(self.workspace_root):
+            raise ValueError("training data directory escapes the workspace")
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        if not self.output_dir.resolve().is_relative_to(self.workspace_root):
+            raise ValueError("training data directory escapes the workspace")
         destination = self.output_dir / f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}-{record_id}.json"
         fd, temporary_name = tempfile.mkstemp(prefix=".icarus-task-", suffix=".tmp", dir=self.output_dir)
         try:
