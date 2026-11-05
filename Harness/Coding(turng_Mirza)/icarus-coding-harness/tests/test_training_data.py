@@ -45,16 +45,19 @@ class TaskDatasetWriterTests(unittest.TestCase):
             root = Path(temp)
             tasks_dir = root / "Local LLM" / "Train Data" / "tasks"
             held_dir = tasks_dir.with_name("tasks-pinned")
+            tasks_dir.parent.mkdir(parents=True)
+            probe = tasks_dir.parent / "symlink-probe"
+            try:
+                probe.symlink_to(outside, target_is_directory=True)
+                probe.unlink()
+            except (OSError, NotImplementedError):
+                self.skipTest("directory symlinks are unavailable")
 
             class SwappingWriter(TaskDatasetWriter):
                 def _open_output_directory(self):
                     descriptor = super()._open_output_directory()
                     tasks_dir.rename(held_dir)
-                    try:
-                        tasks_dir.symlink_to(outside, target_is_directory=True)
-                    except (OSError, NotImplementedError):
-                        os.close(descriptor)
-                        self.skipTest("directory symlinks are unavailable")
+                    tasks_dir.symlink_to(outside, target_is_directory=True)
                     return descriptor
 
             result = RunResult("completed", "Pinned write", 1, [])
