@@ -17,9 +17,30 @@
     "documentation_update"
   ],
   "verification": {
-    "tests_reported": false,
-    "review_status": "required",
-    "ci_status": "not_checked"
+    "tests_reported": true,
+    "review_status": "static_diff_reviewed",
+    "ci_status": "passed_for_idea_architect",
+    "workflow_runs": [
+      {
+        "name": "Idea Architect tests",
+        "id": 41966945480,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect CI",
+        "id": 41966945559,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "conclusion": "success"
+      }
+    ],
+    "limitations": "Coding Harness-specific tests were not executed; the repository has no workflow for that package yet."
   },
   "changed_paths": [
     "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/task_bridge.py",
