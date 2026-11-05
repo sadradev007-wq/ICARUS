@@ -84,12 +84,12 @@ class TaskDashboardTests(unittest.TestCase):
         event_dir = Path(str(self.store.path) + ".events")
         event_dir.mkdir()
         event = {
-            "schema": "icarus.execution-event.v1", "event_id": "E-dashboard-1",
+            "schema": "icarus.execution-event.v1", "event_id": "E-00000000000000000000000000000002",
             "task_id": task["id"], "run_status": "completed",
             "proposed_status": "completed", "summary": "Harness finished",
             "created_at": "2026-11-05T08:00:00+00:00",
         }
-        (event_dir / "E-dashboard-1.json").write_text(
+        (event_dir / "E-00000000000000000000000000000002.json").write_text(
             __import__("json").dumps(event), encoding="utf-8"
         )
         _, page = self.get()
@@ -110,12 +110,12 @@ class TaskDashboardTests(unittest.TestCase):
         event_dir = Path(str(self.store.path) + ".events")
         event_dir.mkdir()
         event = {
-            "schema": "icarus.execution-event.v1", "event_id": "E-dashboard-2",
+            "schema": "icarus.execution-event.v1", "event_id": "E-00000000000000000000000000000003",
             "task_id": task["id"], "run_status": "completed",
             "proposed_status": "completed", "summary": "Suggested complete",
             "created_at": "2026-11-05T08:00:00+00:00",
         }
-        (event_dir / "E-dashboard-2.json").write_text(
+        (event_dir / "E-00000000000000000000000000000003.json").write_text(
             __import__("json").dumps(event), encoding="utf-8"
         )
         _, page = self.get()
