@@ -23,7 +23,7 @@
 
 قرارداد خواندنی فعلی `GET /api/v1/tasks` با schema نسخه‌دار `icarus.task-api.v1` است؛ پاسخ، کارهای فعال، رویدادهای در انتظار تأیید و شمارنده‌ها را از همان `TaskStore` برمی‌گرداند.
 پنل نباید نسخهٔ محلی و ناسازگار دیگری از فهرست کارها بسازد. endpoint فقط‌خواندنی است؛ تغییر وضعیت همچنان از عملیات صریح و CSRF-protected Task Companion انجام می‌شود.
-سرور فقط روی loopback گوش می‌دهد و CORS ندارد. پوسته‌ای با origin جداگانه باید از same-origin proxy یا desktop bridge استفاده کند؛ برای آسان‌کردن اتصال، CORS را باز نکن.
+سرور فقط روی `127.0.0.1` گوش می‌دهد، Host را برای جلوگیری از DNS rebinding بررسی می‌کند و CORS ندارد. پوسته‌ای با origin جداگانه باید از same-origin proxy یا desktop bridge استفاده کند؛ برای آسان‌کردن اتصال، CORS را باز نکن.
 پنل باید حالت‌های loading، empty، error و offline را نمایش دهد. قرارداد پاسخ در `Harness/Tools/Task Companion/schemas/task-api.v1.schema.json` ثبت شده است.
 
 ## اصول تعامل

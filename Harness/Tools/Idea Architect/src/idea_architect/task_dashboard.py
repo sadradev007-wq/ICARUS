@@ -207,8 +207,17 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
             self.end_headers()
             self.wfile.write(data)
 
+        def _require_loopback_host(self) -> bool:
+            host = self.headers.get("Host", "")
+            if urlparse("//" + host).hostname != "127.0.0.1":
+                self._respond(403, "Forbidden")
+                return False
+            return True
+
         def do_GET(self) -> None:
             path = urlparse(self.path).path
+            if not self._require_loopback_host():
+                return
             if path == "/":
                 message = server.dashboard_message
                 server.dashboard_message = ""
@@ -223,6 +232,8 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
 
         def do_POST(self) -> None:
             route = urlparse(self.path).path
+            if not self._require_loopback_host():
+                return
             if route not in {"/tasks", "/events/apply", "/events/reject"}:
                 self._respond(404, "Not found")
                 return

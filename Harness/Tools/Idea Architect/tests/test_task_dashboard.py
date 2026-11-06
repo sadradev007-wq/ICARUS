@@ -194,6 +194,16 @@ class TaskDashboardTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, 404)
         self.assertEqual(self.store.list_tasks()[0]["status"], "next")
 
+    def test_rejects_non_loopback_host_header(self):
+        request = urllib.request.Request(
+            self.base + "/api/v1/tasks",
+            headers={"Host": "attacker.example"},
+        )
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(request)
+        self.assertEqual(caught.exception.code, 403)
+        self.assertEqual(self.store.list_tasks(), [])
+
     def test_server_refuses_non_loopback_binding(self):
         with self.assertRaises(ValueError):
             create_task_server(self.store, host="0.0.0.0")
