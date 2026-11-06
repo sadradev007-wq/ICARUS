@@ -3,9 +3,9 @@
   "record_id": "task-companion-read-only-api-20261106",
   "created_at": "2026-11-06T07:40:00+03:30",
   "task": "افزودن API خواندنی و نسخه‌دار Task Companion برای مصرف مشترک توسط پوستهٔ اصلی، بدون ایجاد مسیر نوشتن یا دور زدن تأیید کاربر.",
-  "status": "in_progress",
-  "summary": "یک endpoint فقط‌خواندنی GET /api/v1/tasks به سرور loopback اضافه شد. پاسخ، کارهای فعال، رویدادهای اجرای در انتظار تأیید و شمارنده‌ها را با allowlist فیلدها ارائه می‌کند. schema نسخه‌دار، آزمون‌های HTTP و مستندات قرارداد پوسته به‌روزرسانی شدند. نتیجهٔ CI هنوز در انتظار اجراست.",
-  "steps": 6,
+  "status": "completed",
+  "summary": "یک endpoint فقط‌خواندنی GET /api/v1/tasks به سرور loopback اضافه شد. پاسخ نسخه‌دار، کارهای فعال و رویدادهای در انتظار تأیید را با allowlist فیلدها و شمارنده‌ها ارائه می‌کند. schema، آزمون‌های HTTP و قرارداد پوسته به‌روزرسانی شدند. Host header نیز برای جلوگیری از DNS rebinding بررسی می‌شود؛ POST به endpoint فقط‌خواندنی با 404 رد می‌شود و وضعیت TaskStore تغییر نمی‌کند.",
+  "steps": 7,
   "tools_called": [
     "repository_state_and_pr_inspection",
     "task_store_and_dashboard_contract_review",
@@ -15,9 +15,42 @@
     "documentation_update"
   ],
   "verification": {
-    "tests_reported": false,
+    "tests_reported": true,
     "review_status": "static_diff_reviewed",
-    "ci_status": "pending"
+    "ci_status": "passed",
+    "tested_commit": "104fa1ce478fe4bc91e65adeb5f36d2654e7c094",
+    "workflow_runs": [
+      {
+        "name": "Coding Harness tests",
+        "id": 42161412416,
+        "python_versions": [
+          "3.11",
+          "3.12"
+        ],
+        "tests_per_version": 46,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect tests",
+        "id": 42161412535,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 75,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect CI",
+        "id": 42161412302,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 75,
+        "conclusion": "success"
+      }
+    ]
   },
   "changed_paths": [
     "Harness/Tools/Idea Architect/src/idea_architect/task_dashboard.py",
