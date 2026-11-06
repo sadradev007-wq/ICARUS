@@ -8,6 +8,7 @@ from __future__ import annotations
 import html
 import json
 import secrets
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -32,6 +33,52 @@ STATUS_LABELS = {
 
 def _e(value: Any) -> str:
     return html.escape(str(value or ""), quote=True)
+
+
+def _task_api_payload(store: TaskStore) -> dict[str, Any]:
+    """Build the versioned, read-only snapshot consumed by local ICARUS surfaces."""
+    tasks = store.list_tasks()
+    events = store.pending_execution_events()
+    public_tasks = [
+        {
+            "id": task["id"],
+            "title": task["title"],
+            "description": task.get("description", ""),
+            "priority": task["priority"],
+            "status": task["status"],
+            "due_at": task.get("due_at"),
+            "project_id": task.get("project_id"),
+            "parent_id": task.get("parent_id"),
+            "tags": [tag for tag in task.get("tags", []) if isinstance(tag, str)],
+            "created_at": task["created_at"],
+            "updated_at": task["updated_at"],
+        }
+        for task in tasks
+    ]
+    public_events = [
+        {
+            "event_id": event["event_id"],
+            "task_id": event["task_id"],
+            "run_status": event["run_status"],
+            "proposed_status": event["proposed_status"],
+            "summary": event["summary"],
+            "created_at": event["created_at"],
+        }
+        for event in events
+    ]
+    return {
+        "schema": "icarus.task-api.v1",
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "tasks": public_tasks,
+        "pending_execution_events": public_events,
+        "counts": {
+            "active_tasks": len(public_tasks),
+            "critical_or_high_tasks": sum(
+                task["priority"] in {"critical", "high"} for task in public_tasks
+            ),
+            "pending_execution_events": len(public_events),
+        },
+    }
 
 
 def _page(store: TaskStore, token: str, *, message: str = "",
@@ -168,6 +215,9 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                 self._respond(200, _page(store, token, message=message))
             elif path == "/health":
                 self._respond(200, '{"status":"ok"}', "application/json; charset=utf-8")
+            elif path == "/api/v1/tasks":
+                payload = json.dumps(_task_api_payload(store), ensure_ascii=False, separators=(",", ":"))
+                self._respond(200, payload, "application/json; charset=utf-8")
             else:
                 self._respond(404, "Not found")
 

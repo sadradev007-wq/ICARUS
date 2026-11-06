@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "task-companion-read-only-api-20261106",
+  "created_at": "2026-11-06T07:40:00+03:30",
+  "task": "افزودن API خواندنی و نسخه‌دار Task Companion برای مصرف مشترک توسط پوستهٔ اصلی، بدون ایجاد مسیر نوشتن یا دور زدن تأیید کاربر.",
+  "status": "in_progress",
+  "summary": "یک endpoint فقط‌خواندنی GET /api/v1/tasks به سرور loopback اضافه شد. پاسخ، کارهای فعال، رویدادهای اجرای در انتظار تأیید و شمارنده‌ها را با allowlist فیلدها ارائه می‌کند. schema نسخه‌دار، آزمون‌های HTTP و مستندات قرارداد پوسته به‌روزرسانی شدند. نتیجهٔ CI هنوز در انتظار اجراست.",
+  "steps": 6,
+  "tools_called": [
+    "repository_state_and_pr_inspection",
+    "task_store_and_dashboard_contract_review",
+    "read_only_task_api_implementation",
+    "versioned_json_schema",
+    "http_api_regression_tests",
+    "documentation_update"
+  ],
+  "verification": {
+    "tests_reported": false,
+    "review_status": "static_diff_reviewed",
+    "ci_status": "pending"
+  },
+  "changed_paths": [
+    "Harness/Tools/Idea Architect/src/idea_architect/task_dashboard.py",
+    "Harness/Tools/Idea Architect/tests/test_task_dashboard.py",
+    "Harness/Tools/Task Companion/README.md",
+    "Harness/Tools/Task Companion/schemas/task-api.v1.schema.json",
+    "UX/MAIN_APP_SHELL.md",
+    "Local LLM/Train Data/tasks/20261106-task-companion-read-only-api.json"
+  ],
+  "data_policy": {
+    "redacted": true,
+    "file_contents_included": false,
+    "tool_arguments_included": false,
+    "raw_tool_output_included": false
+  }
+}

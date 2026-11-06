@@ -1,3 +1,4 @@
+import json
 import threading
 import unittest
 import urllib.error
@@ -127,6 +128,71 @@ class TaskDashboardTests(unittest.TestCase):
         self.assertEqual(response.status, 200)
         self.assertEqual(self.store.list_tasks()[0]["status"], "inbox")
         self.assertEqual(self.store.pending_execution_events(), [])
+
+
+    def test_versioned_read_only_api_returns_allowlisted_active_snapshot(self):
+        task = self.store.add("API task", priority="high")
+        self.store.update(task["id"], status="next")
+        closed = self.store.add("Closed task", priority="critical")
+        self.store.complete(closed["id"])
+
+        stored = json.loads(self.store.path.read_text(encoding="utf-8"))
+        stored["tasks"][0]["private_marker"] = "must-not-leak"
+        self.store.path.write_text(json.dumps(stored), encoding="utf-8")
+
+        event_id = "E-00000000000000000000000000000004"
+        event = {
+            "schema": "icarus.execution-event.v1",
+            "event_id": event_id,
+            "task_id": task["id"],
+            "run_status": "step_limit",
+            "proposed_status": "in_progress",
+            "summary": "Harness reached its step budget",
+            "created_at": "2026-11-06T04:00:00+00:00",
+        }
+        event_dir = Path(str(self.store.path) + ".events")
+        event_dir.mkdir()
+        (event_dir / f"{event_id}.json").write_text(
+            json.dumps(event), encoding="utf-8"
+        )
+
+        with urllib.request.urlopen(self.base + "/api/v1/tasks") as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.headers.get_content_type(), "application/json")
+            self.assertEqual(response.headers.get("Cache-Control"), "no-store")
+            self.assertEqual(response.headers.get("X-Content-Type-Options"), "nosniff")
+            self.assertIsNone(response.headers.get("Access-Control-Allow-Origin"))
+            payload = json.loads(response.read().decode("utf-8"))
+
+        self.assertEqual(payload["schema"], "icarus.task-api.v1")
+        self.assertEqual(payload["counts"], {
+            "active_tasks": 1,
+            "critical_or_high_tasks": 1,
+            "pending_execution_events": 1,
+        })
+        self.assertEqual([item["id"] for item in payload["tasks"]], [task["id"]])
+        self.assertEqual(set(payload["tasks"][0]), {
+            "id", "title", "description", "priority", "status", "due_at",
+            "project_id", "parent_id", "tags", "created_at", "updated_at",
+        })
+        self.assertNotIn("private_marker", json.dumps(payload))
+        self.assertEqual(payload["pending_execution_events"], [{
+            "event_id": event_id,
+            "task_id": task["id"],
+            "run_status": "step_limit",
+            "proposed_status": "in_progress",
+            "summary": "Harness reached its step budget",
+            "created_at": "2026-11-06T04:00:00+00:00",
+        }])
+        self.assertEqual(self.store.list_tasks()[0]["status"], "next")
+
+        request = urllib.request.Request(
+            self.base + "/api/v1/tasks", data=b"", method="POST"
+        )
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(request)
+        self.assertEqual(caught.exception.code, 404)
+        self.assertEqual(self.store.list_tasks()[0]["status"], "next")
 
     def test_server_refuses_non_loopback_binding(self):
         with self.assertRaises(ValueError):
