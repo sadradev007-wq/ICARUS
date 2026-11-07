@@ -8,6 +8,7 @@ from __future__ import annotations
 import html
 import json
 import secrets
+from pathlib import Path
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
@@ -28,6 +29,13 @@ STATUS_LABELS = {
     "waiting": "منتظر",
     "completed": "انجام‌شده",
     "archived": "بایگانی",
+}
+
+_STATIC_DIR = Path(__file__).with_name("static")
+_STATIC_ASSETS = {
+    "/assets/task-drawer.js": ("task-drawer.js", "text/javascript; charset=utf-8"),
+    "/assets/task-drawer-model.js": ("task-drawer-model.js", "text/javascript; charset=utf-8"),
+    "/assets/task-drawer.css": ("task-drawer.css", "text/css; charset=utf-8"),
 }
 
 
@@ -107,7 +115,7 @@ def _page(store: TaskStore, token: str, *, message: str = "",
             '</div></article>'
         )
     feedback_section = (
-        '<section class="panel"><h2>بازخوردهای در انتظار تأیید (' + str(len(events)) + ')</h2>'
+        '<section id="execution-feedback" class="panel"><h2>بازخوردهای در انتظار تأیید (' + str(len(events)) + ')</h2>'
         + "".join(event_rows) + '</section>'
     ) if events else ""
     rows = []
@@ -132,6 +140,7 @@ def _page(store: TaskStore, token: str, *, message: str = "",
 <html lang="fa" dir="rtl"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ایکاروس · همراه وظایف</title>
+<link rel="stylesheet" href="/assets/task-drawer.css">
 <style>
 :root{{color-scheme:dark;font-family:Vazirmatn,IRANSans,Tahoma,system-ui,sans-serif}}
 *{{box-sizing:border-box}}body{{margin:0;background:#10131d;color:#edf0fa}}
@@ -157,6 +166,33 @@ button:hover{{filter:brightness(1.12)}}.submit{{grid-column:1/-1;justify-self:st
 .meta{{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-size:.8rem}}.empty{{color:#aab2c8}}
 @media(max-width:640px){{form{{grid-template-columns:1fr}}.wide,.submit{{grid-column:1}}.task-title{{flex-direction:column}}}}
 </style></head><body>
+<aside class="task-drawer" data-task-drawer aria-label="پنل سراسری وظایف">
+<div class="task-drawer__rail">
+<button class="task-drawer__toggle" type="button" data-drawer-toggle aria-expanded="false" aria-controls="task-drawer-panel">
+<span aria-hidden="true">☰</span><span class="sr-only">باز کردن پنل وظایف</span>
+<span class="task-drawer__badge" data-critical-count>0</span></button></div>
+<section class="task-drawer__panel" id="task-drawer-panel" aria-labelledby="task-drawer-title" hidden>
+<div class="task-drawer__header"><div><h2 id="task-drawer-title">همراه وظایف</h2><p>نمای زنده از کارهای ثبت‌شده</p></div>
+<button class="task-drawer__close" type="button" data-drawer-close aria-label="بستن پنل وظایف">×</button></div>
+<p class="task-drawer__status" data-drawer-status data-state="loading" role="status" aria-live="polite">در حال دریافت کارها…</p>
+<div class="task-drawer__stats">
+<div><strong data-active-count>۰</strong><span>کار فعال</span></div>
+<div><strong data-feedback-count>۰</strong><span>پیشنهاد در انتظار</span></div>
+</div>
+<section class="task-drawer__section" aria-labelledby="drawer-recommended-title">
+<h3 id="drawer-recommended-title">اکنون انجام بده</h3><p class="task-drawer__reason" data-recommended-reason>در حال بررسی اولویت‌ها…</p>
+<div data-recommended></div></section>
+<section class="task-drawer__section" aria-labelledby="drawer-urgent-title">
+<h3 id="drawer-urgent-title">اولویت بحرانی و بالا</h3><div data-urgent></div></section>
+<section class="task-drawer__section" aria-labelledby="drawer-due-title">
+<h3 id="drawer-due-title">موعدهای گذشته یا ۴۸ ساعت آینده</h3><div data-due-soon></div></section>
+<section class="task-drawer__section" aria-labelledby="drawer-waiting-title">
+<h3 id="drawer-waiting-title">در انتظار</h3><div data-waiting></div></section>
+<a class="task-drawer__link" data-feedback-link href="#execution-feedback" hidden>بازبینی پیشنهادهای اجرای هارنس</a>
+<a class="task-drawer__link" data-all-tasks href="#tasks">نمایش همهٔ کارها</a>
+<button class="task-drawer__refresh" type="button" data-drawer-refresh>به‌روزرسانی فهرست</button>
+</section></aside>
+<button class="task-drawer__backdrop" type="button" data-drawer-backdrop aria-label="بستن پنل وظایف" hidden></button>
 <header><h1>ICARUS · Task Companion</h1><small>ثبت و پیگیری کارهای شخصی و پروژه‌ای</small></header>
 <main>{notice}{error_box}{feedback_section}
 <section class="panel"><h2>＋ افزودن کار جدید</h2>
@@ -181,9 +217,9 @@ button:hover{{filter:brightness(1.12)}}.submit{{grid-column:1/-1;justify-self:st
 <div class="field wide"><label for="tags">برچسب‌ها (با ویرگول جدا کن)</label><input id="tags" name="tags" maxlength="500" placeholder="طراحی، فوری، شخصی" value="{_e(values.get('tags'))}"></div>
 <button class="submit" type="submit">ثبت کار در فهرست</button>
 </form></section>
-<section><h2>کارها <span class="muted">({len(tasks)})</span></h2>{task_list}</section>
+<section id="tasks"><h2>کارها <span class="muted">({len(tasks)})</span></h2>{task_list}</section>
 <p class="muted">اطلاعات به‌صورت محلی در فایل TaskStore ذخیره می‌شوند. ثبت کار هیچ عملیات اجرایی بیرونی را آغاز نمی‌کند.</p>
-</main></body></html>"""
+</main><script type="module" src="/assets/task-drawer.js"></script></body></html>"""
 
 
 def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
@@ -202,7 +238,7 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(data)))
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'")
+            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(data)
@@ -224,6 +260,14 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                 self._respond(200, _page(store, token, message=message))
             elif path == "/health":
                 self._respond(200, '{"status":"ok"}', "application/json; charset=utf-8")
+            elif path in _STATIC_ASSETS:
+                filename, content_type = _STATIC_ASSETS[path]
+                try:
+                    asset = (_STATIC_DIR / filename).read_text(encoding="utf-8")
+                except OSError:
+                    self._respond(404, "Not found")
+                    return
+                self._respond(200, asset, content_type)
             elif path == "/api/v1/tasks":
                 payload = json.dumps(_task_api_payload(store), ensure_ascii=False, separators=(",", ":"))
                 self._respond(200, payload, "application/json; charset=utf-8")

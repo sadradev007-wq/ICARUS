@@ -209,5 +209,32 @@ class TaskDashboardTests(unittest.TestCase):
             create_task_server(self.store, host="0.0.0.0")
 
 
+    def test_task_drawer_is_served_same_origin_with_restricted_csp(self):
+        with urllib.request.urlopen(self.base + "/") as response:
+            page = response.read().decode("utf-8")
+            csp = response.headers.get("Content-Security-Policy", "")
+        self.assertIn('data-task-drawer', page)
+        self.assertIn('src="/assets/task-drawer.js"', page)
+        self.assertIn('href="/assets/task-drawer.css"', page)
+        self.assertIn("script-src 'self'", csp)
+        self.assertIn("connect-src 'self'", csp)
+        self.assertNotIn("unsafe-eval", csp)
+
+        for asset, expected_type, marker in (
+            ("/assets/task-drawer.js", "text/javascript", "parseTaskSnapshot"),
+            ("/assets/task-drawer-model.js", "text/javascript", "selectDrawerSections"),
+            ("/assets/task-drawer.css", "text/css", ".task-drawer"),
+        ):
+            with urllib.request.urlopen(self.base + asset) as response:
+                self.assertEqual(response.status, 200)
+                self.assertEqual(response.headers.get_content_type(), expected_type)
+                self.assertIn(marker, response.read().decode("utf-8"))
+
+    def test_unknown_task_drawer_asset_is_not_served(self):
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(self.base + "/assets/unknown.js")
+        self.assertEqual(caught.exception.code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()
