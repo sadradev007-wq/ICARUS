@@ -1,0 +1,32 @@
+name: Task Drawer UI tests
+
+on:
+  push:
+    paths:
+      - "Harness/Tools/Idea Architect/ui/**"
+      - "Harness/Tools/Idea Architect/src/idea_architect/static/**"
+      - ".github/workflows/task-drawer.yml"
+  pull_request:
+    paths:
+      - "Harness/Tools/Idea Architect/ui/**"
+      - "Harness/Tools/Idea Architect/src/idea_architect/static/**"
+      - ".github/workflows/task-drawer.yml"
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "Harness/Tools/Idea Architect/ui"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.22.0"
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run UI model tests
+        run: pnpm test

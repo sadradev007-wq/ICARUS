@@ -1,0 +1,230 @@
+body {
+  padding-left: 56px;
+}
+body.task-drawer-open {
+  padding-left: 340px;
+}
+.task-drawer {
+  position: fixed;
+  z-index: 1000;
+  inset: 0 auto 0 0;
+  display: flex;
+  width: 56px;
+  color: #edf0fa;
+  background: #171c28;
+  border-right: 1px solid #30364a;
+  box-shadow: 8px 0 28px rgb(0 0 0 / 18%);
+  transition: width 180ms ease, transform 180ms ease;
+  direction: rtl;
+}
+.task-drawer.is-open {
+  width: 340px;
+}
+.task-drawer__rail {
+  display: flex;
+  flex: 0 0 56px;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12px 6px;
+}
+.task-drawer__toggle,
+.task-drawer__close,
+.task-drawer__refresh {
+  font: inherit;
+  cursor: pointer;
+}
+.task-drawer__toggle {
+  position: relative;
+  display: grid;
+  width: 42px;
+  min-height: 48px;
+  place-items: center;
+  padding: 8px;
+  border: 1px solid #414a60;
+  border-radius: 12px;
+  background: #252c3c;
+  color: #f2edff;
+}
+.task-drawer__badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 19px;
+  padding: 1px 4px;
+  border-radius: 12px;
+  background: #8061c7;
+  color: white;
+  font-size: .68rem;
+}
+.task-drawer__panel {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+  overflow: auto;
+  padding: 18px 14px 24px;
+  border-left: 1px solid #30364a;
+}
+.task-drawer__panel[hidden] {
+  display: none;
+}
+.task-drawer__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.task-drawer__header h2 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+.task-drawer__header p,
+.task-drawer__reason,
+.task-drawer__status,
+.task-drawer__empty,
+.task-drawer__task p {
+  margin: 0;
+  color: #aab2c8;
+  font-size: .8rem;
+  line-height: 1.7;
+}
+.task-drawer__close {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #414a60;
+  border-radius: 9px;
+  background: #252c3c;
+  color: #f2edff;
+  font-size: 1.2rem;
+}
+.task-drawer__status {
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: #252c3c;
+}
+.task-drawer__status[data-state="error"] {
+  color: #ffd0d5;
+  background: #47262e;
+}
+.task-drawer__status[data-state="offline"] {
+  color: #ffe0a1;
+  background: #514126;
+}
+.task-drawer__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.task-drawer__stats > div {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid #30364a;
+  border-radius: 11px;
+  background: #202637;
+}
+.task-drawer__stats strong {
+  font-size: 1.2rem;
+}
+.task-drawer__stats span {
+  color: #aab2c8;
+  font-size: .72rem;
+}
+.task-drawer__section {
+  display: grid;
+  gap: 8px;
+}
+.task-drawer__section h3 {
+  margin: 0;
+  font-size: .88rem;
+}
+.task-drawer__task {
+  padding: 10px;
+  border: 1px solid #343d52;
+  border-radius: 10px;
+  background: #202637;
+}
+.task-drawer__task a,
+.task-drawer__link {
+  color: #d9caff;
+  font-weight: 700;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.task-drawer__task a:hover,
+.task-drawer__link:hover {
+  text-decoration: underline;
+}
+.task-drawer__task p {
+  margin-top: 4px;
+  font-size: .72rem;
+}
+.task-drawer__link {
+  display: block;
+  padding: 8px 0;
+  font-size: .82rem;
+}
+.task-drawer__refresh {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #514477;
+  border-radius: 10px;
+  background: #3b3158;
+  color: #f2edff;
+}
+.task-drawer__refresh:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+.task-drawer button:focus-visible,
+.task-drawer a:focus-visible {
+  outline: 2px solid #c5a8ff;
+  outline-offset: 3px;
+}
+.task-drawer__backdrop[hidden] {
+  display: none;
+}
+.task-drawer__backdrop:not([hidden]) {
+  position: fixed;
+  z-index: 999;
+  inset: 0;
+  display: block;
+  border: 0;
+  border-radius: 0;
+  background: rgb(0 0 0 / 52%);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (max-width: 760px) {
+  body,
+  body.task-drawer-open {
+    padding-left: 0;
+  }
+  .task-drawer {
+    width: min(88vw, 340px);
+    transform: translateX(-105%);
+  }
+  .task-drawer.is-open {
+    width: min(88vw, 340px);
+    transform: translateX(0);
+  }
+  .task-drawer__panel {
+    width: calc(100% - 56px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .task-drawer {
+    transition: none;
+  }
+}
