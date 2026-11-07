@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import re
 from pathlib import Path
 import threading
 from typing import Any
@@ -117,6 +118,76 @@ class TaskStore:
                     self._write(data)
                     return dict(task)
         raise KeyError(task_id)
+
+    def pending_execution_events(self) -> list[dict[str, Any]]:
+        """Return unprocessed suggestions from the adjacent .events directory."""
+        event_dir = Path(str(self.path) + ".events")
+        if not event_dir.exists():
+            return []
+        with self._lock:
+            data = self._read()
+            applied = set(data.get("applied_execution_events", [])) | set(data.get("dismissed_execution_events", []))
+            events = []
+            for path in sorted(event_dir.glob("E-*.json")):
+                event = json.loads(path.read_text(encoding="utf-8"))
+                if event.get("schema") == "icarus.execution-event.v1" and event.get("event_id") not in applied:
+                    events.append(event)
+            return events
+
+    def apply_execution_event(self, event: dict[str, Any], *, user_approved: bool = False) -> dict[str, Any]:
+        """Apply a feedback suggestion only when the caller has explicit user approval."""
+        if not user_approved:
+            raise PermissionError("User confirmation is required to apply execution feedback")
+        if event.get("schema") != "icarus.execution-event.v1":
+            raise ValueError("Invalid execution event schema")
+        event_id, task_id = event.get("event_id"), event.get("task_id")
+        proposed = event.get("proposed_status")
+        run_status = event.get("run_status")
+        if not isinstance(event_id, str) or not re.fullmatch(r"E-[a-f0-9]{32}", event_id):
+            raise ValueError("Invalid execution event ID")
+        if not isinstance(task_id, str) or not task_id:
+            raise ValueError("Invalid execution event task ID")
+        expected = {"completed": "completed", "step_limit": "in_progress"}
+        if run_status not in expected or proposed != expected[run_status]:
+            raise ValueError("Execution event status mapping is invalid")
+        if not isinstance(event.get("summary"), str) or len(event["summary"]) > 1000:
+            raise ValueError("Execution event summary is invalid")
+        event_path = Path(str(self.path) + ".events") / f"{event_id}.json"
+        if not event_path.is_file():
+            raise ValueError("Execution event file does not exist")
+        stored_event = json.loads(event_path.read_text(encoding="utf-8"))
+        if stored_event != event:
+            raise ValueError("Execution event does not match its stored record")
+        with self._lock:
+            data = self._read()
+            applied = data.setdefault("applied_execution_events", [])
+            dismissed = data.setdefault("dismissed_execution_events", [])
+            if event_id in applied or event_id in dismissed:
+                raise ValueError("Execution event was already handled")
+            task = next((item for item in data["tasks"] if item.get("id") == task_id), None)
+            if task is None:
+                raise KeyError(task_id)
+            if task.get("status") not in ACTIVE_STATUSES:
+                raise ValueError("Task is no longer active; refusing stale feedback")
+            task["status"] = proposed
+            task["updated_at"] = _now()
+            task["completed_at"] = _now() if proposed == "completed" else None
+            applied.append(event_id)
+            self._write(data)
+            return dict(task)
+
+    def dismiss_execution_event(self, event_id: str) -> None:
+        """Dismiss a suggestion without changing the related task."""
+        if not isinstance(event_id, str) or not re.fullmatch(r"E-[a-f0-9]{32}", event_id):
+            raise ValueError("Invalid execution event ID")
+        with self._lock:
+            data = self._read()
+            if event_id in data.setdefault("applied_execution_events", []):
+                raise ValueError("Execution event was already handled")
+            dismissed = data.setdefault("dismissed_execution_events", [])
+            if event_id not in dismissed:
+                dismissed.append(event_id)
+                self._write(data)
 
     def complete(self, task_id: str) -> dict[str, Any]:
         return self.update(task_id, status="completed")

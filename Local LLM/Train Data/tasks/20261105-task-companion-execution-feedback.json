@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "task-companion-execution-feedback-20261105",
+  "created_at": "2026-11-05T08:15:00+03:30",
+  "task": "اتصال بازخورد اجرای Coding Harness به Task Companion با ثبت رویداد مستقل، نمایش در داشبورد و تغییر وضعیت فقط پس از تأیید صریح کاربر.",
+  "status": "completed",
+  "summary": "هارنس پس از اجرای کامل یا رسیدن به سقف گام‌ها، در صورت موافقت کاربر یک رویداد مستقل JSON در کنار فایل tasks.json می‌نویسد؛ فایل اصلی را تغییر نمی‌دهد. Task Companion رویدادهای pending را نمایش می‌دهد و در داشبورد محلی دو عمل پذیرش و رد دارد. پذیرش فقط پس از POST محافظت‌شده با CSRF وضعیت کار فعال را تغییر می‌دهد؛ رد رویداد را dismiss می‌کند و وضعیت کار ثابت می‌ماند. رویدادهای تکراری، ناسازگار، نامعتبر و قدیمی رد می‌شوند. برای اجرای کامل وضعیت completed و برای step_limit وضعیت in_progress پیشنهاد می‌شود. آزمون‌ها نوشته شده‌اند اما به دلیل نبود محیط اجرای shell متصل به مخزن در این نوبت اجرا نشده‌اند.",
+  "steps": 7,
+  "tools_called": [
+    "github_repository_inspection",
+    "task_store_contract_review",
+    "coding_harness_cli_integration",
+    "immutable_execution_event_writer",
+    "task_store_feedback_api",
+    "task_dashboard_approval_inbox",
+    "unit_test_authoring",
+    "documentation_update"
+  ],
+  "verification": {
+    "tests_reported": true,
+    "review_status": "static_diff_reviewed",
+    "ci_status": "passed_for_idea_architect",
+    "workflow_runs": [
+      {
+        "name": "Idea Architect tests",
+        "id": 41966945480,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect CI",
+        "id": 41966945559,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "conclusion": "success"
+      }
+    ],
+    "limitations": "Coding Harness-specific tests were not executed; the repository has no workflow for that package yet."
+  },
+  "changed_paths": [
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/task_bridge.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/cli.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/tests/test_task_bridge.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/README.md",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/docs/ARCHITECTURE.md",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/docs/ROADMAP.md",
+    "Harness/Tools/Idea Architect/src/idea_architect/task_companion.py",
+    "Harness/Tools/Idea Architect/src/idea_architect/task_dashboard.py",
+    "Harness/Tools/Idea Architect/tests/test_execution_feedback.py",
+    "Harness/Tools/Idea Architect/tests/test_task_dashboard.py",
+    "Harness/Tools/Task Companion/README.md",
+    "Local LLM/Train Data/schemas/execution-event.schema.json"
+  ],
+  "data_policy": {
+    "redacted": true,
+    "file_contents_included": false,
+    "tool_arguments_included": false,
+    "raw_tool_output_included": false
+  }
+}

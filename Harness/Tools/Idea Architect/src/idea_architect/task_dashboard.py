@@ -8,6 +8,8 @@ from __future__ import annotations
 import html
 import json
 import secrets
+from pathlib import Path
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -29,15 +31,93 @@ STATUS_LABELS = {
     "archived": "بایگانی",
 }
 
+_STATIC_DIR = Path(__file__).with_name("static")
+_STATIC_ASSETS = {
+    "/assets/task-drawer.js": ("task-drawer.js", "text/javascript; charset=utf-8"),
+    "/assets/task-drawer-model.js": ("task-drawer-model.js", "text/javascript; charset=utf-8"),
+    "/assets/task-drawer.css": ("task-drawer.css", "text/css; charset=utf-8"),
+}
+
 
 def _e(value: Any) -> str:
     return html.escape(str(value or ""), quote=True)
+
+
+def _task_api_payload(store: TaskStore) -> dict[str, Any]:
+    """Build the versioned, read-only snapshot consumed by local ICARUS surfaces."""
+    tasks = store.list_tasks()
+    events = store.pending_execution_events()
+    public_tasks = [
+        {
+            "id": task["id"],
+            "title": task["title"],
+            "description": task.get("description", ""),
+            "priority": task["priority"],
+            "status": task["status"],
+            "due_at": task.get("due_at"),
+            "project_id": task.get("project_id"),
+            "parent_id": task.get("parent_id"),
+            "tags": [tag for tag in task.get("tags", []) if isinstance(tag, str)],
+            "created_at": task["created_at"],
+            "updated_at": task["updated_at"],
+        }
+        for task in tasks
+    ]
+    public_events = [
+        {
+            "event_id": event["event_id"],
+            "task_id": event["task_id"],
+            "run_status": event["run_status"],
+            "proposed_status": event["proposed_status"],
+            "summary": event["summary"],
+            "created_at": event["created_at"],
+        }
+        for event in events
+    ]
+    return {
+        "schema": "icarus.task-api.v1",
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "tasks": public_tasks,
+        "pending_execution_events": public_events,
+        "counts": {
+            "active_tasks": len(public_tasks),
+            "critical_or_high_tasks": sum(
+                task["priority"] in {"critical", "high"} for task in public_tasks
+            ),
+            "pending_execution_events": len(public_events),
+        },
+    }
 
 
 def _page(store: TaskStore, token: str, *, message: str = "",
           error: str = "", values: dict[str, str] | None = None) -> str:
     values = values or {}
     tasks = store.list_tasks(include_closed=True)
+    events = store.pending_execution_events()
+    event_rows = []
+    for event in events:
+        event_id = _e(event.get("event_id"))
+        task_id = _e(event.get("task_id"))
+        proposed = STATUS_LABELS.get(event.get("proposed_status"), event.get("proposed_status"))
+        summary = _e(event.get("summary"))
+        event_rows.append(
+            '<article class="task feedback"><div class="task-title"><div><h3>پیشنهاد نتیجهٔ اجرای هارنس</h3>'
+            f'<p>کار: {task_id} · وضعیت پیشنهادی: {_e(proposed)}</p><p>{summary}</p></div></div>'
+            '<div class="actions">'
+            '<form method="post" action="/events/apply">'
+            f'<input type="hidden" name="csrf" value="{_e(token)}">'
+            f'<input type="hidden" name="event_id" value="{event_id}">'
+            '<button type="submit">پذیرش پیشنهاد و به‌روزرسانی کار</button></form>'
+            '<form method="post" action="/events/reject">'
+            f'<input type="hidden" name="csrf" value="{_e(token)}">'
+            f'<input type="hidden" name="event_id" value="{event_id}">'
+            '<button type="submit" class="secondary">رد پیشنهاد</button></form>'
+            '</div></article>'
+        )
+    feedback_section = (
+        '<section id="execution-feedback" class="panel"><h2>بازخوردهای در انتظار تأیید (' + str(len(events)) + ')</h2>'
+        + "".join(event_rows) + '</section>'
+    ) if events else ""
     rows = []
     for task in tasks:
         priority = PRIORITY_LABELS.get(task["priority"], task["priority"])
@@ -60,6 +140,7 @@ def _page(store: TaskStore, token: str, *, message: str = "",
 <html lang="fa" dir="rtl"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ایکاروس · همراه وظایف</title>
+<link rel="stylesheet" href="/assets/task-drawer.css">
 <style>
 :root{{color-scheme:dark;font-family:Vazirmatn,IRANSans,Tahoma,system-ui,sans-serif}}
 *{{box-sizing:border-box}}body{{margin:0;background:#10131d;color:#edf0fa}}
@@ -77,14 +158,43 @@ button{{font:inherit;border:0;border-radius:10px;background:#8061c7;color:white;
 button:hover{{filter:brightness(1.12)}}.submit{{grid-column:1/-1;justify-self:start;min-width:170px}}
 .notice{{padding:12px 15px;border-radius:10px;margin:0 0 16px}}.success{{background:#18382f;color:#b8f3d9}}.error{{background:#47262e;color:#ffd0d5}}
 .task{{background:#191e2b;border:1px solid #30364a;border-radius:14px;padding:16px;margin:12px 0}}
+.feedback{{border-color:#8061c7}}.actions{{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}}
+.actions form{{display:block;background:transparent;padding:0}}.secondary{{background:#444b5e}}
 .task-title{{display:flex;align-items:start;justify-content:space-between;gap:12px}}h3{{margin:0 0 7px;font-size:1rem}}.task p{{margin:0;color:#aab2c8;white-space:pre-wrap;overflow-wrap:anywhere}}
 .priority{{white-space:nowrap;border-radius:30px;padding:5px 10px;font-size:.8rem;background:#33384a}}
 .critical{{background:#542d3c;color:#ffbdca}}.high{{background:#514126;color:#ffe0a1}}.normal{{background:#30364a;color:#d4d9e8}}.low{{background:#263e45;color:#b5e9ec}}
 .meta{{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-size:.8rem}}.empty{{color:#aab2c8}}
 @media(max-width:640px){{form{{grid-template-columns:1fr}}.wide,.submit{{grid-column:1}}.task-title{{flex-direction:column}}}}
 </style></head><body>
+<aside class="task-drawer" data-task-drawer aria-label="پنل سراسری وظایف">
+<div class="task-drawer__rail">
+<button class="task-drawer__toggle" type="button" data-drawer-toggle aria-expanded="false" aria-controls="task-drawer-panel">
+<span aria-hidden="true">☰</span><span class="sr-only">باز کردن پنل وظایف</span>
+<span class="task-drawer__badge" data-critical-count>0</span></button></div>
+<section class="task-drawer__panel" id="task-drawer-panel" aria-labelledby="task-drawer-title" hidden>
+<div class="task-drawer__header"><div><h2 id="task-drawer-title">همراه وظایف</h2><p>نمای زنده از کارهای ثبت‌شده</p></div>
+<button class="task-drawer__close" type="button" data-drawer-close aria-label="بستن پنل وظایف">×</button></div>
+<p class="task-drawer__status" data-drawer-status data-state="loading" role="status" aria-live="polite">در حال دریافت کارها…</p>
+<div class="task-drawer__stats">
+<div><strong data-active-count>۰</strong><span>کار فعال</span></div>
+<div><strong data-feedback-count>۰</strong><span>پیشنهاد در انتظار</span></div>
+</div>
+<section class="task-drawer__section" aria-labelledby="drawer-recommended-title">
+<h3 id="drawer-recommended-title">اکنون انجام بده</h3><p class="task-drawer__reason" data-recommended-reason>در حال بررسی اولویت‌ها…</p>
+<div data-recommended></div></section>
+<section class="task-drawer__section" aria-labelledby="drawer-urgent-title">
+<h3 id="drawer-urgent-title">اولویت بحرانی و بالا</h3><div data-urgent></div></section>
+<section class="task-drawer__section" aria-labelledby="drawer-due-title">
+<h3 id="drawer-due-title">موعدهای گذشته یا ۴۸ ساعت آینده</h3><div data-due-soon></div></section>
+<section class="task-drawer__section" aria-labelledby="drawer-waiting-title">
+<h3 id="drawer-waiting-title">در انتظار</h3><div data-waiting></div></section>
+<a class="task-drawer__link" data-feedback-link href="#execution-feedback" hidden>بازبینی پیشنهادهای اجرای هارنس</a>
+<a class="task-drawer__link" data-all-tasks href="#tasks">نمایش همهٔ کارها</a>
+<button class="task-drawer__refresh" type="button" data-drawer-refresh>به‌روزرسانی فهرست</button>
+</section></aside>
+<button class="task-drawer__backdrop" type="button" data-drawer-backdrop aria-label="بستن پنل وظایف" hidden></button>
 <header><h1>ICARUS · Task Companion</h1><small>ثبت و پیگیری کارهای شخصی و پروژه‌ای</small></header>
-<main>{notice}{error_box}
+<main>{notice}{error_box}{feedback_section}
 <section class="panel"><h2>＋ افزودن کار جدید</h2>
 <form method="post" action="/tasks">
 <input type="hidden" name="csrf" value="{_e(token)}">
@@ -107,9 +217,9 @@ button:hover{{filter:brightness(1.12)}}.submit{{grid-column:1/-1;justify-self:st
 <div class="field wide"><label for="tags">برچسب‌ها (با ویرگول جدا کن)</label><input id="tags" name="tags" maxlength="500" placeholder="طراحی، فوری، شخصی" value="{_e(values.get('tags'))}"></div>
 <button class="submit" type="submit">ثبت کار در فهرست</button>
 </form></section>
-<section><h2>کارها <span class="muted">({len(tasks)})</span></h2>{task_list}</section>
+<section id="tasks"><h2>کارها <span class="muted">({len(tasks)})</span></h2>{task_list}</section>
 <p class="muted">اطلاعات به‌صورت محلی در فایل TaskStore ذخیره می‌شوند. ثبت کار هیچ عملیات اجرایی بیرونی را آغاز نمی‌کند.</p>
-</main></body></html>"""
+</main><script type="module" src="/assets/task-drawer.js"></script></body></html>"""
 
 
 def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
@@ -119,6 +229,7 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
         raise ValueError("Task Companion may only bind to 127.0.0.1")
     token = secrets.token_urlsafe(32)
     server = HTTPServer((host, port), None)
+    server.dashboard_message = ""
 
     class TaskHandler(BaseHTTPRequestHandler):
         def _respond(self, status: int, body: str, content_type: str = "text/html; charset=utf-8") -> None:
@@ -127,22 +238,47 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(data)))
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'")
+            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(data)
 
+        def _require_loopback_host(self) -> bool:
+            host = self.headers.get("Host", "")
+            if urlparse("//" + host).hostname != "127.0.0.1":
+                self._respond(403, "Forbidden")
+                return False
+            return True
+
         def do_GET(self) -> None:
             path = urlparse(self.path).path
+            if not self._require_loopback_host():
+                return
             if path == "/":
-                self._respond(200, _page(store, token))
+                message = server.dashboard_message
+                server.dashboard_message = ""
+                self._respond(200, _page(store, token, message=message))
             elif path == "/health":
                 self._respond(200, '{"status":"ok"}', "application/json; charset=utf-8")
+            elif path in _STATIC_ASSETS:
+                filename, content_type = _STATIC_ASSETS[path]
+                try:
+                    asset = (_STATIC_DIR / filename).read_text(encoding="utf-8")
+                except OSError:
+                    self._respond(404, "Not found")
+                    return
+                self._respond(200, asset, content_type)
+            elif path == "/api/v1/tasks":
+                payload = json.dumps(_task_api_payload(store), ensure_ascii=False, separators=(",", ":"))
+                self._respond(200, payload, "application/json; charset=utf-8")
             else:
                 self._respond(404, "Not found")
 
         def do_POST(self) -> None:
-            if urlparse(self.path).path != "/tasks":
+            route = urlparse(self.path).path
+            if not self._require_loopback_host():
+                return
+            if route not in {"/tasks", "/events/apply", "/events/reject"}:
                 self._respond(404, "Not found")
                 return
             try:
@@ -154,6 +290,25 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                 values = {key: items[-1] for key, items in form.items() if items}
                 if not secrets.compare_digest(values.get("csrf", ""), token):
                     raise PermissionError("درخواست معتبر نیست؛ صفحه را تازه‌سازی کن.")
+                if route in {"/events/apply", "/events/reject"}:
+                    event_id = values.get("event_id", "")
+                    event = next((item for item in store.pending_execution_events()
+                                  if item.get("event_id") == event_id), None)
+                    if event is None:
+                        raise ValueError("پیشنهاد پیدا نشد یا قبلاً بررسی شده است.")
+                    if route == "/events/apply":
+                        updated = store.apply_execution_event(event, user_approved=True)
+                        server_message = f"پیشنهاد پذیرفته شد؛ وضعیت «{updated['status']}» ثبت شد."
+                    else:
+                        store.dismiss_execution_event(event_id)
+                        server_message = "پیشنهاد رد شد؛ وضعیت کار تغییری نکرد."
+                    server.dashboard_message = server_message
+                    self.send_response(303)
+                    self.send_header("Location", "/")
+                    self.send_header("Content-Length", "0")
+                    self.send_header("Cache-Control", "no-store")
+                    self.end_headers()
+                    return
                 title = values.get("title", "").strip()
                 description = values.get("description", "").strip()
                 priority = values.get("priority", "normal")

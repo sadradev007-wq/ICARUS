@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/execution-event.schema.json",
+  "title": "ICARUS Task Companion execution feedback event",
+  "description": "Immutable suggestion written by Coding Harness; never changes a task until Task Companion obtains user approval.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "event_id",
+    "task_id",
+    "run_status",
+    "proposed_status",
+    "summary",
+    "created_at"
+  ],
+  "properties": {
+    "schema": {
+      "const": "icarus.execution-event.v1"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^E-[a-f0-9]{32}$"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 128
+    },
+    "run_status": {
+      "enum": [
+        "completed",
+        "step_limit"
+      ]
+    },
+    "proposed_status": {
+      "enum": [
+        "completed",
+        "in_progress"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "run_status": {
+            "const": "completed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "proposed_status": {
+            "const": "completed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "run_status": {
+            "const": "step_limit"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "proposed_status": {
+            "const": "in_progress"
+          }
+        }
+      }
+    }
+  ]
+}
