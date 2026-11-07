@@ -212,12 +212,12 @@ body.task-drawer-open {
     padding-left: 0;
   }
   .task-drawer {
-    width: min(88vw, 340px);
-    transform: translateX(-105%);
+    width: 56px;
+    transform: none;
   }
   .task-drawer.is-open {
     width: min(88vw, 340px);
-    transform: translateX(0);
+    transform: none;
   }
   .task-drawer__panel {
     width: calc(100% - 56px);

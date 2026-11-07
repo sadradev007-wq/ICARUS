@@ -220,6 +220,7 @@ class TaskDashboardTests(unittest.TestCase):
         self.assertIn("connect-src 'self'", csp)
         self.assertNotIn("unsafe-eval", csp)
 
+        css = ""
         for asset, expected_type, marker in (
             ("/assets/task-drawer.js", "text/javascript", "parseTaskSnapshot"),
             ("/assets/task-drawer-model.js", "text/javascript", "selectDrawerSections"),
@@ -228,7 +229,11 @@ class TaskDashboardTests(unittest.TestCase):
             with urllib.request.urlopen(self.base + asset) as response:
                 self.assertEqual(response.status, 200)
                 self.assertEqual(response.headers.get_content_type(), expected_type)
-                self.assertIn(marker, response.read().decode("utf-8"))
+                content = response.read().decode("utf-8")
+                self.assertIn(marker, content)
+                if asset.endswith(".css"):
+                    css = content
+        self.assertNotIn("translateX(-105%)", css)
 
     def test_unknown_task_drawer_asset_is_not_served(self):
         with self.assertRaises(urllib.error.HTTPError) as caught:
