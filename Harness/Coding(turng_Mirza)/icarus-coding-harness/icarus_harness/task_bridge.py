@@ -132,7 +132,7 @@ def write_execution_event(store_path: Path, task_id: str, run_status: str, summa
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 json.dump(event, stream, ensure_ascii=False, indent=2)
-                stream.write("\\n")
+                stream.write("\n")
                 stream.flush()
                 os.fsync(stream.fileno())
             os.rename(

@@ -1,10 +1,10 @@
 import json
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from icarus_harness import task_bridge
-from pathlib import Path
 
 from icarus_harness.task_bridge import load_task_prompt, write_execution_event
 
@@ -75,7 +75,9 @@ class TaskBridgeTests(unittest.TestCase):
             except (OSError, NotImplementedError):
                 self.skipTest("directory symlinks are unavailable")
             with self.assertRaises(ValueError):
-                write_execution_event(linked_parent / "tasks.json", "T-abc123", "completed", "No redirect")
+                write_execution_event(
+                    linked_parent / "tasks.json", "T-abc123", "completed", "No redirect"
+                )
             self.assertEqual(list(Path(outside).glob("tasks.json.events*")), [])
 
     def test_pins_opened_event_directory_when_path_is_swapped(self):
@@ -96,7 +98,9 @@ class TaskBridgeTests(unittest.TestCase):
                 opened_path.symlink_to(outside, target_is_directory=True)
                 return descriptor, opened_path
 
-            with patch("icarus_harness.task_bridge._open_event_directory", side_effect=swap_after_open):
+            with patch(
+                "icarus_harness.task_bridge._open_event_directory", side_effect=swap_after_open
+            ):
                 write_execution_event(self.path, "T-abc123", "completed", "Pinned event")
 
             self.assertEqual(len(list(held_dir.glob("*.json"))), 1)
