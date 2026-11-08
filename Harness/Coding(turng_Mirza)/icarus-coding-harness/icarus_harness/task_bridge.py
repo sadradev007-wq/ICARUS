@@ -1,12 +1,15 @@
 """Read-only Task Companion input and opt-in execution feedback events."""
 from __future__ import annotations
 
+import errno
 import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
+
+from .training_data import redact_text
 
 _ACTIVE_STATUSES = {"inbox", "next", "in_progress", "waiting"}
 
@@ -43,6 +46,62 @@ def load_task_prompt(store_path: Path, task_id: str) -> str:
     return "\n".join(lines)
 
 
+def _open_directory_chain(path: Path) -> int:
+    """Open an existing absolute directory path without following symlinks."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    descriptor = os.open(os.path.sep, flags)
+    try:
+        for component in path.parts[1:]:
+            try:
+                child = os.open(component, flags, dir_fd=descriptor)
+            except OSError as exc:
+                if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
+                    raise ValueError(
+                        "execution-event path contains a symlink or non-directory component"
+                    ) from exc
+                raise
+            os.close(descriptor)
+            descriptor = child
+        return descriptor
+    except Exception:
+        os.close(descriptor)
+        raise
+
+
+def _open_event_directory(store_path: Path) -> tuple[int, Path]:
+    """Create/open the adjacent event directory through pinned directory descriptors."""
+    required = (os.open, os.mkdir, os.unlink, os.rename)
+    if (
+        os.name != "posix"
+        or not hasattr(os, "O_DIRECTORY")
+        or not hasattr(os, "O_NOFOLLOW")
+        or any(operation not in os.supports_dir_fd for operation in required)
+    ):
+        raise RuntimeError(
+            "secure execution-event writes require POSIX directory-descriptor support"
+        )
+
+    event_dir = Path(os.path.abspath(str(Path(store_path).expanduser()) + ".events"))
+    parent_fd = _open_directory_chain(event_dir.parent)
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    try:
+        try:
+            os.mkdir(event_dir.name, 0o700, dir_fd=parent_fd)
+        except FileExistsError:
+            pass
+        try:
+            event_fd = os.open(event_dir.name, flags, dir_fd=parent_fd)
+        except OSError as exc:
+            if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
+                raise ValueError(
+                    "execution-event directory is a symlink or not a directory"
+                ) from exc
+            raise
+        return event_fd, event_dir
+    finally:
+        os.close(parent_fd)
+
+
 def write_execution_event(store_path: Path, task_id: str, run_status: str, summary: str) -> Path:
     """Write an immutable result suggestion; never changes Task Companion task state."""
     if run_status not in {"completed", "step_limit"}:
@@ -58,20 +117,37 @@ def write_execution_event(store_path: Path, task_id: str, run_status: str, summa
         "task_id": task_id,
         "run_status": run_status,
         "proposed_status": "completed" if run_status == "completed" else "in_progress",
-        "summary": summary[:1000],
+        "summary": redact_text(summary, 1000),
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
-    event_dir = Path(str(Path(store_path).expanduser()) + ".events")
-    event_dir.mkdir(parents=True, exist_ok=True)
-    destination, temporary = event_dir / f"{event_id}.json", event_dir / f".{event_id}.tmp"
+    output_fd, event_dir = _open_event_directory(Path(store_path))
+    destination_name, temporary_name = f"{event_id}.json", f".{event_id}.tmp"
     try:
-        with temporary.open("x", encoding="utf-8") as stream:
-            json.dump(event, stream, ensure_ascii=False, indent=2)
-            stream.write("\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, destination)
+        fd = os.open(
+            temporary_name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=output_fd,
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                json.dump(event, stream, ensure_ascii=False, indent=2)
+                stream.write("\\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.rename(
+                temporary_name,
+                destination_name,
+                src_dir_fd=output_fd,
+                dst_dir_fd=output_fd,
+            )
+            os.fsync(output_fd)
+        except Exception:
+            try:
+                os.unlink(temporary_name, dir_fd=output_fd)
+            except OSError:
+                pass
+            raise
     finally:
-        if temporary.exists():
-            temporary.unlink()
-    return destination
+        os.close(output_fd)
+    return event_dir / destination_name
