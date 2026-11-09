@@ -1,5 +1,6 @@
 import json
 from typing import Callable
+from uuid import uuid4
 from .config import HarnessConfig
 from .llm import OpenAICompatibleModel
 from .memory import ProjectMemory
@@ -35,15 +36,19 @@ class AgentRuntime:
         self.tools = ToolRegistry(workspace, PolicyEngine(config.policy, approve), reviewer=self.reviewer)
         self.dataset = TaskDatasetWriter(workspace.root)
 
-    def _record_result(self, task: str, result: RunResult) -> RunResult:
+    def _record_result(
+        self, task: str, result: RunResult, *, task_id: str | None, run_id: str
+    ) -> RunResult:
+        result.run_id = run_id
         try:
-            self.dataset.record(task, result)
+            self.dataset.record(task, result, task_id=task_id, run_id=run_id)
         except Exception:
             # A telemetry failure must never turn a completed coding task into a failed run.
             pass
         return result
 
-    def run(self, task: str) -> RunResult:
+    def run(self, task: str, *, task_id: str | None = None) -> RunResult:
+        run_id = uuid4().hex
         messages = [
             {"role":"system","content":SYSTEM_PROMPT},
             {"role":"user","content":f"WORKSPACE: {self.workspace.root}\nPROJECT MEMORY:\n{self.memory.read()}\nTASK:\n{task}\nInspect and proceed safely."}
@@ -67,7 +72,10 @@ class AgentRuntime:
                     continue
                 summary = str(action.get("message","Task finished."))
                 transcript.append({"role":"assistant","content":summary})
-                return self._record_result(task, RunResult("completed", summary, step, transcript))
+                return self._record_result(
+                    task, RunResult("completed", summary, step, transcript),
+                    task_id=task_id, run_id=run_id,
+                )
             if action.get("type") != "tool" or not isinstance(action.get("arguments",{}),dict):
                 messages.append({"role":"user","content":"Invalid action. Use a registered tool or final response."})
                 continue
@@ -83,4 +91,7 @@ class AgentRuntime:
         summary = "Stopped at configured step limit; inspect Git diff before continuing."
         if review_required and not review_current:
             summary += " A successful independent review is still required."
-        return self._record_result(task, RunResult("step_limit",summary,self.config.agent.max_steps,transcript))
+        return self._record_result(
+            task, RunResult("step_limit", summary, self.config.agent.max_steps, transcript),
+            task_id=task_id, run_id=run_id,
+        )

@@ -5,8 +5,10 @@
   "type": "object",
   "required": ["schema_version", "record_id", "created_at", "task", "status", "steps", "tools_called", "verification", "data_policy"],
   "properties": {
-    "schema_version": { "type": "string", "const": "1.0.0" },
+    "schema_version": { "type": "string", "enum": ["1.0.0", "1.1.0"] },
     "record_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+    "task_id": { "type": "string", "minLength": 1, "maxLength": 128 },
     "created_at": { "type": "string", "format": "date-time" },
     "task": { "type": "string", "maxLength": 8000 },
     "status": { "type": "string", "enum": ["completed", "step_limit", "error"] },
@@ -34,5 +36,14 @@
       "additionalProperties": false
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "schema_version": { "const": "1.1.0" } },
+        "required": ["schema_version"]
+      },
+      "then": { "required": ["run_id"] }
+    }
+  ],
   "additionalProperties": false
 }

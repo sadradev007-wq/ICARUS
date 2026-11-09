@@ -102,7 +102,10 @@ def _open_event_directory(store_path: Path) -> tuple[int, Path]:
         os.close(parent_fd)
 
 
-def write_execution_event(store_path: Path, task_id: str, run_status: str, summary: str) -> Path:
+def write_execution_event(
+    store_path: Path, task_id: str, run_status: str, summary: str, *,
+    run_id: str | None = None,
+) -> Path:
     """Write an immutable result suggestion; never changes Task Companion task state."""
     if run_status not in {"completed", "step_limit"}:
         raise ValueError("Only completed or step-limited runs can produce feedback")
@@ -110,6 +113,12 @@ def write_execution_event(store_path: Path, task_id: str, run_status: str, summa
     load_task_prompt(store_path, task_id)
     if not isinstance(summary, str):
         raise ValueError("Execution summary must be text")
+    if run_id is not None and (
+        not isinstance(run_id, str)
+        or len(run_id) != 32
+        or any(character not in "0123456789abcdef" for character in run_id)
+    ):
+        raise ValueError("run_id must be a 32-character lowercase UUID hex value")
     event_id = "E-" + uuid4().hex
     event = {
         "schema": "icarus.execution-event.v1",
@@ -120,6 +129,8 @@ def write_execution_event(store_path: Path, task_id: str, run_status: str, summa
         "summary": redact_text(summary, 1000),
         "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
+    if run_id is not None:
+        event["run_id"] = run_id
     output_fd, event_dir = _open_event_directory(Path(store_path))
     destination_name, temporary_name = f"{event_id}.json", f".{event_id}.tmp"
     try:

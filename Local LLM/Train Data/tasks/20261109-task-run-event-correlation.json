@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "task-run-event-correlation-20261109",
+  "created_at": "2026-11-09T08:14:56+03:30",
+  "task": "ایجاد شناسهٔ مشترک run_id برای اتصال رکورد اجرای Local LLM به رویداد بازخورد Task Companion، همراه با حفظ سازگاری نسخه‌های قبلی.",
+  "status": "completed",
+  "summary": "AgentRuntime برای هر اجرا یک run_id تولید می‌کند و آن را به RunResult، TaskDatasetWriter و در اجرای مبتنی بر Task Companion به write_execution_event منتقل می‌کند. task_id نیز در رکورد آموزشی ثبت می‌شود. task-run schema به نسخهٔ 1.1.0 ارتقا یافت و 1.0.0 را برای رکوردهای قدیمی می‌پذیرد؛ run_id در schema رویداد اختیاری باقی ماند تا eventهای قبلی معتبر باشند. آزمون‌های runtime، writer، bridge و CLI و مستندات به‌روزرسانی شدند.",
+  "steps": 7,
+  "tools_called": [
+    "repository_state_and_pull_request_inspection",
+    "coding_harness_runtime_and_data_contract_review",
+    "shared_run_id_propagation",
+    "backward_compatible_schema_update",
+    "regression_test_authoring",
+    "documentation_update"
+  ],
+  "verification": {
+    "tests_reported": false,
+    "review_status": "static_diff_reviewed",
+    "ci_status": "pending",
+    "limitations": "GitHub Actions verification is pending for the implementation commit; no local test execution is claimed."
+  },
+  "changed_paths": [
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/models.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/runtime.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/cli.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/training_data.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/task_bridge.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/tests/test_runtime.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/tests/test_cli.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/tests/test_training_data.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/tests/test_task_bridge.py",
+    "Local LLM/Train Data/schemas/task-run.schema.json",
+    "Local LLM/Train Data/schemas/execution-event.schema.json",
+    "Local LLM/README.md",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/README.md",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/docs/ARCHITECTURE.md"
+  ],
+  "data_policy": {
+    "redacted": true,
+    "file_contents_included": false,
+    "tool_arguments_included": false,
+    "raw_tool_output_included": false
+  }
+}

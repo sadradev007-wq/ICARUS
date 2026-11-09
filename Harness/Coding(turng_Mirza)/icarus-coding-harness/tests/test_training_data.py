@@ -24,6 +24,30 @@ class TaskDatasetWriterTests(unittest.TestCase):
             self.assertEqual(payload["tools_called"], ["read_file", "review_changes"])
             self.assertNotIn("private source text", path.read_text(encoding="utf-8"))
             self.assertFalse(payload["data_policy"]["file_contents_included"])
+            self.assertEqual(payload["schema_version"], "1.1.0")
+            self.assertRegex(payload["run_id"], r"^[a-f0-9]{32}$")
+            self.assertNotIn("task_id", payload)
+
+    def test_writes_task_and_run_correlation_ids(self):
+        with tempfile.TemporaryDirectory() as temp:
+            run_id = "a" * 32
+            result = RunResult("completed", "Linked run", 2, [])
+            path = TaskDatasetWriter(Path(temp)).record(
+                "Task Companion task", result, task_id="T-abc123", run_id=run_id
+            )
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["task_id"], "T-abc123")
+            self.assertEqual(payload["run_id"], run_id)
+            self.assertEqual(payload["schema_version"], "1.1.0")
+
+    def test_rejects_invalid_correlation_ids(self):
+        with tempfile.TemporaryDirectory() as temp:
+            writer = TaskDatasetWriter(Path(temp))
+            result = RunResult("completed", "", 1, [])
+            with self.assertRaisesRegex(ValueError, "run_id"):
+                writer.record("Task", result, run_id="not-a-uuid")
+            with self.assertRaisesRegex(ValueError, "task_id"):
+                writer.record("Task", result, task_id="")
 
     def test_redacts_common_credentials(self):
         self.assertNotIn("super-secret", redact_text('api_key="super-secret"', 100))

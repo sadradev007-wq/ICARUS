@@ -70,9 +70,23 @@ class TaskDatasetWriter:
             for descriptor in reversed(opened):
                 os.close(descriptor)
 
-    def record(self, task: str, result: Any) -> Path | None:
+    def record(
+        self, task: str, result: Any, *, task_id: str | None = None, run_id: str | None = None
+    ) -> Path | None:
         if not self.enabled:
             return None
+        if task_id is not None and (
+            not isinstance(task_id, str) or not task_id.strip() or len(task_id) > 128
+        ):
+            raise ValueError("task_id must be non-empty text of at most 128 characters")
+        if run_id is None:
+            run_id = uuid.uuid4().hex
+        if (
+            not isinstance(run_id, str)
+            or len(run_id) != 32
+            or any(character not in "0123456789abcdef" for character in run_id)
+        ):
+            raise ValueError("run_id must be a 32-character lowercase UUID hex value")
 
         transcript = getattr(result, "transcript", []) or []
         tools_called: list[str] = []
@@ -99,8 +113,9 @@ class TaskDatasetWriter:
         record_id = uuid.uuid4().hex
         now = datetime.now(timezone.utc)
         payload = {
-            "schema_version": "1.0.0",
+            "schema_version": "1.1.0",
             "record_id": record_id,
+            "run_id": run_id,
             "created_at": now.isoformat(),
             "task": redact_text(str(task), 8000),
             "status": getattr(result, "status", "error"),
@@ -115,6 +130,8 @@ class TaskDatasetWriter:
                 "raw_tool_output_included": False,
             },
         }
+        if task_id is not None:
+            payload["task_id"] = task_id
 
         output_fd = self._open_output_directory()
         destination_name = f"{now.strftime('%Y%m%dT%H%M%S')}-{record_id}.json"

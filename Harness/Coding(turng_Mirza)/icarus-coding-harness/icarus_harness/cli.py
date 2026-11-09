@@ -57,17 +57,23 @@ def main() -> None:
             print("\n" + diff(ws.root))
         elif args.action == "run":
             task = load_task_prompt(Path(args.task_store), args.task_id) if args.task_id else args.task
-            result = AgentRuntime(ws, HarnessConfig.load(ws.root), _approve).run(task)
+            result = AgentRuntime(ws, HarnessConfig.load(ws.root), _approve).run(task, task_id=args.task_id)
             event_path, feedback_error = None, None
             if args.task_id and result.status in {"completed", "step_limit"}:
                 proposed = "completed" if result.status == "completed" else "in_progress"
                 if _approve(f"Save a Task Companion result suggestion ({proposed}) for {args.task_id}? This does not change task status."):
                     try:
-                        event_path = write_execution_event(Path(args.task_store), args.task_id, result.status, result.summary)
+                        if not result.run_id:
+                            raise RuntimeError("Coding Harness did not return a run ID; feedback was not written")
+                        event_path = write_execution_event(
+                            Path(args.task_store), args.task_id, result.status, result.summary,
+                            run_id=result.run_id,
+                        )
                     except Exception as exc:
                         feedback_error = f"{type(exc).__name__}: {exc}"
             print(json.dumps({
                 "status": result.status, "steps": result.steps, "summary": result.summary,
+                "run_id": result.run_id, "task_id": args.task_id,
                 "task_companion_feedback": str(event_path) if event_path else None,
                 "feedback_requires_task_companion_confirmation": bool(event_path),
                 "feedback_error": feedback_error,

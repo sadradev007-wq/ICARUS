@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from icarus_harness import task_bridge
-
 from icarus_harness.task_bridge import load_task_prompt, write_execution_event
 
 
@@ -46,6 +45,19 @@ class TaskBridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Only completed"):
             write_execution_event(self.path, "T-abc123", "failed", "No")
 
+    def test_writes_shared_run_id_into_feedback_event(self):
+        run_id = "b" * 32
+        event_path = write_execution_event(
+            self.path, "T-abc123", "completed", "Linked run", run_id=run_id
+        )
+        event = json.loads(event_path.read_text(encoding="utf-8"))
+        self.assertEqual(event["run_id"], run_id)
+
+    def test_rejects_invalid_run_id(self):
+        with self.assertRaisesRegex(ValueError, "run_id"):
+            write_execution_event(
+                self.path, "T-abc123", "completed", "Invalid", run_id="bad"
+            )
 
     def test_redacts_credentials_from_feedback_summary(self):
         summary = "api_key=super-secret Authorization: Bearer abc.def.ghi"
