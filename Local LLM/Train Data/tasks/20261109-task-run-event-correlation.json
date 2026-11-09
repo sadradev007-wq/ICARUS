@@ -15,10 +15,51 @@
     "documentation_update"
   ],
   "verification": {
-    "tests_reported": false,
+    "tests_reported": true,
     "review_status": "static_diff_reviewed",
-    "ci_status": "pending",
-    "limitations": "GitHub Actions verification is pending for the implementation commit; no local test execution is claimed."
+    "ci_status": "passed",
+    "tested_commit": "edc77de4f1a25bbe0e943e5f573ed9286354820a",
+    "workflow_runs": [
+      {
+        "name": "Coding Harness tests",
+        "id": 42564498834,
+        "python_versions": [
+          "3.11",
+          "3.12"
+        ],
+        "tests_per_version": 56,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect tests",
+        "id": 42564498848,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 77,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect CI",
+        "id": 42564498817,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 77,
+        "compile": "success",
+        "conclusion": "success"
+      },
+      {
+        "name": "Task Drawer UI tests",
+        "id": 42564498869,
+        "pnpm_version": "10.22.0",
+        "tests": 4,
+        "conclusion": "success"
+      }
+    ],
+    "limitations": "No local test execution is claimed. GitHub Actions passed on the implementation commit; a real local-model end-to-end run remains outstanding."
   },
   "changed_paths": [
     "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/models.py",
