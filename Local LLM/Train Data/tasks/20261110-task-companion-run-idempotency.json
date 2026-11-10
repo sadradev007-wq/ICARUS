@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "task-companion-run-idempotency-20261110",
+  "created_at": "2026-11-10T08:15:36+03:30",
+  "task": "سخت‌سازی اتصال Task Companion به Local LLM با تضمین اینکه هر run_id فقط یک بار قابل پذیرش یا رد باشد، و افزودن آزمون یکپارچه برای مسیر واقعی HTTP مدل OpenAI-compatible تا رکورد آموزشی و رویداد بازخورد.",
+  "status": "completed",
+  "summary": "TaskStore اکنون run_id اختیاری رویداد را اعتبارسنجی می‌کند و شناسه‌های رسیدگی‌شده را پس از پذیرش یا رد ثبت می‌کند؛ رویداد تکراری با event_id متفاوت اما run_id یکسان از صندوق pending حذف و از اعمال مجدد منع می‌شود. رویدادهای قدیمی بدون run_id همچنان با event_id محافظت می‌شوند. یک آزمون یکپارچهٔ loopback، HTTP client واقعی urllib، AgentRuntime، TaskDatasetWriter و write_execution_event را در یک اجرای محدود به هم متصل کرد و برابری task_id/run_id و عدم ثبت API key در دادهٔ آموزشی را بررسی کرد. این fixture یک مدل واقعی اجرا نمی‌کند.",
+  "steps": 8,
+  "tools_called": [
+    "repository_default_branch_pull_request_commit_and_diff_inspection",
+    "coding_harness_and_task_companion_contract_review",
+    "run_id_idempotency_implementation",
+    "loopback_openai_compatible_integration_test",
+    "task_companion_regression_tests",
+    "documentation_and_schema_update",
+    "github_actions_log_and_diff_review"
+  ],
+  "verification": {
+    "tests_reported": true,
+    "review_status": "static_diff_reviewed",
+    "ci_status": "passed",
+    "tested_commit": "7bd2a9b9e5393571d1abc714042d5beea18c6c9d",
+    "workflow_runs": [
+      {
+        "name": "Coding Harness tests",
+        "id": 42758155230,
+        "python_versions": [
+          "3.11",
+          "3.12"
+        ],
+        "tests_per_version": 57,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect tests",
+        "id": 42758154757,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 80,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect CI",
+        "id": 42758154722,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 80,
+        "compile": "success",
+        "conclusion": "success"
+      },
+      {
+        "name": "Task Drawer UI tests",
+        "id": 42758154911,
+        "pnpm_version": "10.22.0",
+        "tests": 4,
+        "conclusion": "success"
+      }
+    ],
+    "limitations": "No local test execution is claimed. The end-to-end test uses a deterministic loopback OpenAI-compatible HTTP fixture and exercises the real urllib client and data writers, but does not execute an installed local model or Ollama weights. The global multi-page application shell remains outstanding."
+  },
+  "changed_paths": [
+    "Harness/Tools/Idea Architect/src/idea_architect/task_companion.py",
+    "Harness/Tools/Idea Architect/tests/test_execution_feedback.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/tests/test_local_llm_task_companion_integration.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/README.md",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/docs/ARCHITECTURE.md",
+    "Harness/Tools/Task Companion/README.md",
+    "Local LLM/README.md",
+    "Local LLM/Train Data/schemas/execution-event.schema.json"
+  ],
+  "data_policy": {
+    "redacted": true,
+    "file_contents_included": false,
+    "tool_arguments_included": false,
+    "raw_tool_output_included": false
+  }
+}
