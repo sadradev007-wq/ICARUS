@@ -18,7 +18,7 @@
     "schema": { "const": "icarus.execution-event.v1" },
     "event_id": { "type": "string", "pattern": "^E-[a-f0-9]{32}$" },
     "task_id": { "type": "string", "minLength": 3, "maxLength": 128 },
-    "run_id": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+    "run_id": { "type": "string", "pattern": "^[a-f0-9]{32}$", "description": "Optional stable run identifier shared with the Local LLM task-run record; when present, TaskStore handles it only once." },
     "run_status": { "enum": ["completed", "step_limit"] },
     "proposed_status": { "enum": ["completed", "in_progress"] },
     "summary": { "type": "string", "maxLength": 1000 },

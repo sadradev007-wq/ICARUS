@@ -139,3 +139,8 @@
 داشبورد محلی اکنون یک نمونهٔ اولیه از پنل سمت چپ دارد. پنل با دارایی‌های مستقل در مسیر src/idea_architect/static/ ساخته شده، از همان origin سرو می‌شود و snapshot نسخه‌دار GET /api/v1/tasks را مصرف می‌کند. در دسکتاپ فضای محتوا را جابه‌جا می‌کند و در نمایشگر باریک به drawer شناور با بستن از Escape و backdrop تبدیل می‌شود. وضعیت باز/بسته در مرورگر حفظ می‌شود.
 
 این نمونه عمداً فقط‌خواندنی است؛ ایجاد یا تغییر کار همچنان از فرم‌های صریح و محافظت‌شدهٔ داشبورد انجام می‌شود. تا زمان ساخته‌شدن runtime پوستهٔ اصلی، این قابلیت در همهٔ صفحات ابزارها حاضر نیست و نباید به‌عنوان Global Drawer کامل معرفی شود. آزمون‌های منطق JavaScript با pnpm test در پوشهٔ Harness/Tools/Idea Architect/ui/ اجرا می‌شوند.
+
+
+### Idempotency across correlated runs
+
+For schema `icarus.execution-event.v1`, `run_id` is optional for backward compatibility. When present, it must be a 32-character lowercase UUID hex value. TaskStore records handled run IDs for both accepted and dismissed suggestions; a second event with the same run_id is hidden from the pending inbox and cannot be applied, even if it has a different event_id. Legacy events without run_id continue to be protected by event_id.

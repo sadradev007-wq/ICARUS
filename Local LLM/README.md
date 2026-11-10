@@ -21,3 +21,7 @@ Do not place secrets or personal data in task prompts. Common credential formats
 
 ## Disable capture
 Set ICARUS_TRAINING_DATA=0 for a run to disable task record creation. The default is enabled.
+
+
+## Cross-component verification
+The Coding Harness test suite includes a loopback OpenAI-compatible HTTP fixture that exercises the real HTTP client, runtime, task-run writer, and feedback-event writer in one run. It verifies shared task_id/run_id values and confirms that the test API key is not written to the task record. The Task Companion consumer also treats a run_id as a one-time decision key for both acceptance and dismissal. The fixture is deterministic and does not claim to run an actual local model.
