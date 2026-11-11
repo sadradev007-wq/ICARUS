@@ -19,8 +19,9 @@
 - Secret redaction and binary/size guards
 
 ## Phase 2 — coding intelligence
-- Repository map and dependency graph
-- Context retrieval and token budgeting
+- [x] Initial repository map and local dependency graph (static Python and relative JavaScript/TypeScript imports)
+- [x] Lexical context retrieval with bounded snippets and approximate token budgeting
+- [ ] Semantic retrieval and broader language-aware dependency analysis
 - Explicit plans and acceptance criteria
 - Bounded diagnosis/repair cycle
 

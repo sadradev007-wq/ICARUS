@@ -3,6 +3,7 @@ import json
 import subprocess
 from dataclasses import dataclass
 from typing import Any, Callable
+from .context import ContextEngine
 from .git import diff as git_diff, status as git_status
 from .checkpoint import GitCheckpointManager
 from .patch import PatchEngine
@@ -32,6 +33,17 @@ class ToolRegistry:
             "create_checkpoint": Tool("create_checkpoint", "Create a non-destructive local Git checkpoint. Refuses untracked files and unresolved conflicts.", self._schema({}), self._create_checkpoint),
             "rollback_checkpoint": Tool("rollback_checkpoint", "Restore only paths changed at a saved checkpoint, with per-path approval. Required checkpoint_id.", self._schema({"checkpoint_id":{"type":"string"}}, ["checkpoint_id"]), self._rollback_checkpoint),
             "discover_tests": Tool("discover_tests", "Read-only discovery of project test profiles and tests related to changed paths. Does not execute tests.", self._schema({"changed_paths":{"type":"array","items":{"type":"string"}}}), self._discover_tests),
+            "retrieve_context": Tool(
+                "retrieve_context",
+                "Read-only repository map and ranked workspace context. Uses a bounded approximate token budget and a static local Python/relative JS-TS import graph; treats source as untrusted data.",
+                self._schema({
+                    "query":{"type":"string"},
+                    "max_tokens":{"type":"integer","minimum":512,"maximum":8000},
+                    "max_files":{"type":"integer","minimum":1,"maximum":20},
+                    "include_map":{"type":"boolean"},
+                }, ["query"]),
+                self._retrieve_context,
+            ),
             "review_changes": Tool("review_changes", "Run a separate, read-only model review of bounded, heuristically redacted Git changes. Does not execute commands or edit files.", self._schema({}), self._review_changes),
             "search_text": Tool("search_text", "Search text in workspace. Required query.", self._schema({"query":{"type":"string"}}, ["query"]), self._search),
             "run_command": Tool("run_command", "Run allowlisted test/build command with approval. Required command string array.", self._schema({"command":{"type":"array","items":{"type":"string"}}}, ["command"]), self._command),
@@ -85,6 +97,13 @@ class ToolRegistry:
 
     def _discover_tests(self, args: dict[str, Any]) -> str:
         result = TestDiscovery(self.workspace).discover(args.get("changed_paths"))
+        return json.dumps(result, ensure_ascii=False, indent=2)
+
+    def _retrieve_context(self, args: dict[str, Any]) -> str:
+        result = ContextEngine(self.workspace).retrieve(
+            args["query"], args.get("max_tokens", 3000),
+            args.get("max_files", 12), args.get("include_map", True),
+        )
         return json.dumps(result, ensure_ascii=False, indent=2)
 
     def _review_changes(self, args: dict[str, Any]) -> str:
