@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "task-companion-run-inspector-v2-20261111",
+  "created_at": "2026-11-11T08:21:58+03:30",
+  "task": "افزودن API v2 خواندنی Task Companion برای نمایش run_id و ساخت بخش Run Inspector در پنل کشویی، با حفظ قرارداد سخت‌گیرانه v1.",
+  "status": "completed",
+  "summary": "Task Companion اکنون API v2 خواندنی دارد که run_id معتبر را در پیشنهادهای در انتظار منتشر می‌کند؛ API v1 و شکل سخت‌گیرانهٔ آن بدون تغییر باقی مانده است. داشبورد و پنل کشویی شناسهٔ اجرای مرتبط را به‌صورت text-only نشان می‌دهند و پنل حداکثر پنج پیشنهاد جدیدتر را مرتب می‌کند. آزمون‌ها سازگاری v1، پاسخ v2، read-only بودن هر دو نسخه، نمایش شناسه، پشتیبانی از رویدادهای قدیمی و اعتبارسنجی run_id را پوشش می‌دهند.",
+  "steps": 9,
+  "tools_called": [
+    "repository_branch_pr_head_and_ci_inspection",
+    "task_companion_api_contract_review",
+    "versioned_task_api_v2_implementation",
+    "run_id_inspector_ui_implementation",
+    "legacy_api_compatibility_tests",
+    "documentation_and_task_record_update",
+    "github_actions_job_and_log_verification"
+  ],
+  "verification": {
+    "tests_reported": true,
+    "review_status": "static_diff_reviewed",
+    "ci_status": "passed",
+    "tested_commit": "136bf6359944c555db2101c8a26483d2299a35ca",
+    "workflow_runs": [
+      {
+        "name": "Coding Harness tests",
+        "id": 42963416836,
+        "python_versions": [
+          "3.11",
+          "3.12"
+        ],
+        "tests_per_version": 57,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect tests",
+        "id": 42963416860,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 80,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect CI",
+        "id": 42963417134,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 80,
+        "compile": "success",
+        "conclusion": "success"
+      },
+      {
+        "name": "Task Drawer UI tests",
+        "id": 42963416900,
+        "pnpm_version": "10.22.0",
+        "tests": 5,
+        "conclusion": "success"
+      }
+    ],
+    "limitations": "No local test execution is claimed. Run Inspector currently displays only pending feedback events; browsing historical accepted/dismissed runs and a real local-model invocation remain future work. GitHub Actions emitted Node.js 20 deprecation warnings for upstream actions, but all jobs completed successfully."
+  },
+  "changed_paths": [
+    "Harness/Tools/Idea Architect/src/idea_architect/task_dashboard.py",
+    "Harness/Tools/Idea Architect/tests/test_task_dashboard.py",
+    "Harness/Tools/Task Companion/schemas/task-api.v2.schema.json",
+    "Harness/Tools/Idea Architect/src/idea_architect/static/task-drawer-model.js",
+    "Harness/Tools/Idea Architect/src/idea_architect/static/task-drawer.js",
+    "Harness/Tools/Idea Architect/src/idea_architect/static/task-drawer.css",
+    "Harness/Tools/Idea Architect/ui/tests/task-drawer-model.test.js",
+    "Harness/Tools/Idea Architect/ui/README.md",
+    "Harness/Tools/Task Companion/README.md",
+    "UX/MAIN_APP_SHELL.md",
+    "Local LLM/Train Data/tasks/20261111-task-companion-run-inspector.json"
+  ],
+  "data_policy": {
+    "redacted": true,
+    "file_contents_included": false,
+    "tool_arguments_included": false,
+    "raw_tool_output_included": false
+  }
+}

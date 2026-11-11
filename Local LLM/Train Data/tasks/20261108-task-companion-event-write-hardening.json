@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "task-companion-event-write-hardening-20261108",
+  "created_at": "2026-11-08T08:25:00+03:30",
+  "task": "سخت‌سازی نوشتن رویدادهای بازخورد Coding Harness در Task Companion در برابر symlink/path-swap و حذف credentialها از summary.",
+  "status": "completed",
+  "summary": "تابع write_execution_event اکنون مسیر والد را با پیمایش directory descriptor و O_NOFOLLOW باز می‌کند، پوشه events را با مجوز محدود ایجاد/باز می‌کند و فایل موقت را با O_EXCL/O_NOFOLLOW و مجوز 0600 می‌نویسد. rename اتمیک، cleanup و fsync نسبت به descriptor ثابت انجام می‌شوند. summary رویداد با redact_text مشترک Local LLM پاک‌سازی می‌شود. آزمون‌های symlink در پوشه و والد، تعویض مسیر پس از بازشدن descriptor و حذف credentialها اضافه شدند. یک خطای اولیه در escape نویسه newline باعث شکست دو آزمون شد و در commit بعدی اصلاح شد؛ head نهایی تمام workflowها را با موفقیت گذراند.",
+  "steps": 8,
+  "tools_called": [
+    "repository_and_pr_state_inspection",
+    "coding_harness_task_bridge_contract_review",
+    "execution_event_path_hardening",
+    "credential_redaction",
+    "symlink_and_path_swap_regression_tests",
+    "documentation_update",
+    "github_actions_failure_log_inspection",
+    "github_actions_final_verification"
+  ],
+  "verification": {
+    "tests_reported": true,
+    "review_status": "static_diff_reviewed",
+    "ci_status": "passed",
+    "tested_commit": "24d8041e088bcf49d24aacd6697b31244da3cf68",
+    "workflow_runs": [
+      {
+        "name": "Coding Harness tests",
+        "id": 42448909147,
+        "python_versions": [
+          "3.11",
+          "3.12"
+        ],
+        "tests_per_version": 50,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect tests",
+        "id": 42448909249,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 77,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect CI",
+        "id": 42448909260,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 77,
+        "conclusion": "success"
+      },
+      {
+        "name": "Task Drawer UI tests",
+        "id": 42448909263,
+        "pnpm_version": "10.22.0",
+        "tests": 4,
+        "conclusion": "success"
+      }
+    ],
+    "initial_attempt": {
+      "commit": "4ffb939ea4a9d63fe5ae20c34af896a18e7b3d31",
+      "conclusion": "failure",
+      "reason": "The temporary event writer appended a literal backslash-n instead of a newline; two JSON-reading tests failed. Corrected in the next commit."
+    }
+  },
+  "changed_paths": [
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/task_bridge.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/tests/test_task_bridge.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/README.md",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/docs/ARCHITECTURE.md",
+    "Local LLM/Train Data/tasks/20261108-task-companion-event-write-hardening.json"
+  ],
+  "data_policy": {
+    "redacted": true,
+    "file_contents_included": false,
+    "tool_arguments_included": false,
+    "raw_tool_output_included": false
+  }
+}

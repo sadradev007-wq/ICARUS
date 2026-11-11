@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import errno
 import json
 import os
 import re
-import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,9 +32,61 @@ class TaskDatasetWriter:
         self.enabled = os.getenv("ICARUS_TRAINING_DATA", "1").strip().lower() not in {"0", "false", "no", "off"}
         self.output_dir = self.workspace_root / "Local LLM" / "Train Data" / "tasks"
 
-    def record(self, task: str, result: Any) -> Path | None:
+    def _open_output_directory(self) -> int:
+        """Open the dataset directory through pinned, no-follow directory descriptors."""
+        required = (os.open, os.mkdir, os.unlink, os.rename)
+        if (
+            os.name != "posix"
+            or not hasattr(os, "O_DIRECTORY")
+            or not hasattr(os, "O_NOFOLLOW")
+            or any(operation not in os.supports_dir_fd for operation in required)
+        ):
+            raise RuntimeError(
+                "secure task dataset writes require POSIX directory-descriptor support"
+            )
+
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        opened: list[int] = []
+        try:
+            current_fd = os.open(self.workspace_root, flags)
+            opened.append(current_fd)
+            for component in ("Local LLM", "Train Data", "tasks"):
+                try:
+                    os.mkdir(component, 0o700, dir_fd=current_fd)
+                except FileExistsError:
+                    pass
+                try:
+                    child_fd = os.open(component, flags, dir_fd=current_fd)
+                except OSError as exc:
+                    if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
+                        raise ValueError(
+                            "training data path contains a symlink or non-directory component"
+                        ) from exc
+                    raise
+                opened.append(child_fd)
+                current_fd = child_fd
+            return opened.pop()
+        finally:
+            for descriptor in reversed(opened):
+                os.close(descriptor)
+
+    def record(
+        self, task: str, result: Any, *, task_id: str | None = None, run_id: str | None = None
+    ) -> Path | None:
         if not self.enabled:
             return None
+        if task_id is not None and (
+            not isinstance(task_id, str) or not task_id.strip() or len(task_id) > 128
+        ):
+            raise ValueError("task_id must be non-empty text of at most 128 characters")
+        if run_id is None:
+            run_id = uuid.uuid4().hex
+        if (
+            not isinstance(run_id, str)
+            or len(run_id) != 32
+            or any(character not in "0123456789abcdef" for character in run_id)
+        ):
+            raise ValueError("run_id must be a 32-character lowercase UUID hex value")
 
         transcript = getattr(result, "transcript", []) or []
         tools_called: list[str] = []
@@ -59,10 +111,12 @@ class TaskDatasetWriter:
                     tests_reported = True
 
         record_id = uuid.uuid4().hex
+        now = datetime.now(timezone.utc)
         payload = {
-            "schema_version": "1.0.0",
+            "schema_version": "1.1.0",
             "record_id": record_id,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "run_id": run_id,
+            "created_at": now.isoformat(),
             "task": redact_text(str(task), 8000),
             "status": getattr(result, "status", "error"),
             "summary": redact_text(str(getattr(result, "summary", "")), 4000),
@@ -76,26 +130,38 @@ class TaskDatasetWriter:
                 "raw_tool_output_included": False,
             },
         }
+        if task_id is not None:
+            payload["task_id"] = task_id
 
-        # Refuse pre-existing symlinks that redirect dataset writes outside the workspace.
-        if not self.output_dir.resolve().is_relative_to(self.workspace_root):
-            raise ValueError("training data directory escapes the workspace")
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        if not self.output_dir.resolve().is_relative_to(self.workspace_root):
-            raise ValueError("training data directory escapes the workspace")
-        destination = self.output_dir / f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}-{record_id}.json"
-        fd, temporary_name = tempfile.mkstemp(prefix=".icarus-task-", suffix=".tmp", dir=self.output_dir)
+        output_fd = self._open_output_directory()
+        destination_name = f"{now.strftime('%Y%m%dT%H%M%S')}-{record_id}.json"
+        temporary_name = f".icarus-task-{record_id}.tmp"
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as stream:
-                json.dump(payload, stream, ensure_ascii=False, indent=2)
-                stream.write("\n")
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary_name, destination)
-        except Exception:
+            fd = os.open(
+                temporary_name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=output_fd,
+            )
             try:
-                os.unlink(temporary_name)
-            except OSError:
-                pass
-            raise
-        return destination
+                with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                    json.dump(payload, stream, ensure_ascii=False, indent=2)
+                    stream.write("\n")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.rename(
+                    temporary_name,
+                    destination_name,
+                    src_dir_fd=output_fd,
+                    dst_dir_fd=output_fd,
+                )
+                os.fsync(output_fd)
+            except Exception:
+                try:
+                    os.unlink(temporary_name, dir_fd=output_fd)
+                except OSError:
+                    pass
+                raise
+        finally:
+            os.close(output_fd)
+        return self.output_dir / destination_name

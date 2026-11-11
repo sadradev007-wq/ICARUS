@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/task-api.v1.schema.json",
+  "title": "ICARUS Task Companion read-only API v1 response",
+  "description": "Public, read-only snapshot for local ICARUS surfaces. It never authorizes task mutations.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "generated_at",
+    "tasks",
+    "pending_execution_events",
+    "counts"
+  ],
+  "properties": {
+    "schema": {
+      "const": "icarus.task-api.v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "description",
+          "priority",
+          "status",
+          "due_at",
+          "project_id",
+          "parent_id",
+          "tags",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 3
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "priority": {
+            "enum": [
+              "critical",
+              "high",
+              "normal",
+              "low"
+            ]
+          },
+          "status": {
+            "enum": [
+              "inbox",
+              "next",
+              "in_progress",
+              "waiting"
+            ]
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "pending_execution_events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "task_id",
+          "run_status",
+          "proposed_status",
+          "summary",
+          "created_at"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "pattern": "^E-[a-f0-9]{32}$"
+          },
+          "task_id": {
+            "type": "string",
+            "minLength": 3
+          },
+          "run_status": {
+            "enum": [
+              "completed",
+              "step_limit"
+            ]
+          },
+          "proposed_status": {
+            "enum": [
+              "completed",
+              "in_progress"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_tasks",
+        "critical_or_high_tasks",
+        "pending_execution_events"
+      ],
+      "properties": {
+        "active_tasks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "critical_or_high_tasks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pending_execution_events": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}
