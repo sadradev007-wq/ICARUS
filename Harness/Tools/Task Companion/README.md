@@ -144,3 +144,14 @@
 ### Idempotency across correlated runs
 
 For schema `icarus.execution-event.v1`, `run_id` is optional for backward compatibility. When present, it must be a 32-character lowercase UUID hex value. TaskStore records handled run IDs for both accepted and dismissed suggestions; a second event with the same run_id is hidden from the pending inbox and cannot be applied, even if it has a different event_id. Legacy events without run_id continue to be protected by event_id.
+
+
+## API خواندنی Task Companion (v2)
+
+برای نمایش جزئیات ارتباط اجرای Harness، endpoint سازگار با نسخهٔ قبلی در مسیر `GET /api/v2/tasks` ارائه می‌شود.
+
+- قرارداد پاسخ `icarus.task-api.v2` است و همان snapshot کارهای فعال، شمارنده‌ها و پیشنهادهای در انتظار را برمی‌گرداند.
+- رویدادهای جدید، در صورت وجود، فیلد `run_id` با الگوی ۳۲ رقم هگزادسیمال دارند. رویدادهای قدیمی بدون این فیلد همچنان در v2 معتبرند.
+- endpoint نسخهٔ v1 و schema سخت‌گیرانهٔ آن بدون تغییر باقی می‌ماند؛ مصرف‌کنندگان قدیمی لازم نیست مهاجرت کنند.
+- schema نسخهٔ جدید در `Harness/Tools/Task Companion/schemas/task-api.v2.schema.json` قرار دارد.
+- پنل فعلی از v2 برای نمایش شناسهٔ اجرای هر پیشنهاد استفاده می‌کند. نمایش شناسه صرفاً برای ردیابی است و هیچ اختیاری برای پذیرش پیشنهاد یا تغییر وضعیت ایجاد نمی‌کند.

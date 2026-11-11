@@ -89,12 +89,15 @@ class TaskDashboardTests(unittest.TestCase):
             "task_id": task["id"], "run_status": "completed",
             "proposed_status": "completed", "summary": "Harness finished",
             "created_at": "2026-11-05T08:00:00+00:00",
+            "run_id": "b" * 32,
         }
         (event_dir / "E-00000000000000000000000000000002.json").write_text(
             __import__("json").dumps(event), encoding="utf-8"
         )
         _, page = self.get()
         self.assertIn("پیشنهاد نتیجهٔ اجرای هارنس", page)
+        self.assertIn("شناسهٔ اجرا:", page)
+        self.assertIn("b" * 32, page)
         self.assertIn("پذیرش پیشنهاد و به‌روزرسانی کار", page)
         self.assertEqual(self.store.list_tasks()[0]["status"], "inbox")
         token = page.split('name="csrf" value="', 1)[1].split('"', 1)[0]
@@ -149,6 +152,7 @@ class TaskDashboardTests(unittest.TestCase):
             "proposed_status": "in_progress",
             "summary": "Harness reached its step budget",
             "created_at": "2026-11-06T04:00:00+00:00",
+            "run_id": "a" * 32,
         }
         event_dir = Path(str(self.store.path) + ".events")
         event_dir.mkdir()
@@ -184,6 +188,11 @@ class TaskDashboardTests(unittest.TestCase):
             "summary": "Harness reached its step budget",
             "created_at": "2026-11-06T04:00:00+00:00",
         }])
+
+        with urllib.request.urlopen(self.base + "/api/v2/tasks") as response:
+            v2_payload = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(v2_payload["schema"], "icarus.task-api.v2")
+        self.assertEqual(v2_payload["pending_execution_events"][0]["run_id"], "a" * 32)
         self.assertEqual(self.store.list_tasks()[0]["status"], "next")
 
         request = urllib.request.Request(
@@ -192,6 +201,10 @@ class TaskDashboardTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as caught:
             urllib.request.urlopen(request)
         self.assertEqual(caught.exception.code, 404)
+        request_v2 = urllib.request.Request(self.base + "/api/v2/tasks", data=b"", method="POST")
+        with self.assertRaises(urllib.error.HTTPError) as caught_v2:
+            urllib.request.urlopen(request_v2)
+        self.assertEqual(caught_v2.exception.code, 404)
         self.assertEqual(self.store.list_tasks()[0]["status"], "next")
 
     def test_rejects_non_loopback_host_header(self):

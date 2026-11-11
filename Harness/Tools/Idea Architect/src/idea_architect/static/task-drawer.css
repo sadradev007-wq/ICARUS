@@ -228,3 +228,6 @@ body.task-drawer-open {
     transition: none;
   }
 }
+
+.task-drawer__feedback { border-color: #514477; }
+.task-drawer__feedback code { display: inline-block; max-width: 100%; margin-top: 3px; color: #d9caff; overflow-wrap: anywhere; font-size: .68rem; }

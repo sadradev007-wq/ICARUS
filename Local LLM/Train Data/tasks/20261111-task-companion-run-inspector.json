@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "task-companion-run-inspector-v2-20261111",
+  "created_at": "2026-11-11T08:21:58+03:30",
+  "task": "افزودن API v2 خواندنی Task Companion برای نمایش run_id و ساخت بخش Run Inspector در پنل کشویی، با حفظ قرارداد سخت‌گیرانه v1.",
+  "status": "in_progress",
+  "summary": "API v1 بدون تغییر نگه داشته شد و API v2 شناسهٔ اجرای Harness را برای پیشنهادهای در انتظار منتشر می‌کند. پنل کشویی و کارت‌های تأیید داشبورد شناسهٔ run را به‌صورت text-only نمایش می‌دهند. شناسه‌های نامعتبر به API v2 راه پیدا نمی‌کنند. آزمون‌های سازگاری API و مدل UI اضافه شده‌اند؛ نتایج CI هنوز در انتظار اجرا هستند.",
+  "steps": 7,
+  "tools_called": [
+    "repository_branch_pr_head_and_ci_inspection",
+    "task_companion_api_contract_review",
+    "versioned_task_api_v2_implementation",
+    "run_id_inspector_ui_implementation",
+    "legacy_api_compatibility_tests",
+    "documentation_and_task_record_update"
+  ],
+  "verification": {
+    "tests_reported": false,
+    "review_status": "static_diff_reviewed",
+    "ci_status": "pending",
+    "tested_commit": null,
+    "workflow_runs": [],
+    "limitations": "GitHub Actions has not yet run on this implementation. No local test execution is claimed. Run Inspector covers pending feedback events; historical accepted/dismissed run browsing is not included."
+  },
+  "changed_paths": [
+    "Harness/Tools/Idea Architect/src/idea_architect/task_dashboard.py",
+    "Harness/Tools/Idea Architect/tests/test_task_dashboard.py",
+    "Harness/Tools/Task Companion/schemas/task-api.v2.schema.json",
+    "Harness/Tools/Idea Architect/src/idea_architect/static/task-drawer-model.js",
+    "Harness/Tools/Idea Architect/src/idea_architect/static/task-drawer.js",
+    "Harness/Tools/Idea Architect/src/idea_architect/static/task-drawer.css",
+    "Harness/Tools/Idea Architect/ui/tests/task-drawer-model.test.js",
+    "Harness/Tools/Idea Architect/ui/README.md",
+    "Harness/Tools/Task Companion/README.md",
+    "UX/MAIN_APP_SHELL.md",
+    "Local LLM/Train Data/tasks/20261111-task-companion-run-inspector.json"
+  ],
+  "data_policy": {
+    "redacted": true,
+    "file_contents_included": false,
+    "tool_arguments_included": false,
+    "raw_tool_output_included": false
+  }
+}

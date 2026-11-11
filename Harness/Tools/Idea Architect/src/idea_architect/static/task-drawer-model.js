@@ -1,4 +1,6 @@
-export const TASK_API_SCHEMA = "icarus.task-api.v1";
+export const TASK_API_SCHEMA = "icarus.task-api.v2";
+
+const RUN_ID_PATTERN = /^[a-f0-9]{32}$/;
 
 const VALID_PRIORITIES = new Set(["critical", "high", "normal", "low"]);
 const VALID_STATUSES = new Set(["inbox", "next", "in_progress", "waiting"]);
@@ -24,6 +26,19 @@ export function parseTaskSnapshot(value) {
         || !VALID_PRIORITIES.has(task.priority) || !VALID_STATUSES.has(task.status)
         || !(task.due_at === null || typeof task.due_at === "string")) {
       throw new TypeError("Task Companion API contains an invalid task");
+    }
+  }
+  for (const event of value.pending_execution_events) {
+    if (!event || typeof event.event_id !== "string"
+        || !/^E-[a-f0-9]{32}$/.test(event.event_id)
+        || typeof event.task_id !== "string"
+        || !["completed", "step_limit"].includes(event.run_status)
+        || !["completed", "in_progress"].includes(event.proposed_status)
+        || typeof event.summary !== "string"
+        || typeof event.created_at !== "string"
+        || (event.run_id !== undefined
+          && (typeof event.run_id !== "string" || !RUN_ID_PATTERN.test(event.run_id)))) {
+      throw new TypeError("Task Companion API contains an invalid execution event");
     }
   }
   return value;
@@ -52,6 +67,9 @@ export function selectDrawerSections(snapshot, now = Date.now(), dueWindowMs = 4
     waiting: tasks.filter((task) => task.status === "waiting").slice(0, 5),
     activeCount: valid.counts.active_tasks,
     criticalOrHighCount: valid.counts.critical_or_high_tasks,
+    pendingFeedback: [...valid.pending_execution_events]
+      .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
+      .slice(0, 5),
     pendingFeedbackCount: valid.pending_execution_events.length,
   };
 }

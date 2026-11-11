@@ -43,51 +43,53 @@ def _e(value: Any) -> str:
     return html.escape(str(value or ""), quote=True)
 
 
-def _task_api_payload(store: TaskStore) -> dict[str, Any]:
-    """Build the versioned, read-only snapshot consumed by local ICARUS surfaces."""
+def _valid_run_id(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 32
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _task_api_payload(store: TaskStore, *, version: int = 1) -> dict[str, Any]:
+    """Build a versioned, read-only snapshot for local ICARUS surfaces."""
+    if version not in {1, 2}:
+        raise ValueError("Unsupported Task Companion API version")
     tasks = store.list_tasks()
     events = store.pending_execution_events()
     public_tasks = [
         {
-            "id": task["id"],
-            "title": task["title"],
+            "id": task["id"], "title": task["title"],
             "description": task.get("description", ""),
-            "priority": task["priority"],
-            "status": task["status"],
-            "due_at": task.get("due_at"),
-            "project_id": task.get("project_id"),
+            "priority": task["priority"], "status": task["status"],
+            "due_at": task.get("due_at"), "project_id": task.get("project_id"),
             "parent_id": task.get("parent_id"),
             "tags": [tag for tag in task.get("tags", []) if isinstance(tag, str)],
-            "created_at": task["created_at"],
-            "updated_at": task["updated_at"],
+            "created_at": task["created_at"], "updated_at": task["updated_at"],
         }
         for task in tasks
     ]
-    public_events = [
-        {
-            "event_id": event["event_id"],
-            "task_id": event["task_id"],
-            "run_status": event["run_status"],
-            "proposed_status": event["proposed_status"],
-            "summary": event["summary"],
-            "created_at": event["created_at"],
+    public_events = []
+    for event in events:
+        public_event = {
+            "event_id": event["event_id"], "task_id": event["task_id"],
+            "run_status": event["run_status"], "proposed_status": event["proposed_status"],
+            "summary": event["summary"], "created_at": event["created_at"],
         }
-        for event in events
-    ]
+        # v1 remains unchanged for strict legacy consumers. v2 exposes valid correlation IDs.
+        if version == 2 and _valid_run_id(event.get("run_id")):
+            public_event["run_id"] = event["run_id"]
+        public_events.append(public_event)
     return {
-        "schema": "icarus.task-api.v1",
+        "schema": f"icarus.task-api.v{version}",
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "tasks": public_tasks,
-        "pending_execution_events": public_events,
+        "tasks": public_tasks, "pending_execution_events": public_events,
         "counts": {
             "active_tasks": len(public_tasks),
-            "critical_or_high_tasks": sum(
-                task["priority"] in {"critical", "high"} for task in public_tasks
-            ),
+            "critical_or_high_tasks": sum(task["priority"] in {"critical", "high"} for task in public_tasks),
             "pending_execution_events": len(public_events),
         },
     }
-
 
 def _page(store: TaskStore, token: str, *, message: str = "",
           error: str = "", values: dict[str, str] | None = None) -> str:
@@ -100,9 +102,12 @@ def _page(store: TaskStore, token: str, *, message: str = "",
         task_id = _e(event.get("task_id"))
         proposed = STATUS_LABELS.get(event.get("proposed_status"), event.get("proposed_status"))
         summary = _e(event.get("summary"))
+        raw_run_id = event.get("run_id")
+        run_id_markup = f'<code dir="ltr">{_e(raw_run_id)}</code>' if _valid_run_id(raw_run_id) else "رویداد قدیمی؛ شناسهٔ اجرا ثبت نشده است"
         event_rows.append(
             '<article class="task feedback"><div class="task-title"><div><h3>پیشنهاد نتیجهٔ اجرای هارنس</h3>'
-            f'<p>کار: {task_id} · وضعیت پیشنهادی: {_e(proposed)}</p><p>{summary}</p></div></div>'
+            f'<p>کار: {task_id} · وضعیت پیشنهادی: {_e(proposed)}</p><p>{summary}</p>'
+            f'<p>شناسهٔ اجرا: {run_id_markup}</p></div></div>'
             '<div class="actions">'
             '<form method="post" action="/events/apply">'
             f'<input type="hidden" name="csrf" value="{_e(token)}">'
@@ -188,6 +193,8 @@ button:hover{{filter:brightness(1.12)}}.submit{{grid-column:1/-1;justify-self:st
 <h3 id="drawer-due-title">موعدهای گذشته یا ۴۸ ساعت آینده</h3><div data-due-soon></div></section>
 <section class="task-drawer__section" aria-labelledby="drawer-waiting-title">
 <h3 id="drawer-waiting-title">در انتظار</h3><div data-waiting></div></section>
+<section class="task-drawer__section" aria-labelledby="drawer-feedback-title">
+<h3 id="drawer-feedback-title">اجراهای منتظر تأیید</h3><div data-pending-feedback></div></section>
 <a class="task-drawer__link" data-feedback-link href="#execution-feedback" hidden>بازبینی پیشنهادهای اجرای هارنس</a>
 <a class="task-drawer__link" data-all-tasks href="#tasks">نمایش همهٔ کارها</a>
 <button class="task-drawer__refresh" type="button" data-drawer-refresh>به‌روزرسانی فهرست</button>
@@ -268,8 +275,13 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                     self._respond(404, "Not found")
                     return
                 self._respond(200, asset, content_type)
-            elif path == "/api/v1/tasks":
-                payload = json.dumps(_task_api_payload(store), ensure_ascii=False, separators=(",", ":"))
+            elif path in {"/api/v1/tasks", "/api/v2/tasks"}:
+                version = 2 if path == "/api/v2/tasks" else 1
+                payload = json.dumps(
+                    _task_api_payload(store, version=version),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
                 self._respond(200, payload, "application/json; charset=utf-8")
             else:
                 self._respond(404, "Not found")

@@ -11,6 +11,7 @@ if (root) {
   const refreshButton = query("[data-drawer-refresh]");
   const priorityLabels = { critical: "بحرانی", high: "بالا", normal: "معمولی", low: "پایین" };
   const statusLabels = { inbox: "صندوق ورودی", next: "بعدی", in_progress: "در حال انجام", waiting: "منتظر" };
+  const runStatusLabels = { completed: "اجرای تکمیل‌شده", step_limit: "توقف در سقف گام‌ها" };
   let refreshing = false;
 
   function setStatus(state, message) {
@@ -71,6 +72,41 @@ if (root) {
     for (const task of tasks) container.append(taskCard(task));
   }
 
+  function feedbackCard(event) {
+    const article = document.createElement("article");
+    article.className = "task-drawer__task task-drawer__feedback";
+    const heading = document.createElement("strong");
+    heading.textContent = "کار " + event.task_id;
+    const meta = document.createElement("p");
+    meta.textContent = (runStatusLabels[event.run_status] ?? event.run_status)
+      + " · " + formatDue(event.created_at);
+    const summary = document.createElement("p");
+    summary.textContent = event.summary;
+    const correlation = document.createElement("p");
+    if (event.run_id) {
+      const code = document.createElement("code");
+      code.dir = "ltr";
+      code.textContent = event.run_id;
+      correlation.append("شناسهٔ اجرا: ", code);
+    } else {
+      correlation.textContent = "شناسهٔ اجرا: رویداد قدیمی (بدون run_id)";
+    }
+    article.append(heading, meta, summary, correlation);
+    return article;
+  }
+
+  function renderFeedback(container, events) {
+    container.replaceChildren();
+    if (!events.length) {
+      const empty = document.createElement("p");
+      empty.className = "task-drawer__empty";
+      empty.textContent = "پیشنهاد اجرایی در انتظار تأیید نیست.";
+      container.append(empty);
+      return;
+    }
+    for (const event of events) container.append(feedbackCard(event));
+  }
+
   function render(snapshot) {
     const sections = selectDrawerSections(snapshot);
     query("[data-active-count]").textContent = new Intl.NumberFormat("fa-IR").format(sections.activeCount);
@@ -91,6 +127,7 @@ if (root) {
     renderList(query("[data-urgent]"), sections.urgent, "کار بحرانی یا با اولویت بالا وجود ندارد.");
     renderList(query("[data-due-soon]"), sections.dueSoon, "موعد گذشته یا نزدیک ثبت نشده است.");
     renderList(query("[data-waiting]"), sections.waiting, "کاری در وضعیت انتظار نیست.");
+    renderFeedback(query("[data-pending-feedback]"), sections.pendingFeedback);
     setStatus("ready", sections.activeCount ? "فهرست وظایف به‌روز شد." : "هنوز کاری ثبت نشده است.");
   }
 
@@ -102,7 +139,7 @@ if (root) {
     try {
       let response;
       try {
-        response = await fetch("/api/v1/tasks", {
+        response = await fetch("/api/v2/tasks", {
           method: "GET",
           headers: { Accept: "application/json" },
           cache: "no-store",
