@@ -31,3 +31,13 @@ test("responsive and reduced-motion rules are present", () => {
   assert.match(css, /@media\(max-width:600px\)/);
   assert.match(css, /prefers-reduced-motion/);
 });
+
+
+test("the chat workspace is named assistant and tasks are categorized", () => {
+  assert.match(html, /<span>دستیار<\/span>/);
+  assert.match(html, /<h1>کارها<\/h1>/);
+  for (const category of ["projects","research","learning","ideas"]) assert.match(html, new RegExp(`data-task-category="${category}"`));
+  assert.match(html, /name="category"/);
+  assert.match(js, /function addTaskToCategory/);
+  assert.match(js, /categoryFor\(task\)/);
+});
