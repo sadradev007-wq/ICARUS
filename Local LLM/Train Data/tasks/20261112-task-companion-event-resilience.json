@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "task-companion-event-resilience-20261112",
+  "created_at": "2026-11-12T08:18:20+03:30",
+  "task": "سخت‌سازی دریافت رویدادهای بازخورد Task Companion و اتصال آن به Coding Harness و Local LLM؛ جلوگیری از خرابی inbox به‌علت فایل نامعتبر، محدودکردن خواندن رویدادها، اصلاح مسیرهای والد symlink و رعایت سقف خلاصه پس از redaction.",
+  "status": "completed",
+  "summary": "TaskStore اکنون رویدادهای مستقل را با سقف ۱۶ KiB و اعتبارسنجی کامل قرارداد v1 می‌خواند؛ فایل‌های خراب، ناقص، بزرگ یا نامعتبر به‌صورت مستقل رد می‌شوند و مانع بارگذاری داشبورد یا APIهای خواندنی نمی‌شوند. شناسه‌های event که قبلاً رسیدگی شده‌اند پیش از بازکردن فایل نادیده گرفته می‌شوند. Coding Harness مسیر TaskStore را canonicalize می‌کند تا مسیر والد symlink‌شدهٔ معتبر کار کند، اما پوشهٔ .events همچنان با no-follow محافظت می‌شود. redaction پیش از اعمال سقف ۱۰۰۰ کاراکتری انجام می‌شود.",
+  "steps": 8,
+  "tools_called": [
+    "repository_default_branch_open_pr_latest_commit_and_harness_inspection",
+    "merged_pr_review_findings_and_contract_review",
+    "taskstore_event_validation_and_bounded_reader",
+    "handled_event_io_short_circuit",
+    "task_bridge_canonical_path_resolution",
+    "credential_redaction_length_boundary_fix",
+    "dashboard_harness_and_taskstore_regression_tests",
+    "documentation_and_github_actions_verification"
+  ],
+  "verification": {
+    "tests_reported": true,
+    "review_status": "static_diff_reviewed",
+    "ci_status": "passed",
+    "tested_commit": "c3de642324c1447c21dc55ab0b05e080a83c75b5",
+    "workflow_runs": [
+      {
+        "name": "Coding Harness tests",
+        "id": 43157177761,
+        "python_versions": [
+          "3.11",
+          "3.12"
+        ],
+        "tests_per_version": 69,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect tests",
+        "id": 43157177714,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 85,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect CI",
+        "id": 43157177856,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 85,
+        "compile": "success",
+        "conclusion": "success"
+      }
+    ],
+    "limitations": "آزمون محلی ادعا نشده است. اجرای مدل محلی واقعی جزو این تغییر نبود. CI روی commit کد و مستندات c3de642 اجرا و موفق شد؛ task record در commit بعدی اضافه می‌شود و CI آن head نیز جداگانه بررسی خواهد شد."
+  },
+  "changed_paths": [
+    "Harness/Tools/Idea Architect/src/idea_architect/task_companion.py",
+    "Harness/Tools/Idea Architect/tests/test_execution_feedback.py",
+    "Harness/Tools/Idea Architect/tests/test_task_dashboard.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/task_bridge.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/training_data.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/tests/test_task_bridge.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/tests/test_training_data.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/README.md",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/docs/ARCHITECTURE.md",
+    "Harness/Tools/Task Companion/README.md",
+    "Local LLM/Train Data/tasks/20261112-task-companion-event-resilience.json"
+  ],
+  "data_policy": {
+    "redacted": true,
+    "file_contents_included": false,
+    "tool_arguments_included": false,
+    "raw_tool_output_included": false
+  }
+}
