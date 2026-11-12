@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from idea_architect.protocol import ProtocolError, validate_plan, validate_expansion, parse_json_object
 from idea_architect.models import OfflineDemoModel, JsonModel
@@ -42,6 +43,13 @@ class RecursiveFixture(JsonModel):
 
 
 class ProtocolTests(unittest.TestCase):
+    def setUp(self):
+        self.agent_gate = patch("idea_architect.agent_gate.AGENTS_ENABLED", True)
+        self.agent_gate.start()
+
+    def tearDown(self):
+        self.agent_gate.stop()
+
     def test_offline_pipeline_generates_expanded_plan(self):
         model = OfflineDemoModel()
         plan = PlanningEngine(model, model, max_depth=3).create_plan("Build a local assistant", "test-001")
