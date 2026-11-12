@@ -5,6 +5,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 from .config import ModelConfig
+from .agent_gate import require_agent_runtime_enabled
 
 class ModelError(RuntimeError):
     pass
@@ -15,6 +16,7 @@ class OpenAICompatibleModel:
         self.config = config
 
     def complete(self, messages: list[dict[str, str]], tools: list[dict[str, Any]]) -> str:
+        require_agent_runtime_enabled()
         api_key = os.getenv(self.config.api_key_env, "local")
         payload = {
             "model": self.config.model, "messages": messages,
