@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10111b">
+  <meta name="description" content="ICARUS Personal Companion — chat, memory, tasks and calendar">
+  <title>ICARUS · همراه شخصی</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="ناوبری اصلی">
+      <a class="brand" href="#chat" aria-label="صفحه اصلی ایکاروس">
+        <span class="brand-mark">I</span>
+        <span><strong>ICARUS</strong><small>PERSONAL COMPANION</small></span>
+      </a>
+      <div class="workspace-switcher">
+        <span class="workspace-icon">U</span>
+        <span class="workspace-copy"><b>Universe</b><small>فضای شخصی</small></span>
+        <span class="chevron">⌄</span>
+      </div>
+      <p class="nav-caption">فضای کار</p>
+      <nav class="nav-list">
+        <button class="nav-item active" data-view="chat"><span class="nav-icon">✳</span><span>گفت‌وگو</span><kbd>۱</kbd></button>
+        <button class="nav-item" data-view="tasks"><span class="nav-icon">▤</span><span>وظایف</span><span class="nav-count">۶</span></button>
+        <button class="nav-item" data-view="calendar"><span class="nav-icon">▦</span><span>تقویم</span></button>
+        <button class="nav-item" data-view="memory"><span class="nav-icon">◈</span><span>حافظه</span></button>
+        <button class="nav-item" data-view="files"><span class="nav-icon">▱</span><span>کتابخانه</span></button>
+      </nav>
+      <p class="nav-caption">هوش و کنترل</p>
+      <nav class="nav-list">
+        <button class="nav-item" data-view="models"><span class="nav-icon">⌘</span><span>مدل‌های هوش مصنوعی</span></button>
+        <button class="nav-item" data-view="activity"><span class="nav-icon">◷</span><span>گزارش فعالیت‌ها</span></button>
+        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>تنظیمات</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="quarantine-status"><span class="status-dot"></span><span><b>قرنطینه فعال است</b><small>عامل‌های قدیمی غیرفعال</small></span><span class="lock">⌑</span></div>
+        <button class="profile-button"><span class="avatar">S</span><span><b>فضای صدرا</b><small>حساب محلی</small></span><span class="more">···</span></button>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="breadcrumbs"><span>Universe</span><span class="slash">/</span><strong id="current-section">گفت‌وگو</strong></div>
+        <div class="topbar-actions">
+          <span class="connection"><i></i> محلی</span>
+          <button class="icon-button" aria-label="جست‌وجو" title="جست‌وجو">⌕</button>
+          <button class="icon-button notification-button" aria-label="اعلان‌ها" title="اعلان‌ها">♧<em></em></button>
+          <span class="top-avatar">S</span>
+        </div>
+      </header>
+
+      <div class="content-wrap">
+        <section class="view active" id="view-chat">
+          <div class="welcome-row">
+            <div><p class="eyebrow">چهارشنبه، ۲۱ آبان ۱۴۰۵</p><h1>سلام، صدرا <span class="wave">✳</span></h1><p class="subheading">از کجا شروع کنیم؟ ایده‌هایت را ثبت کن؛ من مرتبشان می‌کنم.</p></div>
+            <button class="primary-button" data-action="new-task"><span>＋</span> کار جدید</button>
+          </div>
+          <div class="chat-layout">
+            <div class="chat-main panel">
+              <div class="chat-heading"><div class="assistant-avatar">✳</div><div><b>همراه ایکاروس</b><small><span class="live-dot"></span> آمادهٔ گفت‌وگو <span class="demo-tag">نمونهٔ رابط</span></small></div><button class="icon-button small" title="گفت‌وگوی جدید">↗</button></div>
+              <div class="chat-messages" id="chat-messages">
+                <div class="message assistant-message"><span class="message-avatar">I</span><div class="message-body"><div class="message-meta">ایکاروس <time>همین حالا</time></div><p>من اینجا هستم تا ایده‌ها، کارها و دانسته‌هایت را به یک جریان منظم تبدیل کنیم.</p><p>می‌توانی آزادانه بنویسی؛ من پیشنهاد می‌دهم هر مورد در کدام پوشه ذخیره شود و اگر کاری موعد یا اولویت داشته باشد، آن را برای تقویم آماده می‌کنم.</p><div class="message-actions"><button class="text-action" data-action="quick-idea">＋ ثبت ایده</button><button class="text-action" data-action="new-task">＋ افزودن وظیفه</button></div></div></div>
+                <div class="message user-message"><div class="message-body"><p>می‌خواهم روی نسخهٔ اولیهٔ همراه شخصی ایکاروس کار کنم.</p><div class="message-meta">شما <time>۱۰:۴۲</time></div></div><span class="user-avatar">S</span></div>
+                <div class="message assistant-message"><span class="message-avatar">I</span><div class="message-body"><div class="message-meta">ایکاروس <time>۱۰:۴۲</time></div><p>پیشنهاد می‌کنم این را به‌عنوان یک پروژه نگه داریم و سه گام اولش را به وظیفه تبدیل کنیم. چیزی را بدون تأییدت به برنامه یا فایل‌ها تغییر نمی‌دهم.</p><div class="suggestion-card"><div class="suggestion-top"><span class="suggestion-icon">✦</span><b>پیشنهاد ساختاریافته</b><span class="suggestion-label">پیش‌نویس</span></div><p>پروژه: توسعهٔ Personal Companion</p><div class="suggestion-chips"><span>پروژه‌ها / ICARUS</span><span>اولویت بالا</span><span>۳ گام پیشنهادی</span></div><button class="outline-button" data-action="accept-suggestion">بررسی و ثبت پیشنهاد <span>←</span></button></div></div></div>
+              </div>
+              <form class="composer" id="chat-form"><button class="composer-plus" type="button" data-action="quick-idea" aria-label="افزودن پیوست">＋</button><label class="sr-only" for="chat-input">پیام شما</label><textarea id="chat-input" rows="1" placeholder="پیام بنویس یا ایده‌ای را اینجا ثبت کن…"></textarea><button class="send-button" type="submit" aria-label="ارسال پیام">↑</button></form>
+              <div class="composer-foot"><span>ایکاروس ممکن است اشتباه کند؛ پیش از تغییرات مهم تأیید می‌گیرد.</span><span>System 1 · Local <i class="tiny-dot"></i></span></div>
+            </div>
+            <aside class="right-column">
+              <section class="panel focus-panel"><div class="panel-title"><div><span class="section-icon purple">✧</span><b>تمرکز امروز</b></div><button class="more-button">···</button></div><div class="focus-number">۳ <small>کار مهم</small></div><div class="progress-track"><span style="width:38%"></span></div><div class="progress-caption"><span>۱ از ۳ انجام شده</span><span>۳۸٪</span></div><div class="focus-task"><span class="task-check done">✓</span><div><b>بررسی معماری Companion</b><small>انجام‌شده</small></div></div><div class="focus-task"><span class="task-check"></span><div><b>اتصال حافظهٔ محلی</b><small>امروز · اولویت بالا</small></div><span class="priority-dot high"></span></div><div class="focus-task"><span class="task-check"></span><div><b>طراحی نمای تقویم</b><small>فردا · اولویت متوسط</small></div><span class="priority-dot normal"></span></div><button class="subtle-button" data-view="tasks">رفتن به همهٔ وظایف ←</button></section>
+              <section class="panel memory-panel"><div class="panel-title"><div><span class="section-icon blue">◈</span><b>از حافظهٔ تو</b></div><button class="more-button" data-view="memory">···</button></div><div class="memory-snippet"><span class="memory-type">ترجیح</span><p>ترجیح می‌دهی پروژه‌ها را مرحله‌به‌مرحله و با تغییرات کوچک پیش ببری.</p></div><div class="memory-snippet"><span class="memory-type">پروژه</span><p>ICARUS؛ ساخت یک دستیار شخصی و عامل‌محور.</p></div><button class="subtle-button" data-view="memory">مدیریت حافظه ←</button></section>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-tasks">
+          <div class="page-heading"><div><p class="eyebrow">مدیریت زمان و اجرا</p><h1>وظایف</h1><p class="subheading">کارها، اولویت‌ها و موعدها در یک نمای واحد.</p></div><button class="primary-button" data-action="new-task">＋ کار جدید</button></div>
+          <div class="stats-grid"><article class="stat-card"><span>کارهای فعال</span><b>۱۲</b><small>۲ مورد بیشتر از هفتهٔ قبل</small></article><article class="stat-card"><span>موعد امروز</span><b>۳</b><small>۱ مورد نزدیک به تأخیر</small></article><article class="stat-card"><span>تکمیل‌شده</span><b>۸</b><small>در هفت روز گذشته</small></article><article class="stat-card"><span>در انتظار تأیید</span><b>۲</b><small>نیازمند تصمیم تو</small></article></div>
+          <div class="panel table-panel"><div class="panel-title"><div><b>فهرست کارها</b><span class="muted-inline">· ۶ مورد نمونه</span></div><div class="filter-row"><button class="filter-chip selected">همه</button><button class="filter-chip">امروز</button><button class="filter-chip">اولویت بالا</button></div></div><div class="task-list" id="task-list">
+            <article class="task-row"><span class="task-check"></span><div class="task-main"><b>اتصال حافظهٔ محلی به Companion</b><small>ICARUS / Personal Companion</small></div><span class="priority-pill urgent">بالا</span><time>امروز، ۱۸:۰۰</time><button class="more-button">···</button></article>
+            <article class="task-row"><span class="task-check"></span><div class="task-main"><b>مرور مستندات Vikunja API</b><small>ICARUS / Integrations</small></div><span class="priority-pill medium">متوسط</span><time>فردا، ۱۲:۰۰</time><button class="more-button">···</button></article>
+            <article class="task-row"><span class="task-check done">✓</span><div class="task-main"><b>تعریف Schema رویدادهای JSON</b><small>ICARUS / Local LLM</small></div><span class="priority-pill muted-pill">تکمیل‌شده</span><time>دیروز</time><button class="more-button">···</button></article>
+            <article class="task-row"><span class="task-check"></span><div class="task-main"><b>طراحی نمای تقویم هفتگی</b><small>ICARUS / UX</small></div><span class="priority-pill medium">متوسط</span><time>پنج‌شنبه</time><button class="more-button">···</button></article>
+            <article class="task-row"><span class="task-check"></span><div class="task-main"><b>انتخاب مدل System 1 محلی</b><small>ICARUS / LLM</small></div><span class="priority-pill low">پایین</span><time>بدون موعد</time><button class="more-button">···</button></article>
+          </div></div>
+        </section>
+
+        <section class="view" id="view-calendar">
+          <div class="page-heading"><div><p class="eyebrow">برنامه‌ریزی زمان</p><h1>تقویم</h1><p class="subheading">نمای هفتگی نمونه؛ رویدادها و موعدها کنار هم.</p></div><button class="primary-button" data-action="new-task">＋ رویداد جدید</button></div>
+          <div class="panel calendar-panel"><div class="calendar-toolbar"><div><b>آبان ۱۴۰۵</b><small>هفتهٔ سوم</small></div><div class="calendar-controls"><button class="icon-button">‹</button><button class="today-button">امروز</button><button class="icon-button">›</button><select aria-label="نوع نمایش"><option>هفته</option><option>ماه</option><option>روز</option></select></div></div><div class="week-grid" id="week-grid"><div class="time-column"><span></span><span>۰۸:۰۰</span><span>۱۰:۰۰</span><span>۱۲:۰۰</span><span>۱۴:۰۰</span><span>۱۶:۰۰</span><span>۱۸:۰۰</span><span>۲۰:۰۰</span></div><div class="day-column"><div class="day-head">شنبه <b>۱۷</b></div><div class="calendar-event violet" style="top:22%">مطالعهٔ آناتومی<small>۱۰:۰۰ – ۱۲:۰۰</small></div></div><div class="day-column"><div class="day-head">یکشنبه <b>۱۸</b></div><div class="calendar-event blue" style="top:48%">جلسهٔ پژوهش<small>۱۴:۰۰ – ۱۵:۰۰</small></div></div><div class="day-column"><div class="day-head">دوشنبه <b>۱۹</b></div><div class="calendar-event green" style="top:34%">مرور وظایف<small>۱۲:۰۰ – ۱۳:۰۰</small></div></div><div class="day-column"><div class="day-head">سه‌شنبه <b>۲۰</b></div><div class="calendar-event violet" style="top:58%">توسعهٔ ایکاروس<small>۱۶:۰۰ – ۱۸:۰۰</small></div></div><div class="day-column today-column"><div class="day-head">چهارشنبه <b>۲۱</b></div><div class="calendar-event amber" style="top:70%">اتصال حافظه<small>۱۸:۰۰ – ۱۹:۰۰</small></div><span class="now-line"></span></div><div class="day-column"><div class="day-head">پنج‌شنبه <b>۲۲</b></div><div class="calendar-event blue" style="top:25%">کلاس / مطالعه<small>۱۰:۳۰ – ۱۲:۰۰</small></div></div><div class="day-column"><div class="day-head">جمعه <b>۲۳</b></div><div class="calendar-event green" style="top:40%">مرور هفتگی<small>۱۳:۰۰ – ۱۴:۰۰</small></div></div></div><div class="calendar-legend"><span><i class="legend-dot violet-bg"></i>مطالعه</span><span><i class="legend-dot blue-bg"></i>جلسه</span><span><i class="legend-dot green-bg"></i>شخصی</span><span><i class="legend-dot amber-bg"></i>پروژه</span></div></div>
+        </section>
+
+        <section class="view" id="view-memory">
+          <div class="page-heading"><div><p class="eyebrow">حافظهٔ قابل‌کنترل</p><h1>حافظه</h1><p class="subheading">چیزهایی که ایکاروس برای کمک بهتر به خاطر می‌سپارد؛ قابل مشاهده و ویرایش.</p></div><button class="primary-button" data-action="add-memory">＋ افزودن به حافظه</button></div>
+          <div class="memory-layout"><div class="panel memory-main"><div class="panel-title"><b>حافظه‌های ذخیره‌شده</b><span class="muted-inline">۴ مورد</span></div><article class="memory-row"><span class="memory-symbol purple">⌖</span><div><b>پروژهٔ بلندمدت</b><p>ساخت ICARUS به‌عنوان دستیار شخصی، با توسعهٔ تدریجی و نسخه‌های کوچک قابل‌اجرا.</p><small>دسته: پروژه‌ها · ذخیره‌شده با تأیید کاربر</small></div><button class="more-button">···</button></article><article class="memory-row"><span class="memory-symbol blue">文</span><div><b>سبک یادگیری</b><p>آموزش مرحله‌به‌مرحله، توضیح علت هر دستور و تمرین عملی کوتاه.</p><small>دسته: ترجیحات · ذخیره‌شده با تأیید کاربر</small></div><button class="more-button">···</button></article><article class="memory-row"><span class="memory-symbol green">⌘</span><div><b>ترجیحات توسعه</b><p>استفاده از pnpm و تغییرات کوچک؛ پیش از ادغام یا عملیات مخرب اجازه گرفته شود.</p><small>دسته: ترجیحات · ذخیره‌شده با تأیید کاربر</small></div><button class="more-button">···</button></article><article class="memory-row"><span class="memory-symbol amber">◷</span><div><b>هدف فعلی</b><p>تکمیل همراه شخصی با چت، حافظه، وظایف، تقویم و چهار مسیر مدل زبانی.</p><small>دسته: اهداف · ذخیره‌شده با تأیید کاربر</small></div><button class="more-button">···</button></article></div><aside class="panel privacy-card"><span class="section-icon blue">◈</span><h3>حافظه در اختیار توست</h3><p>حافظه با تاریخچهٔ خام گفت‌وگو یکی نیست. فقط موارد منتخب و مفید در این بخش نگهداری می‌شوند.</p><ul><li>مشاهده و اصلاح هر مورد</li><li>حذف با درخواست تو</li><li>تفکیک حافظه از دادهٔ آموزشی</li></ul><span class="privacy-note">هیچ داده‌ای بدون سیاست ثبت و کنترل مشخص به مجموعهٔ آموزش منتقل نمی‌شود.</span></aside></div>
+        </section>
+
+        <section class="view" id="view-files">
+          <div class="page-heading"><div><p class="eyebrow">دانش و فایل‌ها</p><h1>کتابخانه</h1><p class="subheading">ساختار پوشه‌ای برای ایده‌ها، پروژه‌ها، مکالمات و دانش.</p></div><button class="primary-button" data-action="new-folder">＋ پوشهٔ جدید</button></div>
+          <div class="folder-grid"><article class="folder-card"><span class="folder-icon purple">▰</span><div><b>Projects</b><small>پروژه‌ها · ۱۲ مورد</small></div><span>›</span></article><article class="folder-card"><span class="folder-icon blue">✧</span><div><b>Ideas</b><small>ایده‌ها · ۲۸ مورد</small></div><span>›</span></article><article class="folder-card"><span class="folder-icon green">▤</span><div><b>Tasks</b><small>وظایف · ۴۳ مورد</small></div><span>›</span></article><article class="folder-card"><span class="folder-icon amber">◈</span><div><b>Knowledge</b><small>دانش · ۱۶ مورد</small></div><span>›</span></article><article class="folder-card"><span class="folder-icon pink">▧</span><div><b>Conversations</b><small>مکالمات · ۹ مورد</small></div><span>›</span></article><article class="folder-card"><span class="folder-icon slate">▱</span><div><b>Archive</b><small>بایگانی · ۵ مورد</small></div><span>›</span></article></div>
+          <div class="panel recent-files"><div class="panel-title"><b>آخرین فایل‌ها</b><span class="muted-inline">همگام‌سازی محلی</span></div><div class="file-row"><span class="file-type">JSON</span><b>personal-companion-plan.json</b><small>Projects / ICARUS</small><time>امروز</time></div><div class="file-row"><span class="file-type markdown">MD</span><b>learning-notes.md</b><small>Knowledge / Programming</small><time>دیروز</time></div><div class="file-row"><span class="file-type json">JSON</span><b>action-event-A-….json</b><small>Train Data / Events</small><time>دیروز</time></div></div>
+        </section>
+
+        <section class="view" id="view-models">
+          <div class="page-heading"><div><p class="eyebrow">لایهٔ هوش مصنوعی</p><h1>مدل‌های هوش مصنوعی</h1><p class="subheading">چهار مسیر مستقل؛ انتخاب مدل به‌معنای اعطای دسترسی اجرایی نیست.</p></div><span class="safe-label"><i></i> مجوزها مستقل از مدل‌اند</span></div>
+          <div class="provider-grid"><article class="provider-card selected-provider"><div class="provider-top"><span class="provider-icon">S1</span><span class="provider-state connected">محلی · آماده</span></div><h3>System 1 · Local</h3><p>پاسخ سریع، دسته‌بندی، ثبت و بازیابی ساده.</p><code>127.0.0.1:11434</code><div class="provider-bottom"><span>مدل: Qwen 2.5</span><button class="outline-button">تنظیمات</button></div></article><article class="provider-card"><div class="provider-top"><span class="provider-icon api">S1</span><span class="provider-state disabled">غیرفعال</span></div><h3>System 1 · API</h3><p>مسیر ابری سریع برای مواقع نیاز.</p><code>API endpoint · تنظیم‌نشده</code><div class="provider-bottom"><span>کلید از Secret Store</span><button class="outline-button">پیکربندی</button></div></article><article class="provider-card"><div class="provider-top"><span class="provider-icon deep">S2</span><span class="provider-state disabled">غیرفعال</span></div><h3>System 2 · Local</h3><p>استدلال عمیق‌تر روی سخت‌افزار محلی.</p><code>Local inference · تنظیم‌نشده</code><div class="provider-bottom"><span>مدل مستقل</span><button class="outline-button">پیکربندی</button></div></article><article class="provider-card"><div class="provider-top"><span class="provider-icon api">S2</span><span class="provider-state disabled">غیرفعال</span></div><h3>System 2 · API</h3><p>تحلیل پیچیده از طریق سرویس بیرونی.</p><code>API endpoint · تنظیم‌نشده</code><div class="provider-bottom"><span>کلید از Secret Store</span><button class="outline-button">پیکربندی</button></div></article></div>
+          <div class="panel routing-panel"><div><b>سیاست مسیریابی</b><p>کارهای ساده به System 1 و درخواست‌های پیچیده به System 2 هدایت می‌شوند.</p></div><span class="route-chip">Auto routing · خاموش در نسخهٔ اولیه</span></div>
+        </section>
+
+        <section class="view" id="view-activity">
+          <div class="page-heading"><div><p class="eyebrow">شفافیت و حسابرسی</p><h1>گزارش فعالیت‌ها</h1><p class="subheading">هر اقدام مهم یک رویداد JSON مستقل خواهد داشت.</p></div><button class="outline-button">خروجی JSON ↓</button></div>
+          <div class="panel activity-panel"><div class="panel-title"><b>رویدادهای اخیر</b><span class="safe-label"><i></i> ثبت محرمانه‌زدایی‌شده</span></div><article class="activity-row"><span class="activity-icon green">✓</span><div><b>ثبت رویداد تعریف Schema</b><small>mutation_applied · Local LLM / Train Data</small></div><span class="activity-status">موفق</span><time>۱۰:۴۲</time></article><article class="activity-row"><span class="activity-icon blue">✳</span><div><b>انتخاب مسیر مدل</b><small>provider_selected · system1_local</small></div><span class="activity-status">موفق</span><time>۱۰:۳۸</time></article><article class="activity-row"><span class="activity-icon amber">⌑</span><div><b>درخواست تغییر تنظیمات</b><small>mutation_proposed · منتظر تأیید انسانی</small></div><span class="activity-status pending">در انتظار</span><time>۱۰:۳۰</time></article></div>
+          <div class="notice-panel"><span>ⓘ</span><p>فایل‌های JSON دادهٔ عملیاتی‌اند، نه نمونهٔ آموزشی تأییدشده. ورود به مجموعهٔ آموزش نیازمند پالایش، حذف اطلاعات حساس و تأیید انسانی است.</p></div>
+        </section>
+
+        <section class="view" id="view-settings">
+          <div class="page-heading"><div><p class="eyebrow">کنترل تجربه و امنیت</p><h1>تنظیمات</h1><p class="subheading">رفتار، حریم خصوصی و دسترسی‌های ایکاروس.</p></div></div>
+          <div class="settings-grid"><section class="panel settings-section"><h3>حریم خصوصی و حافظه</h3><label class="setting-row"><span><b>ثبت رویدادهای JSON</b><small>یک فایل برای هر اقدام مهم</small></span><input type="checkbox" checked></label><label class="setting-row"><span><b>ذخیرهٔ مکالمات</b><small>در پوشهٔ Conversations</small></span><input type="checkbox" checked></label><label class="setting-row"><span><b>پالایش داده پیش از آموزش</b><small>تأیید انسانی الزامی</small></span><input type="checkbox" checked disabled></label></section><section class="panel settings-section"><h3>مرزهای دسترسی</h3><div class="quarantine-large"><span class="lock-icon">⌑</span><div><b>قرنطینهٔ عامل‌های قدیمی فعال است</b><small>این وضعیت توسط مدل یا تنظیمات عادی قابل تغییر نیست.</small></div><span class="status-pill">قفل</span></div><p class="setting-hint">تغییر فایل‌ها و تنظیمات برنامه از مسیر پیش‌نمایش، ثبت رویداد، تأیید انسانی و نسخهٔ پشتیبان عبور می‌کند.</p></section></div>
+        </section>
+      </div>
+      <footer class="app-footer"><span>ICARUS Personal Companion <i>·</i> Prototype 0.1</span><span>ساخته‌شده برای کنترل انسانی، حافظهٔ شفاف و توسعهٔ تدریجی</span></footer>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modal-backdrop" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head"><div><p class="eyebrow">ثبت در فضای کاری</p><h2 id="modal-title">کار جدید</h2></div><button class="icon-button" data-close-modal aria-label="بستن">×</button></div>
+      <form id="task-form"><label>عنوان کار<input name="title" required maxlength="180" placeholder="مثلاً اتصال حافظهٔ محلی"></label><label>پروژه / پوشه<select name="folder"><option>ICARUS / Personal Companion</option><option>Universe / Learning</option><option>Ideas / Inbox</option></select></label><div class="form-split"><label>اولویت<select name="priority"><option value="high">بالا</option><option value="normal" selected>معمولی</option><option value="low">پایین</option><option value="critical">بحرانی</option></select></label><label>موعد<input name="due" type="datetime-local"></label></div><label>توضیحات<textarea name="description" rows="3" placeholder="جزئیات اختیاری…"></textarea></label><div class="modal-actions"><button class="outline-button" type="button" data-close-modal>انصراف</button><button class="primary-button" type="submit">ثبت پیش‌نویس کار</button></div><p class="form-note">این نسخهٔ نمایشی اطلاعات را فقط در مرورگر ذخیره می‌کند؛ هنوز به TaskStore متصل نیست.</p></form>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
