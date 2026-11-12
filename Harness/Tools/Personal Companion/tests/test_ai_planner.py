@@ -47,6 +47,7 @@ class CalendarPlanningTests(unittest.TestCase):
             "tasks": [{"id": "task-1", "title": "مطالعه", "duration_minutes": 60}],
             "available_windows": [{"start": "2026-11-12T09:00:00-08:00", "end": "2026-11-12T12:00:00-08:00"}],
             "timezone": "America/Los_Angeles",
+            "busy_events": [],
         }
 
     def test_calendar_returns_proposal_without_applying_it(self):
@@ -76,6 +77,14 @@ class CalendarPlanningTests(unittest.TestCase):
         with patch.object(server, "ask", return_value=({"events": [first, second], "conflicts": [], "notes": []}, "mock")), patch.object(server.JOURNAL, "record"):
             with self.assertRaisesRegex(RuntimeError, "هم‌پوشان"):
                 server.calendar_plan(self.payload)
+
+    def test_calendar_rejects_conflict_with_existing_event(self):
+        payload = dict(self.payload)
+        payload["busy_events"] = [{"start": "2026-11-12T09:30:00-08:00", "end": "2026-11-12T10:30:00-08:00"}]
+        proposal = {"events": [{"title": "تداخل", "task_id": "task-1", "start": "2026-11-12T09:00:00-08:00", "end": "2026-11-12T10:00:00-08:00"}], "conflicts": [], "notes": []}
+        with patch.object(server, "ask", return_value=(proposal, "mock")), patch.object(server.JOURNAL, "record"):
+            with self.assertRaisesRegex(RuntimeError, "رویداد ثبت‌شدهٔ قبلی"):
+                server.calendar_plan(payload)
 
     def test_calendar_requires_explicit_availability(self):
         payload = dict(self.payload)
