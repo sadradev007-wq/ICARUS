@@ -218,7 +218,6 @@ class ExecutionEngine:
 
     @_serialized
     def approve(self, task_id: str, handler_id: str, *, approved_by: str) -> dict[str, Any]:
-        require_agents_enabled()
         if not approved_by.strip():
             raise ValueError("approved_by is required")
         self.registry.get(handler_id)  # Fail closed if handler is not trusted/registered.
@@ -244,7 +243,6 @@ class ExecutionEngine:
         proposal_id: str, approved_by: str,
     ) -> dict[str, Any]:
         """Atomically apply a validated replan through the durable queue transaction."""
-        require_agents_enabled()
         if not approved_by.strip() or not proposal_id.strip():
             raise ValueError("approved_by and proposal_id are required")
         required = (
