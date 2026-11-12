@@ -1,6 +1,7 @@
 import json
 import re
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -16,6 +17,15 @@ class DatasetSpy:
 
 
 class RuntimeCorrelationTests(unittest.TestCase):
+    def test_quarantine_blocks_model_calls_and_dataset_writes(self):
+        model_calls = []
+        runtime = AgentRuntime.__new__(AgentRuntime)
+        runtime.model = SimpleNamespace(complete=lambda *args: model_calls.append(args))
+        with patch("icarus_harness.agent_gate.AGENTS_ENABLED", False):
+            with self.assertRaisesRegex(RuntimeError, "agent is quarantined"):
+                runtime.run("must not execute")
+        self.assertEqual(model_calls, [])
+
     def test_task_companion_run_id_is_shared_with_dataset_record(self):
         runtime = AgentRuntime.__new__(AgentRuntime)
         runtime.workspace = SimpleNamespace(root=Path("."))
@@ -29,7 +39,8 @@ class RuntimeCorrelationTests(unittest.TestCase):
         runtime.config = SimpleNamespace(agent=SimpleNamespace(max_steps=1))
         runtime.dataset = DatasetSpy()
 
-        result = runtime.run("Task Companion task", task_id="T-abc123")
+        with patch("icarus_harness.agent_gate.AGENTS_ENABLED", True):
+            result = runtime.run("Task Companion task", task_id="T-abc123")
 
         self.assertRegex(result.run_id, re.compile(r"^[a-f0-9]{32}$"))
         self.assertEqual(len(runtime.dataset.calls), 1)
