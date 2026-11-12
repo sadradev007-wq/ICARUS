@@ -1,221 +1,78 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const labels = {chat:"دستیار",tasks:"کارها",calendar:"تقویم",memory:"حافظه",files:"کتابخانه",models:"مدل‌های هوش مصنوعی",activity:"گزارش فعالیت‌ها",settings:"تنظیمات"};
-const views = $$(".view");
-const navButtons = $$("[data-view]");
-const modal = $("#modal-backdrop");
-const toast = $("#toast");
-const priorityDrawer = $("#priority-drawer");
-const priorityPanel = $("#priority-panel");
-const priorityToggle = $("#priority-toggle");
-let toastTimer;
-
-function notify(message) {
-  toast.textContent = message;
-  toast.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
+const views = $$(".view"), navButtons = $$("[data-view]");
+const modal=$("#modal-backdrop"), toast=$("#toast"), priorityDrawer=$("#priority-drawer"), priorityPanel=$("#priority-panel"), priorityToggle=$("#priority-toggle");
+const TASKS_KEY="icarus.prototype.tasks", EVENTS_KEY="icarus.prototype.calendar.events";
+let toastTimer, taxonomy=[], taxonomyById=new Map(), latestClassification=null, latestCalendarProposal=null;
+function notify(message){toast.textContent=message;toast.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove("show"),3000);}
+function navigate(name){if(!labels[name])return;priorityPanel.hidden=true;priorityToggle.setAttribute("aria-expanded","false");views.forEach(v=>v.classList.toggle("active",v.id==="view-"+name));navButtons.forEach(b=>b.classList.toggle("active",b.dataset.view===name));$("#current-section").textContent=labels[name];if(window.innerWidth<=600)window.scrollTo({top:0,behavior:"smooth"});}
+navButtons.forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.view)));
+priorityToggle.addEventListener("click",()=>{const opening=priorityPanel.hidden;priorityPanel.hidden=!opening;priorityToggle.setAttribute("aria-expanded",String(opening));});
+$("#priority-close").addEventListener("click",()=>{priorityPanel.hidden=true;priorityToggle.setAttribute("aria-expanded","false");});
+document.addEventListener("click",e=>{if(!priorityPanel.hidden&&!priorityDrawer.contains(e.target)){priorityPanel.hidden=true;priorityToggle.setAttribute("aria-expanded","false");}});
+function openModal(){modal.hidden=false;document.body.style.overflow="hidden";setTimeout(()=>$('input[name="title"]',modal)?.focus(),0);}
+function closeModal(){modal.hidden=true;document.body.style.overflow="";}
+$$("[data-close-modal]").forEach(b=>b.addEventListener("click",closeModal));
+modal.addEventListener("click",e=>{if(e.target===modal)closeModal();});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!modal.hidden)closeModal();});
+function readTasks(){try{const d=JSON.parse(localStorage.getItem(TASKS_KEY)||"[]");return Array.isArray(d)?d:[];}catch{return [];}}
+function saveTasks(items){localStorage.setItem(TASKS_KEY,JSON.stringify(items));}
+function categoryFor(task){if(taxonomyById.has(task.category))return task.category;const old={projects:"domain-21",research:"domain-05",learning:"domain-06",personal:"domain-40",ideas:"domain-50"};return old[task.category]||"domain-50";}
+function categoryTitle(id){return taxonomyById.get(id)?.title||"ایده‌ها و پروژه‌های آینده";}
+function subcategoryTitle(cid,sid){return taxonomyById.get(cid)?.children.find(x=>x.id===sid)?.title||"";}
+function makeTaskRow(task){
+ const row=document.createElement("article");row.className="task-row";row.dataset.taskId=task.id||"";
+ const check=document.createElement("button");check.className="task-check"+(task.status==="done"?" done":"");check.type="button";check.textContent=task.status==="done"?"✓":"";check.setAttribute("aria-label","تغییر وضعیت کار");
+ check.addEventListener("click",()=>{const all=readTasks();const found=all.find(x=>x.id===task.id);if(found)found.status=found.status==="done"?"open":"done";saveTasks(all);renderTasks();});
+ const main=document.createElement("div");main.className="task-main";const title=document.createElement("b");title.textContent=task.title||"کار بدون عنوان";
+ const meta=document.createElement("small");const cat=categoryFor(task);meta.textContent=[categoryTitle(cat),subcategoryTitle(cat,task.subcategory),task.folder].filter(Boolean).join(" / ");main.append(title,meta);
+ const priority=document.createElement("span");priority.className="priority-pill "+(task.priority==="critical"||task.priority==="high"?"urgent":task.priority==="low"?"low":"medium");priority.textContent=({critical:"بحرانی",high:"بالا",normal:"معمولی",low:"پایین"})[task.priority]||"معمولی";
+ const due=document.createElement("time");due.textContent=task.due?new Date(task.due).toLocaleString("fa-IR",{dateStyle:"medium",timeStyle:"short"}):"بدون موعد";
+ const more=document.createElement("button");more.className="more-button";more.type="button";more.textContent="···";more.addEventListener("click",()=>notify("ویرایش جزئیات پس از اتصال TaskStore اضافه می‌شود."));
+ row.dataset.priority=task.priority||"normal";row.dataset.due=task.due||"";row.append(check,main,priority,due,more);return row;
 }
-function navigate(name) {
-  if (!labels[name]) return;
-  priorityPanel.hidden = true;
-  priorityToggle.setAttribute("aria-expanded", "false");
-  views.forEach(view => view.classList.toggle("active", view.id === `view-${name}`));
-  navButtons.forEach(button => button.classList.toggle("active", button.dataset.view === name));
-  $("#current-section").textContent = labels[name];
-  if (window.innerWidth <= 600) window.scrollTo({top:0,behavior:"smooth"});
+function addTaskToCategory(task){
+ const category=categoryFor(task);let section=$('[data-task-category="'+category+'"]');
+ if(!section){const grid=$("#task-list");if(!grid)return;section=document.createElement("section");section.className="task-category";section.dataset.taskCategory=category;
+ const header=document.createElement("header"),wrap=document.createElement("div"),title=document.createElement("b"),subtitle=document.createElement("small"),count=document.createElement("span"),items=document.createElement("div");
+ title.textContent=categoryTitle(category);subtitle.textContent="کارهای این حوزه";wrap.append(title,subtitle);count.className="category-count";header.append(wrap,count);items.className="task-category-items";section.append(header,items);grid.append(section);}
+ const list=$(".task-category-items",section);list?.append(makeTaskRow(task));const count=$(".category-count",section);if(count)count.textContent=String($$(".task-row",list).length);
 }
-navButtons.forEach(button => button.addEventListener("click", () => navigate(button.dataset.view)));
-
-priorityToggle.addEventListener("click", () => {
-  const opening = priorityPanel.hidden;
-  priorityPanel.hidden = !opening;
-  priorityToggle.setAttribute("aria-expanded", String(opening));
-});
-$("#priority-close").addEventListener("click", () => {
-  priorityPanel.hidden = true;
-  priorityToggle.setAttribute("aria-expanded", "false");
-});
-document.addEventListener("click", event => {
-  if (!priorityPanel.hidden && !priorityDrawer.contains(event.target)) {
-    priorityPanel.hidden = true;
-    priorityToggle.setAttribute("aria-expanded", "false");
-  }
-});
-
-function openModal() {
-  modal.hidden = false;
-  document.body.style.overflow = "hidden";
-  setTimeout(() => $('input[name="title"]', modal)?.focus(), 0);
+function renderTasks(){const grid=$("#task-list");if(!grid)return;grid.replaceChildren();const tasks=readTasks();tasks.forEach(addTaskToCategory);$("#task-total").textContent="· "+tasks.length.toLocaleString("fa-IR")+" کار";$("#task-nav-count").textContent=tasks.length.toLocaleString("fa-IR");$("#calendar-task-count").textContent=tasks.filter(x=>x.status!=="done").length.toLocaleString("fa-IR")+" کار آمادهٔ برنامه‌ریزی";}
+function fillSubcategoryOptions(cid,selected){const sub=$("#task-subcategory-select");sub.replaceChildren();const c=taxonomyById.get(cid);(c?.children||[]).forEach(child=>{const o=document.createElement("option");o.value=child.id;o.textContent=child.title;sub.append(o);});if(selected)sub.value=selected;}
+function fillCategorySelects(){const main=$("#task-category-select");if(!main)return;main.replaceChildren();taxonomy.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.title;main.append(o);});fillSubcategoryOptions(main.value);main.addEventListener("change",()=>fillSubcategoryOptions(main.value));}
+function renderTaxonomy(filter){
+ const tree=$("#taxonomy-tree");tree.replaceChildren();const q=(filter||"").trim().toLocaleLowerCase();
+ const matches=taxonomy.map(c=>({c,children:c.children.filter(x=>!q||x.title.toLocaleLowerCase().includes(q)),root:c.title.toLocaleLowerCase().includes(q)})).filter(x=>!q||x.root||x.children.length);
+ matches.forEach(({c,children,root})=>{const details=document.createElement("details");details.className="taxonomy-category";if(q)details.open=true;const summary=document.createElement("summary"),name=document.createElement("b"),count=document.createElement("span");name.textContent=c.title;count.textContent="۲۰ زیرعنوان";summary.append(name,count);details.append(summary);const list=document.createElement("div");list.className="taxonomy-children";
+ (root&&!q?c.children:children).forEach(child=>{const b=document.createElement("button");b.type="button";b.className="taxonomy-child";b.textContent=child.title;b.addEventListener("click",()=>{$("#task-category-select").value=c.id;fillSubcategoryOptions(c.id,child.id);$("#modal-title").textContent="ثبت کار در "+c.title;openModal();$("#task-subcategory-select").value=child.id;});list.append(b);});details.append(list);tree.append(details);});
+ if(!matches.length){const p=document.createElement("p");p.className="empty-state";p.textContent="موردی با این عبارت پیدا نشد.";tree.append(p);}
 }
-function closeModal() {
-  modal.hidden = true;
-  document.body.style.overflow = "";
+async function loadTaxonomy(){try{const res=await fetch("/api/taxonomy");if(!res.ok)throw new Error("سرور دسته‌بندی پاسخ نداد.");const data=await res.json();if(!Array.isArray(data.categories)||data.categories.length!==50||data.categories.some(x=>!Array.isArray(x.children)||x.children.length!==20))throw new Error("ساختار باید دقیقاً ۵۰ حوزه و ۲۰ زیرعنوان برای هر حوزه داشته باشد.");taxonomy=data.categories;taxonomyById=new Map(taxonomy.map(x=>[x.id,x]));$("#taxonomy-count").textContent="۵۰ حوزه · ۱۰۰۰ زیرعنوان";fillCategorySelects();renderTaxonomy("");renderTasks();}catch(e){$("#taxonomy-count").textContent="بارگذاری ناموفق";$("#taxonomy-tree").textContent=e.message+"؛ رابط را از سرور محلی Personal Companion اجرا کن.";}}
+$("#taxonomy-search").addEventListener("input",e=>renderTaxonomy(e.target.value));
+$("#task-form").addEventListener("submit",e=>{e.preventDefault();const d=new FormData(e.currentTarget);const task={id:crypto.randomUUID(),title:String(d.get("title")||"").trim(),folder:String(d.get("folder")||""),category:String(d.get("category")||"domain-50"),subcategory:String(d.get("subcategory")||""),priority:String(d.get("priority")||"normal"),due:String(d.get("due")||""),duration_minutes:Number(d.get("duration_minutes"))||null,description:String(d.get("description")||""),status:"open",created_at:new Date().toISOString()};if(!task.title)return;const all=readTasks();all.push(task);try{saveTasks(all);}catch{notify("ذخیره‌سازی مرورگر در دسترس نیست.");return;}renderTasks();e.currentTarget.reset();fillCategorySelects();closeModal();notify("کار در دسته‌بندی انتخاب‌شده ذخیره شد.");navigate("tasks");});
+async function requestJSON(path,payload){const res=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const data=await res.json();if(!res.ok)throw new Error(data.error||"درخواست AI ناموفق بود.");return data;}
+function showClassification(data,item){
+ latestClassification={data,item};const p=data.proposal,c=taxonomyById.get(p.category_id),sub=subcategoryTitle(p.category_id,p.subcategory_id),box=$("#classify-result");box.replaceChildren();box.hidden=false;
+ const title=document.createElement("b"),path=document.createElement("p"),why=document.createElement("p"),meta=document.createElement("small"),actions=document.createElement("div");
+ title.textContent="پیشنهاد دسته‌بندی";path.textContent=(c?.title||"نامشخص")+" ← "+sub;why.textContent=p.rationale||"دلیلی ارائه نشده است.";meta.textContent="اطمینان: "+Math.round((p.confidence||0)*100)+"٪ · "+data.route+" · "+data.model;actions.className="ai-result-actions";
+ const approve=document.createElement("button");approve.className="primary-button";approve.type="button";approve.textContent="تأیید و افزودن به کارها";approve.disabled=(p.confidence||0)<0.35;approve.addEventListener("click",()=>{const t={id:crypto.randomUUID(),title:item,category:p.category_id,subcategory:p.subcategory_id,priority:"normal",status:"open",created_at:new Date().toISOString(),source:"ai-classification"};const all=readTasks();all.push(t);saveTasks(all);renderTasks();box.hidden=true;$("#classify-input").value="";notify("پیشنهاد با تأیید تو به کارها افزوده شد.");});
+ const reject=document.createElement("button");reject.className="outline-button";reject.type="button";reject.textContent="رد پیشنهاد";reject.addEventListener("click",()=>{latestClassification=null;box.hidden=true;});actions.append(approve,reject);box.append(title,path,why,meta,actions);
 }
-$$("[data-close-modal]").forEach(button => button.addEventListener("click", closeModal));
-modal.addEventListener("click", event => { if (event.target === modal) closeModal(); });
-document.addEventListener("keydown", event => { if (event.key === "Escape" && !modal.hidden) closeModal(); });
-
-function makeTaskRow(task) {
-  const row = document.createElement("article");
-  row.className = "task-row";
-  const check = document.createElement("button");
-  check.className = "task-check";
-  check.type = "button";
-  check.setAttribute("aria-label", "تغییر وضعیت کار");
-  check.addEventListener("click", () => {
-    check.classList.toggle("done");
-    check.textContent = check.classList.contains("done") ? "✓" : "";
-    notify("وضعیت فقط در نمونهٔ محلی تغییر کرد.");
-  });
-  const main = document.createElement("div");
-  main.className = "task-main";
-  const title = document.createElement("b");
-  title.textContent = task.title;
-  const meta = document.createElement("small");
-  meta.textContent = task.folder || "صندوق ورودی";
-  main.append(title, meta);
-  const priority = document.createElement("span");
-  priority.className = "priority-pill " + (task.priority === "critical" || task.priority === "high" ? "urgent" : task.priority === "low" ? "low" : "medium");
-  priority.textContent = ({critical:"بحرانی",high:"بالا",normal:"معمولی",low:"پایین"})[task.priority] || "معمولی";
-  const due = document.createElement("time");
-  due.textContent = task.due ? new Date(task.due).toLocaleString("fa-IR",{dateStyle:"medium",timeStyle:"short"}) : "بدون موعد";
-  const more = document.createElement("button");
-  more.className = "more-button";
-  more.type = "button";
-  more.textContent = "···";
-  more.addEventListener("click", () => notify("جزئیات و ویرایش به اتصال TaskStore نیاز دارد."));
-  row.dataset.priority = task.priority || "normal";
-  row.dataset.due = task.due || "";
-  row.append(check, main, priority, due, more);
-  return row;
-}
-const categoryNames = {projects:"پروژه‌ها و توسعه",research:"پژوهش و یکپارچه‌سازی",learning:"یادگیری و مطالعه",personal:"امور شخصی",ideas:"ایده‌ها و پیگیری"};
-function categoryFor(task) {
-  if (categoryNames[task.category]) return task.category;
-  const folder = String(task.folder || "").toLowerCase();
-  if (folder.includes("learning") || folder.includes("study")) return "learning";
-  if (folder.includes("integration") || folder.includes("research")) return "research";
-  if (folder.includes("idea")) return "ideas";
-  if (folder.includes("personal")) return "projects";
-  return "ideas";
-}
-function addTaskToCategory(task) {
-  const category = categoryFor(task);
-  let section = $(`[data-task-category="${category}"]`);
-  if (!section) {
-    const grid = $("#task-list");
-    if (!grid) return;
-    section = document.createElement("section");
-    section.className = "task-category";
-    section.dataset.taskCategory = category;
-    const header = document.createElement("header");
-    const heading = document.createElement("div");
-    const title = document.createElement("b");
-    title.textContent = categoryNames[category];
-    const subtitle = document.createElement("small");
-    subtitle.textContent = "کارهای ثبت‌شده در این دسته";
-    heading.append(title, subtitle);
-    const count = document.createElement("span");
-    count.className = "category-count";
-    count.textContent = "0";
-    header.append(heading, count);
-    const items = document.createElement("div");
-    items.className = "task-category-items";
-    section.append(header, items);
-    grid.append(section);
-  }
-  const list = $(".task-category-items", section);
-  list?.prepend(makeTaskRow(task));
-  const count = $(".category-count", section);
-  if (count) count.textContent = String($(".task-row", list).length);
-}
-function loadLocalTasks() {
-  try {
-    const items = JSON.parse(localStorage.getItem("icarus.prototype.tasks") || "[]");
-    items.forEach(addTaskToCategory);
-  } catch { /* Ignore unavailable or malformed prototype storage. */ }
-}
-$("#task-form").addEventListener("submit", event => {
-  event.preventDefault();
-  const data = new FormData(event.currentTarget);
-  const task = {
-    title: String(data.get("title") || "").trim(),
-    folder: String(data.get("folder") || ""),
-    category: String(data.get("category") || "ideas"),
-    priority: String(data.get("priority") || "normal"),
-    due: String(data.get("due") || ""),
-    description: String(data.get("description") || "")
-  };
-  if (!task.title) return;
-  let items = [];
-  try { items = JSON.parse(localStorage.getItem("icarus.prototype.tasks") || "[]"); } catch { items = []; }
-  items.push(task);
-  try { localStorage.setItem("icarus.prototype.tasks", JSON.stringify(items)); } catch { notify("ذخیره‌سازی مرورگر در دسترس نیست."); }
-  addTaskToCategory(task);
-  event.currentTarget.reset();
-  closeModal();
-  notify("پیش‌نویس کار در نمونهٔ محلی ثبت شد.");
-  navigate("tasks");
-});
-
-function appendMessage(text, author = "user") {
-  const wrapper = document.createElement("div");
-  wrapper.className = "message " + (author === "user" ? "user-message" : "assistant-message");
-  if (author === "assistant") {
-    const icon = document.createElement("span");
-    icon.className = "message-avatar";
-    icon.textContent = "I";
-    wrapper.append(icon);
-  }
-  const body = document.createElement("div");
-  body.className = "message-body";
-  const meta = document.createElement("div");
-  meta.className = "message-meta";
-  meta.textContent = author === "user" ? "شما · همین حالا" : "ایکاروس · پاسخ نمایشی";
-  const paragraph = document.createElement("p");
-  paragraph.textContent = text;
-  body.append(meta, paragraph);
-  wrapper.append(body);
-  if (author === "user") {
-    const avatar = document.createElement("span");
-    avatar.className = "user-avatar";
-    avatar.textContent = "S";
-    wrapper.append(avatar);
-  }
-  $("#chat-messages").append(wrapper);
-  wrapper.scrollIntoView({behavior:"smooth",block:"nearest"});
-}
-$("#chat-form").addEventListener("submit", event => {
-  event.preventDefault();
-  const input = $("#chat-input");
-  const text = input.value.trim();
-  if (!text) return;
-  appendMessage(text);
-  input.value = "";
-  setTimeout(() => appendMessage("پیامت در این نمونهٔ رابط دریافت شد. برای پاسخ هوشمند، ذخیرهٔ مکالمه و ساخت وظیفه باید سرویس چت و حافظه به این رابط متصل شوند. فعلاً هیچ عملیات واقعی اجرا نشده است.", "assistant"), 350);
-});
-
-$$("[data-action]").forEach(button => button.addEventListener("click", () => {
-  const action = button.dataset.action;
-  if (action === "new-task") {
-    $("#modal-title").textContent = "کار جدید";
-    openModal();
-  } else if (action === "quick-idea") {
-    $("#modal-title").textContent = "ثبت ایده به‌عنوان کار";
-    openModal();
-  } else if (action === "add-memory") {
-    notify("فرم مدیریت حافظه در مرحلهٔ اتصال سرویس حافظه فعال می‌شود.");
-  } else if (action === "new-folder") {
-    notify("ساخت پوشه پس از اتصال Workspace Library فعال می‌شود.");
-  } else if (action === "accept-suggestion") {
-    notify("پیشنهاد آمادهٔ بررسی است؛ ثبت واقعی نیازمند اتصال TaskStore است.");
-  }
-}));
-$$("[data-view]").forEach(button => {
-  if (button.tagName !== "BUTTON") return;
-  button.addEventListener("click", () => {
-    if (button.classList.contains("subtle-button") || button.classList.contains("more-button")) notify("نمای بخش باز شد.");
-  });
-});
-loadLocalTasks();
+$("#classify-button").addEventListener("click",async()=>{const item=$("#classify-input").value.trim();if(!item)return notify("ابتدا موضوع یا کار را بنویس.");const b=$("#classify-button");b.disabled=true;b.textContent="در حال تحلیل...";try{const result=await requestJSON("/api/ai/classify",{item,route:$("#classify-route").value});showClassification(result,item);}catch(e){notify(e.message);}finally{b.disabled=false;b.textContent="دسته‌بندی با AI";}});
+function appendMessage(text,author){author=author||"user";const wrap=document.createElement("div");wrap.className="message "+(author==="user"?"user-message":"assistant-message");if(author==="assistant"){const icon=document.createElement("span");icon.className="message-avatar";icon.textContent="I";wrap.append(icon);}const body=document.createElement("div");body.className="message-body";const meta=document.createElement("div");meta.className="message-meta";meta.textContent=author==="user"?"شما · همین حالا":"ایکاروس · پاسخ نمایشی";const p=document.createElement("p");p.textContent=text;body.append(meta,p);wrap.append(body);if(author==="user"){const avatar=document.createElement("span");avatar.className="user-avatar";avatar.textContent="S";wrap.append(avatar);}$("#chat-messages").append(wrap);wrap.scrollIntoView({behavior:"smooth",block:"nearest"});}
+$("#chat-form").addEventListener("submit",e=>{e.preventDefault();const input=$("#chat-input"),text=input.value.trim();if(!text)return;appendMessage(text,"user");input.value="";setTimeout(()=>appendMessage("پیامت دریافت شد. قابلیت‌های دسته‌بندی هوشمند و برنامه‌ریزی AI از بخش‌های «کارها» و «تقویم» در دسترس‌اند. گفت‌وگوی آزاد هنوز به سرویس چت متصل نشده است.","assistant"),300);});
+function readEvents(){try{const d=JSON.parse(localStorage.getItem(EVENTS_KEY)||"[]");return Array.isArray(d)?d:[];}catch{return [];}}
+function saveEvents(events){localStorage.setItem(EVENTS_KEY,JSON.stringify(events));}
+function renderCalendar(){const list=$("#calendar-event-list");if(!list)return;const events=readEvents().sort((a,b)=>new Date(a.start)-new Date(b.start));$("#calendar-event-count").textContent="· "+events.length.toLocaleString("fa-IR")+" رویداد";list.replaceChildren();if(!events.length){const p=document.createElement("p");p.className="empty-state";p.textContent="هنوز رویدادی ثبت نشده است. پس از تأیید برنامهٔ AI، رویدادها اینجا نمایش داده می‌شوند.";list.append(p);return;}events.forEach(ev=>{const row=document.createElement("article");row.className="calendar-saved-event";const main=document.createElement("div");main.className="calendar-saved-main";const title=document.createElement("b"),time=document.createElement("small"),reason=document.createElement("small");title.textContent=ev.title;time.textContent=new Date(ev.start).toLocaleString("fa-IR",{dateStyle:"full",timeStyle:"short"})+" تا "+new Date(ev.end).toLocaleTimeString("fa-IR",{hour:"2-digit",minute:"2-digit"});reason.textContent=ev.reason||"برنامه‌ریزی‌شده با تأیید کاربر";main.append(title,time,reason);const remove=document.createElement("button");remove.className="more-button";remove.type="button";remove.textContent="حذف";remove.addEventListener("click",()=>{saveEvents(readEvents().filter(x=>x.id!==ev.id));renderCalendar();notify("رویداد از تقویم محلی حذف شد.");});row.append(main,remove);list.append(row);});}
+function displayCalendarProposal(data){latestCalendarProposal=data;const box=$("#calendar-proposal");box.replaceChildren();box.hidden=false;const events=data.proposal.events||[],heading=document.createElement("b"),meta=document.createElement("small");heading.textContent="پیشنهاد برنامهٔ AI · "+events.length.toLocaleString("fa-IR")+" رویداد";meta.textContent=data.route+" · "+data.model+" · هنوز ثبت نشده";box.append(heading,meta);
+ events.forEach(ev=>{const row=document.createElement("div");row.className="calendar-proposal-event";const title=document.createElement("b"),time=document.createElement("small"),why=document.createElement("small");title.textContent=ev.title;time.textContent=new Date(ev.start).toLocaleString("fa-IR",{dateStyle:"medium",timeStyle:"short"})+" – "+new Date(ev.end).toLocaleTimeString("fa-IR",{hour:"2-digit",minute:"2-digit"});why.textContent=ev.reason||"";row.append(title,time,why);box.append(row);});
+ const conflicts=data.proposal.conflicts||[];if(conflicts.length){const ul=document.createElement("ul");ul.className="ai-conflicts";conflicts.forEach(text=>{const li=document.createElement("li");li.textContent=text;ul.append(li);});box.append(ul);} (data.proposal.notes||[]).forEach(note=>{const p=document.createElement("p");p.textContent=note;box.append(p);});
+ const actions=document.createElement("div");actions.className="ai-result-actions";const apply=document.createElement("button");apply.className="primary-button";apply.type="button";apply.textContent="تأیید و ثبت همهٔ رویدادها";apply.disabled=!events.length;apply.addEventListener("click",()=>{if(!window.confirm("رویدادهای پیشنهادی در تقویم محلی ذخیره شوند؟"))return;const added=events.map(ev=>({...ev,id:crypto.randomUUID(),created_at:new Date().toISOString(),approved_by:"user",status:"confirmed"}));saveEvents(readEvents().concat(added));renderCalendar();box.hidden=true;latestCalendarProposal=null;notify("رویدادها با تأیید تو در تقویم ذخیره شدند.");});
+ const reject=document.createElement("button");reject.className="outline-button";reject.type="button";reject.textContent="رد برنامه";reject.addEventListener("click",()=>{box.hidden=true;latestCalendarProposal=null;});actions.append(apply,reject);box.append(actions);}
+$("#calendar-plan-button").addEventListener("click",async()=>{const tasks=readTasks().filter(x=>x.status!=="done");if(!tasks.length)return notify("ابتدا در بخش کارها چند کار ثبت کن.");const from=$("#availability-start").value,to=$("#availability-end").value;if(!from||!to||new Date(to)<=new Date(from))return notify("بازهٔ شروع و پایان زمان آزاد را درست وارد کن.");const b=$("#calendar-plan-button");b.disabled=true;b.textContent="در حال برنامه‌ریزی...";const payload={route:$("#calendar-route").value,tasks:tasks.map(t=>({id:t.id,title:t.title,priority:t.priority,due:t.due||null,duration_minutes:t.duration_minutes||null,category:categoryTitle(categoryFor(t)),subcategory:subcategoryTitle(categoryFor(t),t.subcategory)})),available_windows:[{start:new Date(from).toISOString(),end:new Date(to).toISOString()}],timezone:$("#calendar-timezone").value,constraints:$("#calendar-constraints").value.split("\n").map(x=>x.trim()).filter(Boolean)};try{const result=await requestJSON("/api/ai/calendar",payload);displayCalendarProposal(result);}catch(e){notify(e.message);}finally{b.disabled=false;b.textContent="ساخت برنامه با AI";}});
+$$("[data-action]").forEach(b=>b.addEventListener("click",()=>{const a=b.dataset.action;if(a==="new-task"){$("#modal-title").textContent="کار جدید";openModal();}else if(a==="quick-idea"){$("#modal-title").textContent="ثبت ایده به‌عنوان کار";openModal();}else if(a==="add-memory")notify("فرم مدیریت حافظه در مرحلهٔ اتصال سرویس حافظه فعال می‌شود.");else if(a==="new-folder")notify("ساخت پوشه پس از اتصال Workspace Library فعال می‌شود.");else if(a==="accept-suggestion")notify("پیشنهاد آمادهٔ بررسی است؛ ثبت واقعی نیازمند اتصال TaskStore است.");}));
+$$("[data-view]").forEach(b=>{if(b.tagName!=="BUTTON")return;b.addEventListener("click",()=>{if(b.classList.contains("subtle-button")||b.classList.contains("more-button"))notify("نمای بخش باز شد.");});});
+$("#calendar-timezone").value=Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC";
+loadTaxonomy();renderCalendar();
