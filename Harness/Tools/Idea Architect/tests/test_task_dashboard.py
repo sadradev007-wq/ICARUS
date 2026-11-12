@@ -253,6 +253,20 @@ class TaskDashboardTests(unittest.TestCase):
             urllib.request.urlopen(self.base + "/assets/unknown.js")
         self.assertEqual(caught.exception.code, 404)
 
+    def test_malformed_event_does_not_block_dashboard_or_read_only_apis(self):
+        event_dir = Path(str(self.store.path) + ".events")
+        event_dir.mkdir()
+        malformed_id = "E-" + "f" * 32
+        (event_dir / f"{malformed_id}.json").write_text("{", encoding="utf-8")
+
+        for route in ("/", "/api/v1/tasks", "/api/v2/tasks"):
+            with self.subTest(route=route):
+                status, body = self.get(route)
+                self.assertEqual(status, 200)
+                if route.startswith("/api/"):
+                    payload = json.loads(body)
+                    self.assertEqual(payload["pending_execution_events"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
