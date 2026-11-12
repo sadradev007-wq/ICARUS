@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/action-event.schema.json",
+  "title": "ICARUS immutable assistant action journal event",
+  "description": "One redacted JSON record per meaningful assistant action. This is telemetry, not automatically approved training data.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "event_id", "created_at", "event_type", "actor",
+    "action", "outcome", "approval", "privacy"
+  ],
+  "properties": {
+    "schema": { "const": "icarus.action-event.v1" },
+    "event_id": { "type": "string", "pattern": "^A-[a-f0-9]{32}$" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "conversation_id": { "type": "string", "maxLength": 128 },
+    "task_id": { "type": "string", "maxLength": 128 },
+    "run_id": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+    "event_type": {
+      "enum": ["user_request", "assistant_decision", "tool_started", "tool_finished", "mutation_proposed", "mutation_applied", "approval_granted", "approval_denied", "checkpoint_created", "rollback_applied", "task_changed", "calendar_changed", "provider_selected", "error", "response_completed"]
+    },
+    "actor": { "enum": ["user", "assistant", "system", "external_service"] },
+    "action": {
+      "type": "object",
+      "required": ["name", "target_type", "summary"],
+      "properties": {
+        "name": { "type": "string", "maxLength": 120 },
+        "target_type": { "enum": ["none", "file", "folder", "task", "calendar_event", "memory", "provider", "application", "command", "external_service"] },
+        "target": { "type": "string", "maxLength": 500 },
+        "summary": { "type": "string", "maxLength": 2000 },
+        "content_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "tool_name": { "type": "string", "maxLength": 120 }
+      },
+      "additionalProperties": false
+    },
+    "provider": {
+      "type": "object",
+      "properties": {
+        "route": { "enum": ["system1_local", "system1_api", "system2_local", "system2_api"] },
+        "model": { "type": "string", "maxLength": 120 }
+      },
+      "additionalProperties": false
+    },
+    "outcome": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["proposed", "succeeded", "failed", "denied", "cancelled", "skipped"] },
+        "summary": { "type": "string", "maxLength": 2000 },
+        "error_code": { "type": "string", "maxLength": 120 }
+      },
+      "additionalProperties": false
+    },
+    "approval": {
+      "type": "object",
+      "required": ["required", "status"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "status": { "enum": ["not_required", "pending", "approved", "denied"] },
+        "approved_by": { "enum": ["user", "none"] }
+      },
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "required": ["redacted", "raw_prompt_included", "file_content_included", "tool_arguments_included", "secret_material_included"],
+      "properties": {
+        "redacted": { "type": "boolean", "const": true },
+        "raw_prompt_included": { "type": "boolean", "const": false },
+        "file_content_included": { "type": "boolean", "const": false },
+        "tool_arguments_included": { "type": "boolean", "const": false },
+        "secret_material_included": { "type": "boolean", "const": false }
+      },
+      "additionalProperties": false
+    }
+  }
+}
