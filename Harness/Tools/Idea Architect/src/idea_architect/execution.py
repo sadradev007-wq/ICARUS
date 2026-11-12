@@ -19,6 +19,7 @@ from typing import Any, Protocol
 from .protocol import write_json
 from .crash_recovery import DurableJournal, persist_queue, recover_interrupted_tasks, restore_plan, restore_queue
 from .scheduler import DependencyError, task_is_ready, topological_batches
+from .agent_gate import require_agents_enabled
 
 
 def _now() -> str:
@@ -217,6 +218,7 @@ class ExecutionEngine:
 
     @_serialized
     def approve(self, task_id: str, handler_id: str, *, approved_by: str) -> dict[str, Any]:
+        require_agents_enabled()
         if not approved_by.strip():
             raise ValueError("approved_by is required")
         self.registry.get(handler_id)  # Fail closed if handler is not trusted/registered.
@@ -242,6 +244,7 @@ class ExecutionEngine:
         proposal_id: str, approved_by: str,
     ) -> dict[str, Any]:
         """Atomically apply a validated replan through the durable queue transaction."""
+        require_agents_enabled()
         if not approved_by.strip() or not proposal_id.strip():
             raise ValueError("approved_by and proposal_id are required")
         required = (
@@ -293,6 +296,7 @@ class ExecutionEngine:
 
     @_serialized
     def retry(self, task_id: str, *, requested_by: str, reason: str) -> dict[str, Any]:
+        require_agents_enabled()
         """Request a fresh human approval for another attempt of a failed task."""
         if not requested_by.strip() or not reason.strip():
             raise ValueError("requested_by and reason are required")
@@ -358,6 +362,7 @@ class ExecutionEngine:
 
     @_serialized
     def run(self, task_id: str) -> dict[str, Any]:
+        require_agents_enabled()
         queue = self._read_queue()
         task = self._find_task(queue, task_id)
         approval = task.get("approval")
