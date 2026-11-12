@@ -1,6 +1,6 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const labels = {chat:"گفت‌وگو",tasks:"وظایف",calendar:"تقویم",memory:"حافظه",files:"کتابخانه",models:"مدل‌های هوش مصنوعی",activity:"گزارش فعالیت‌ها",settings:"تنظیمات"};
+const labels = {chat:"دستیار",tasks:"کارها",calendar:"تقویم",memory:"حافظه",files:"کتابخانه",models:"مدل‌های هوش مصنوعی",activity:"گزارش فعالیت‌ها",settings:"تنظیمات"};
 const views = $$(".view");
 const navButtons = $$("[data-view]");
 const modal = $("#modal-backdrop");
@@ -85,13 +85,55 @@ function makeTaskRow(task) {
   more.type = "button";
   more.textContent = "···";
   more.addEventListener("click", () => notify("جزئیات و ویرایش به اتصال TaskStore نیاز دارد."));
+  row.dataset.priority = task.priority || "normal";
+  row.dataset.due = task.due || "";
   row.append(check, main, priority, due, more);
   return row;
+}
+const categoryNames = {projects:"پروژه‌ها و توسعه",research:"پژوهش و یکپارچه‌سازی",learning:"یادگیری و مطالعه",personal:"امور شخصی",ideas:"ایده‌ها و پیگیری"};
+function categoryFor(task) {
+  if (categoryNames[task.category]) return task.category;
+  const folder = String(task.folder || "").toLowerCase();
+  if (folder.includes("learning") || folder.includes("study")) return "learning";
+  if (folder.includes("integration") || folder.includes("research")) return "research";
+  if (folder.includes("idea")) return "ideas";
+  if (folder.includes("personal")) return "projects";
+  return "ideas";
+}
+function addTaskToCategory(task) {
+  const category = categoryFor(task);
+  let section = $(`[data-task-category="${category}"]`);
+  if (!section) {
+    const grid = $("#task-list");
+    if (!grid) return;
+    section = document.createElement("section");
+    section.className = "task-category";
+    section.dataset.taskCategory = category;
+    const header = document.createElement("header");
+    const heading = document.createElement("div");
+    const title = document.createElement("b");
+    title.textContent = categoryNames[category];
+    const subtitle = document.createElement("small");
+    subtitle.textContent = "کارهای ثبت‌شده در این دسته";
+    heading.append(title, subtitle);
+    const count = document.createElement("span");
+    count.className = "category-count";
+    count.textContent = "0";
+    header.append(heading, count);
+    const items = document.createElement("div");
+    items.className = "task-category-items";
+    section.append(header, items);
+    grid.append(section);
+  }
+  const list = $(".task-category-items", section);
+  list?.prepend(makeTaskRow(task));
+  const count = $(".category-count", section);
+  if (count) count.textContent = String($(".task-row", list).length);
 }
 function loadLocalTasks() {
   try {
     const items = JSON.parse(localStorage.getItem("icarus.prototype.tasks") || "[]");
-    items.forEach(item => $("#task-list")?.prepend(makeTaskRow(item)));
+    items.forEach(addTaskToCategory);
   } catch { /* Ignore unavailable or malformed prototype storage. */ }
 }
 $("#task-form").addEventListener("submit", event => {
@@ -100,6 +142,7 @@ $("#task-form").addEventListener("submit", event => {
   const task = {
     title: String(data.get("title") || "").trim(),
     folder: String(data.get("folder") || ""),
+    category: String(data.get("category") || "ideas"),
     priority: String(data.get("priority") || "normal"),
     due: String(data.get("due") || ""),
     description: String(data.get("description") || "")
@@ -109,7 +152,7 @@ $("#task-form").addEventListener("submit", event => {
   try { items = JSON.parse(localStorage.getItem("icarus.prototype.tasks") || "[]"); } catch { items = []; }
   items.push(task);
   try { localStorage.setItem("icarus.prototype.tasks", JSON.stringify(items)); } catch { notify("ذخیره‌سازی مرورگر در دسترس نیست."); }
-  $("#task-list")?.prepend(makeTaskRow(task));
+  addTaskToCategory(task);
   event.currentTarget.reset();
   closeModal();
   notify("پیش‌نویس کار در نمونهٔ محلی ثبت شد.");
