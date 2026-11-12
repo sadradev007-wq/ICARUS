@@ -19,7 +19,7 @@
       "timeout_seconds": 90
     },
     "system2_local": {
-      "enabled": false,
+      "enabled": true,
       "kind": "local",
       "base_url": "http://127.0.0.1:11434/v1",
       "model": "qwen2.5:7b",
