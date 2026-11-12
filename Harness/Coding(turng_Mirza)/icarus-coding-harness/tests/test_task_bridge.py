@@ -77,7 +77,7 @@ class TaskBridgeTests(unittest.TestCase):
                 write_execution_event(self.path, "T-abc123", "completed", "No redirect")
             self.assertEqual(list(Path(outside).iterdir()), [])
 
-    def test_refuses_symlinked_parent_component(self):
+    def test_supports_symlinked_parent_component_and_writes_beside_resolved_store(self):
         with tempfile.TemporaryDirectory() as outside:
             outside_store = Path(outside) / "tasks.json"
             outside_store.write_text(json.dumps(self.data), encoding="utf-8")
@@ -86,11 +86,15 @@ class TaskBridgeTests(unittest.TestCase):
                 linked_parent.symlink_to(outside, target_is_directory=True)
             except (OSError, NotImplementedError):
                 self.skipTest("directory symlinks are unavailable")
-            with self.assertRaises(ValueError):
-                write_execution_event(
-                    linked_parent / "tasks.json", "T-abc123", "completed", "No redirect"
-                )
-            self.assertEqual(list(Path(outside).glob("tasks.json.events*")), [])
+
+            event_path = write_execution_event(
+                linked_parent / "tasks.json", "T-abc123", "completed", "Resolved parent"
+            )
+
+            expected_event_dir = Path(str(outside_store) + ".events")
+            self.assertEqual(event_path.parent, expected_event_dir)
+            self.assertTrue(event_path.is_file())
+            self.assertEqual(len(list(expected_event_dir.glob("E-*.json"))), 1)
 
     def test_pins_opened_event_directory_when_path_is_swapped(self):
         with tempfile.TemporaryDirectory() as outside:
@@ -117,6 +121,15 @@ class TaskBridgeTests(unittest.TestCase):
 
             self.assertEqual(len(list(held_dir.glob("*.json"))), 1)
             self.assertEqual(list(Path(outside).iterdir()), [])
+
+    def test_redacted_feedback_summary_respects_schema_length_limit(self):
+        summary = "x" * 989 + " password=x"
+        event_path = write_execution_event(
+            self.path, "T-abc123", "completed", summary
+        )
+        event = json.loads(event_path.read_text(encoding="utf-8"))
+        self.assertLessEqual(len(event["summary"]), 1000)
+        self.assertNotIn("password=x", event["summary"])
 
 
 if __name__ == "__main__":

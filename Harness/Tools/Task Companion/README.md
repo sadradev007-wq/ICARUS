@@ -146,6 +146,13 @@
 For schema `icarus.execution-event.v1`, `run_id` is optional for backward compatibility. When present, it must be a 32-character lowercase UUID hex value. TaskStore records handled run IDs for both accepted and dismissed suggestions; a second event with the same run_id is hidden from the pending inbox and cannot be applied, even if it has a different event_id. Legacy events without run_id continue to be protected by event_id.
 
 
+### Resilient execution-event inbox
+
+The pending-event reader treats each file as untrusted input. It skips handled event IDs from their filenames before opening the file, reads at most 16 KiB per event, uses no-follow file opens where supported, and validates the full `icarus.execution-event.v1` contract before exposing a suggestion. Malformed JSON, incomplete records, invalid field types, oversized files, and unreadable entries are logged and skipped individually; they do not prevent the dashboard or read-only task APIs from loading valid events. The adjacent `.events` path itself must be a real directory, not a symlink.
+
+The Coding Harness resolves the selected TaskStore path before creating the adjacent event directory. This allows legitimate symlinked parent paths (for example, a user-selected path through a home-directory symlink) while retaining no-follow protection on the `.events` directory and its files. Credential redaction is applied before the 1,000-character summary limit, so redaction expansion cannot create an event that the TaskStore refuses to accept.
+
+
 ## API خواندنی Task Companion (v2)
 
 برای نمایش جزئیات ارتباط اجرای Harness، endpoint سازگار با نسخهٔ قبلی در مسیر `GET /api/v2/tasks` ارائه می‌شود.
@@ -155,3 +162,8 @@ For schema `icarus.execution-event.v1`, `run_id` is optional for backward compat
 - endpoint نسخهٔ v1 و schema سخت‌گیرانهٔ آن بدون تغییر باقی می‌ماند؛ مصرف‌کنندگان قدیمی لازم نیست مهاجرت کنند.
 - schema نسخهٔ جدید در `Harness/Tools/Task Companion/schemas/task-api.v2.schema.json` قرار دارد.
 - پنل فعلی از v2 برای نمایش شناسهٔ اجرای هر پیشنهاد استفاده می‌کند. نمایش شناسه صرفاً برای ردیابی است و هیچ اختیاری برای پذیرش پیشنهاد یا تغییر وضعیت ایجاد نمی‌کند.
+
+
+### Feedback edge-case behavior
+
+Pending suggestions are shown only while their target task remains active. If a task is completed, archived, or removed from the active set by another path, its old suggestion is hidden; direct application still rejects stale feedback. The dashboard's drawer link reloads the current page before navigating to the feedback anchor, so feedback arriving after initial page load is rendered before the link is followed.

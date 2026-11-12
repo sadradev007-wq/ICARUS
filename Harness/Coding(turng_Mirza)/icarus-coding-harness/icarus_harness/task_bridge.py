@@ -81,7 +81,8 @@ def _open_event_directory(store_path: Path) -> tuple[int, Path]:
             "secure execution-event writes require POSIX directory-descriptor support"
         )
 
-    event_dir = Path(os.path.abspath(str(Path(store_path).expanduser()) + ".events"))
+    resolved_store_path = Path(store_path).expanduser().resolve()
+    event_dir = Path(str(resolved_store_path) + ".events")
     parent_fd = _open_directory_chain(event_dir.parent)
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     try:

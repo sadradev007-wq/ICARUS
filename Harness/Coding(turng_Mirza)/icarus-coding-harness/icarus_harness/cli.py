@@ -61,7 +61,14 @@ def main() -> None:
             event_path, feedback_error = None, None
             if args.task_id and result.status in {"completed", "step_limit"}:
                 proposed = "completed" if result.status == "completed" else "in_progress"
-                if _approve(f"Save a Task Companion result suggestion ({proposed}) for {args.task_id}? This does not change task status."):
+                try:
+                    approved_feedback = _approve(
+                        f"Save a Task Companion result suggestion ({proposed}) for {args.task_id}? This does not change task status."
+                    )
+                except (EOFError, OSError):
+                    approved_feedback = False
+                    feedback_error = "Optional feedback prompt unavailable; suggestion was not written"
+                if approved_feedback:
                     try:
                         if not result.run_id:
                             raise RuntimeError("Coding Harness did not return a run ID; feedback was not written")

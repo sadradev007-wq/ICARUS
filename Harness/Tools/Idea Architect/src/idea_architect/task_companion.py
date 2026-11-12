@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import logging
+import os
 import re
 from pathlib import Path
 import threading
@@ -21,6 +23,9 @@ PRIORITY_RANK = {"critical": 0, "high": 1, "normal": 2, "low": 3}
 ACTIVE_STATUSES = {"inbox", "next", "in_progress", "waiting"}
 ALL_STATUSES = ACTIVE_STATUSES | {"completed", "archived"}
 _RUN_ID_PATTERN = re.compile(r"^[a-f0-9]{32}$")
+_EVENT_ID_PATTERN = re.compile(r"^E-[a-f0-9]{32}$")
+_EVENT_FILE_MAX_BYTES = 16 * 1024
+_LOGGER = logging.getLogger(__name__)
 
 
 def _event_run_id(event: dict[str, Any]) -> str | None:
@@ -30,6 +35,46 @@ def _event_run_id(event: dict[str, Any]) -> str | None:
     ):
         raise ValueError("Invalid execution event run ID")
     return run_id
+
+
+def _valid_pending_event(event: Any, filename: str) -> bool:
+    """Validate one bounded event against the persisted v1 contract."""
+    if not isinstance(event, dict):
+        return False
+    allowed = {
+        "schema", "event_id", "task_id", "run_id", "run_status",
+        "proposed_status", "summary", "created_at",
+    }
+    event_id = event.get("event_id")
+    task_id = event.get("task_id")
+    run_status = event.get("run_status")
+    expected = {"completed": "completed", "step_limit": "in_progress"}
+    summary = event.get("summary")
+    created_at = event.get("created_at")
+    if (
+        set(event) - allowed
+        or event.get("schema") != "icarus.execution-event.v1"
+        or not isinstance(event_id, str)
+        or not _EVENT_ID_PATTERN.fullmatch(event_id)
+        or filename != f"{event_id}.json"
+        or not isinstance(task_id, str)
+        or not 3 <= len(task_id) <= 128
+        or not isinstance(run_status, str)
+        or run_status not in expected
+        or event.get("proposed_status") != expected.get(run_status)
+        or not isinstance(summary, str)
+        or len(summary) > 1000
+        or not isinstance(created_at, str)
+        or not created_at
+        or len(created_at) > 64
+    ):
+        return False
+    try:
+        datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        _event_run_id(event)
+    except (TypeError, ValueError):
+        return False
+    return True
 
 
 def _now() -> str:
@@ -130,23 +175,60 @@ class TaskStore:
         raise KeyError(task_id)
 
     def pending_execution_events(self) -> list[dict[str, Any]]:
-        """Return unprocessed suggestions from the adjacent .events directory."""
+        """Return valid, unprocessed suggestions without letting one bad file block the inbox."""
         event_dir = Path(str(self.path) + ".events")
         if not event_dir.exists():
             return []
+        if event_dir.is_symlink() or not event_dir.is_dir():
+            _LOGGER.warning("Ignoring execution-event path that is not a real directory")
+            return []
         with self._lock:
             data = self._read()
-            applied = set(data.get("applied_execution_events", [])) | set(data.get("dismissed_execution_events", []))
-            handled_runs = set(data.get("handled_execution_runs", []))
+            applied_values = data.get("applied_execution_events", [])
+            dismissed_values = data.get("dismissed_execution_events", [])
+            handled_values = data.get("handled_execution_runs", [])
+            applied = {
+                value for values in (applied_values, dismissed_values)
+                if isinstance(values, list) for value in values if isinstance(value, str)
+            }
+            handled_runs = (
+                {value for value in handled_values if isinstance(value, str)}
+                if isinstance(handled_values, list) else set()
+            )
+            active_task_ids = {
+                task.get("id") for task in data["tasks"]
+                if isinstance(task, dict)
+                and isinstance(task.get("id"), str)
+                and task.get("status") in ACTIVE_STATUSES
+            }
             events = []
-            for path in sorted(event_dir.glob("E-*.json")):
-                event = json.loads(path.read_text(encoding="utf-8"))
-                run_id = event.get("run_id")
-                if (
-                    event.get("schema") == "icarus.execution-event.v1"
-                    and event.get("event_id") not in applied
-                    and run_id not in handled_runs
-                ):
+            try:
+                paths = sorted(event_dir.glob("E-*.json"))
+            except OSError as exc:
+                _LOGGER.warning("Unable to list execution-event directory (%s)", type(exc).__name__)
+                return []
+            for path in paths:
+                event_id = path.stem
+                # Handled event IDs are derivable from their filenames; avoid opening old files.
+                if not _EVENT_ID_PATTERN.fullmatch(event_id) or event_id in applied:
+                    continue
+                try:
+                    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+                    with os.fdopen(descriptor, "rb") as stream:
+                        raw = stream.read(_EVENT_FILE_MAX_BYTES + 1)
+                    if len(raw) > _EVENT_FILE_MAX_BYTES:
+                        raise ValueError("execution event exceeds the file-size limit")
+                    event = json.loads(raw.decode("utf-8"))
+                    if not _valid_pending_event(event, path.name):
+                        raise ValueError("execution event does not match the v1 contract")
+                    run_id = _event_run_id(event)
+                except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:
+                    _LOGGER.warning(
+                        "Skipping invalid execution event %s (%s)",
+                        path.name, type(exc).__name__,
+                    )
+                    continue
+                if event["task_id"] in active_task_ids and run_id not in handled_runs:
                     events.append(event)
             return events
 

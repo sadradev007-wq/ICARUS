@@ -44,6 +44,37 @@ class CliCorrelationTests(unittest.TestCase):
             self.assertEqual(response["run_id"], run_id)
             self.assertEqual(response["task_id"], "T-abc123")
 
+    def test_feedback_prompt_eof_preserves_completed_run_result(self):
+        run_id = "e" * 32
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Mock()
+            workspace.root = Path(temp)
+            runtime = Mock()
+            runtime.run.return_value = RunResult("completed", "Finished", 2, [], run_id=run_id)
+            task_store = str(Path(temp) / "tasks.json")
+
+            with (
+                patch.object(sys, "argv", [
+                    "icarus-harness", "run", "--workspace", temp,
+                    "--task-store", task_store, "--task-id", "T-abc123",
+                ]),
+                patch.object(cli, "Workspace", return_value=workspace),
+                patch.object(cli.HarnessConfig, "load", return_value=Mock()),
+                patch.object(cli, "load_task_prompt", return_value="Loaded task"),
+                patch.object(cli, "AgentRuntime", return_value=runtime),
+                patch.object(cli, "_approve", side_effect=EOFError),
+                patch.object(cli, "write_execution_event") as write_event,
+                contextlib.redirect_stdout(io.StringIO()) as output,
+            ):
+                cli.main()
+
+            write_event.assert_not_called()
+            response = json.loads(output.getvalue())
+            self.assertEqual(response["status"], "completed")
+            self.assertEqual(response["run_id"], run_id)
+            self.assertIsNone(response["task_companion_feedback"])
+            self.assertIn("unavailable", response["feedback_error"])
+
 
 if __name__ == "__main__":
     unittest.main()
