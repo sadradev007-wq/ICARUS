@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from idea_architect.execution import ExecutionEngine, ExecutionError, HandlerRegistry
@@ -9,6 +10,8 @@ from idea_architect.protocol import write_json
 
 class ExecutionTests(unittest.TestCase):
     def setUp(self):
+        self.agent_gate = patch("idea_architect.agent_gate.AGENTS_ENABLED", True)
+        self.agent_gate.start()
         self.temp = tempfile.TemporaryDirectory()
         self.project = Path(self.temp.name)
         write_json(self.project / "execution" / "execution_queue.json", {
@@ -27,7 +30,17 @@ class ExecutionTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+        self.agent_gate.stop()
 
+
+    def test_quarantine_blocks_handler_invocation(self):
+        calls = []
+        self.registry.register("test.spy", lambda task, root: calls.append(task) or {"ok": True})
+        self.engine.approve("LEAF-1", "test.spy", approved_by="user")
+        with patch("idea_architect.agent_gate.AGENTS_ENABLED", False):
+            with self.assertRaisesRegex(ExecutionError, "quarantined"):
+                self.engine.run("LEAF-1")
+        self.assertEqual(calls, [])
 
     def test_dependency_must_complete_before_approval(self):
         queue_path = self.project / "execution" / "execution_queue.json"
