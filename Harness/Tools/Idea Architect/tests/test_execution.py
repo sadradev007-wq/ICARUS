@@ -38,7 +38,7 @@ class ExecutionTests(unittest.TestCase):
         self.registry.register("test.spy", lambda task, root: calls.append(task) or {"ok": True})
         self.engine.approve("LEAF-1", "test.spy", approved_by="user")
         with patch("idea_architect.agent_gate.AGENTS_ENABLED", False):
-            with self.assertRaisesRegex(ExecutionError, "quarantined"):
+            with self.assertRaisesRegex(RuntimeError, "agents are quarantined"):
                 self.engine.run("LEAF-1")
         self.assertEqual(calls, [])
 
