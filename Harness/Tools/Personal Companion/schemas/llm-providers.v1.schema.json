@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/llm-providers.v1.schema.json",
+  "title": "ICARUS four-route LLM provider configuration",
+  "type": "object",
+  "required": ["schema", "default_route", "routes", "routing", "safety"],
+  "properties": {
+    "schema": { "const": "icarus.llm-providers.v1" },
+    "default_route": { "enum": ["system1_local", "system1_api", "system2_local", "system2_api"] },
+    "routes": {
+      "type": "object",
+      "required": ["system1_local", "system1_api", "system2_local", "system2_api"],
+      "properties": {
+        "system1_local": { "$ref": "#/$defs/provider" },
+        "system1_api": { "$ref": "#/$defs/provider" },
+        "system2_local": { "$ref": "#/$defs/provider" },
+        "system2_api": { "$ref": "#/$defs/provider" }
+      },
+      "additionalProperties": false
+    },
+    "routing": {
+      "type": "object",
+      "required": ["simple_intent", "complex_reasoning", "allow_automatic_fallback"],
+      "properties": {
+        "simple_intent": { "enum": ["system1_local", "system1_api", "system2_local", "system2_api"] },
+        "complex_reasoning": { "enum": ["system1_local", "system1_api", "system2_local", "system2_api"] },
+        "allow_automatic_fallback": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "safety": {
+      "type": "object",
+      "required": ["chat_only_initially", "legacy_agents_enabled", "tool_execution_requires_policy", "provider_config_cannot_change_permissions"],
+      "properties": {
+        "chat_only_initially": { "type": "boolean", "const": true },
+        "legacy_agents_enabled": { "type": "boolean", "const": false },
+        "tool_execution_requires_policy": { "type": "boolean", "const": true },
+        "provider_config_cannot_change_permissions": { "type": "boolean", "const": true }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "provider": {
+      "type": "object",
+      "required": ["enabled", "kind", "base_url", "model", "timeout_seconds"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "kind": { "enum": ["local", "api"] },
+        "base_url": { "type": "string", "format": "uri" },
+        "model": { "type": "string", "minLength": 1 },
+        "api_key_env": { "type": ["string", "null"] },
+        "timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 600 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "local" } }, "required": ["kind"] },
+          "then": { "properties": { "api_key_env": { "type": ["string", "null"] } } }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "api" } }, "required": ["kind"] },
+          "then": { "properties": { "api_key_env": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" } }, "required": ["api_key_env"] }
+        }
+      ],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

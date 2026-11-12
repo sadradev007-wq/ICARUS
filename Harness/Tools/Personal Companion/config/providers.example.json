@@ -1,0 +1,49 @@
+{
+  "schema": "icarus.llm-providers.v1",
+  "default_route": "system1_local",
+  "routes": {
+    "system1_local": {
+      "enabled": true,
+      "kind": "local",
+      "base_url": "http://127.0.0.1:11434/v1",
+      "model": "qwen2.5:7b",
+      "api_key_env": null,
+      "timeout_seconds": 90
+    },
+    "system1_api": {
+      "enabled": false,
+      "kind": "api",
+      "base_url": "https://api.example.invalid/v1",
+      "model": "provider-fast-model",
+      "api_key_env": "ICARUS_SYSTEM1_API_KEY",
+      "timeout_seconds": 90
+    },
+    "system2_local": {
+      "enabled": false,
+      "kind": "local",
+      "base_url": "http://127.0.0.1:11434/v1",
+      "model": "qwen2.5:7b",
+      "api_key_env": null,
+      "timeout_seconds": 180
+    },
+    "system2_api": {
+      "enabled": false,
+      "kind": "api",
+      "base_url": "https://api.example.invalid/v1",
+      "model": "provider-reasoning-model",
+      "api_key_env": "ICARUS_SYSTEM2_API_KEY",
+      "timeout_seconds": 180
+    }
+  },
+  "routing": {
+    "simple_intent": "system1_local",
+    "complex_reasoning": "system2_local",
+    "allow_automatic_fallback": false
+  },
+  "safety": {
+    "chat_only_initially": true,
+    "legacy_agents_enabled": false,
+    "tool_execution_requires_policy": true,
+    "provider_config_cannot_change_permissions": true
+  }
+}
