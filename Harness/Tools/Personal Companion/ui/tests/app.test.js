@@ -34,6 +34,7 @@ test("AI classification is a proposal and needs explicit approval", () => {
   assert.match(js, /\/api\/ai\/classify/);
   assert.match(js, /تأیید و افزودن به کارها/);
   assert.match(js, /requires_user_approval/);
+  assert.match(js, /\/api\/audit\/approval/);
 });
 
 test("AI calendar planning requires user availability and explicit approval", () => {
