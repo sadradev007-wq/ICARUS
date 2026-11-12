@@ -59,6 +59,7 @@ def _valid_pending_event(event: Any, filename: str) -> bool:
         or filename != f"{event_id}.json"
         or not isinstance(task_id, str)
         or not 3 <= len(task_id) <= 128
+        or not isinstance(run_status, str)
         or run_status not in expected
         or event.get("proposed_status") != expected.get(run_status)
         or not isinstance(summary, str)
@@ -190,10 +191,10 @@ class TaskStore:
                 value for values in (applied_values, dismissed_values)
                 if isinstance(values, list) for value in values if isinstance(value, str)
             }
-            handled_runs = {
-                value for value in handled_values
-                if isinstance(handled_values, list) and isinstance(value, str)
-            }
+            handled_runs = (
+                {value for value in handled_values if isinstance(value, str)}
+                if isinstance(handled_values, list) else set()
+            )
             events = []
             try:
                 paths = sorted(event_dir.glob("E-*.json"))

@@ -126,6 +126,12 @@ class ExecutionFeedbackTests(unittest.TestCase):
 
         self.assertEqual(self.store.pending_execution_events(), [])
 
+    def test_pending_events_skips_non_string_status_without_crashing(self):
+        invalid = dict(self.event, event_id="E-" + "a" * 32, run_status=[])
+        self._write_event(invalid)
+
+        self.assertEqual(self.store.pending_execution_events(), [self.event])
+
 
 if __name__ == "__main__":
     unittest.main()
