@@ -12,6 +12,8 @@ from idea_architect.protocol import write_json
 
 class CliLifecycleTests(unittest.TestCase):
     def setUp(self):
+        self.agent_gate = patch("idea_architect.agent_gate.AGENTS_ENABLED", True)
+        self.agent_gate.start()
         self.temp = tempfile.TemporaryDirectory()
         self.project = Path(self.temp.name)
         (self.project / "system1").mkdir(parents=True)
@@ -48,6 +50,7 @@ class CliLifecycleTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+        self.agent_gate.stop()
 
     def _run_cli(self, *arguments):
         output = io.StringIO()
@@ -55,6 +58,15 @@ class CliLifecycleTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 main()
         return json.loads(output.getvalue())
+
+    def test_agent_cli_actions_are_blocked_during_quarantine(self):
+        with patch("idea_architect.agent_gate.AGENTS_ENABLED", False):
+            with self.assertRaisesRegex(RuntimeError, "agents are quarantined"):
+                self._run_cli(
+                    "--project-dir", self.project,
+                    "--run-task", "T-1",
+                    "--trusted-handler-module", self.handler_module,
+                )
 
     def test_approve_run_review_and_status_end_to_end(self):
         approved = self._run_cli(
