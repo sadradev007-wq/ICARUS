@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/permissions.v1.schema.json",
+  "title": "ICARUS Personal Companion capability policy",
+  "description": "Defines workspace capabilities. Model/provider configuration cannot grant permissions.",
+  "type": "object",
+  "required": ["schema", "workspace_root", "capabilities", "approval", "protected_paths", "quarantine"],
+  "properties": {
+    "schema": { "const": "icarus.permissions.v1" },
+    "workspace_root": { "type": "string", "minLength": 1 },
+    "capabilities": {
+      "type": "object",
+      "required": ["read", "search", "create", "edit", "rename", "move", "delete_to_trash", "run_commands", "install_dependencies", "network_access"],
+      "properties": {
+        "read": { "type": "boolean" },
+        "search": { "type": "boolean" },
+        "create": { "type": "boolean" },
+        "edit": { "type": "boolean" },
+        "rename": { "type": "boolean" },
+        "move": { "type": "boolean" },
+        "delete_to_trash": { "type": "boolean" },
+        "run_commands": { "type": "boolean" },
+        "install_dependencies": { "type": "boolean" },
+        "network_access": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "approval": {
+      "type": "object",
+      "required": ["all_mutations", "destructive_actions", "commands", "dependency_changes", "protected_path_changes"],
+      "properties": {
+        "all_mutations": { "type": "boolean", "const": true },
+        "destructive_actions": { "type": "boolean", "const": true },
+        "commands": { "type": "boolean", "const": true },
+        "dependency_changes": { "type": "boolean", "const": true },
+        "protected_path_changes": { "type": "boolean", "const": true }
+      },
+      "additionalProperties": false
+    },
+    "protected_paths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "quarantine": {
+      "type": "object",
+      "required": ["legacy_agents_enabled", "model_can_unlock", "human_unlock_required"],
+      "properties": {
+        "legacy_agents_enabled": { "type": "boolean", "const": false },
+        "model_can_unlock": { "type": "boolean", "const": false },
+        "human_unlock_required": { "type": "boolean", "const": true }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

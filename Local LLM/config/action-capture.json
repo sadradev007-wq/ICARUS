@@ -1,0 +1,49 @@
+{
+  "schema": "icarus.action-capture.v1",
+  "enabled_by_default": true,
+  "output_directory": "Local LLM/Train Data/events",
+  "layout": "YYYY/MM/A-<event-id>.json",
+  "write_mode": "atomic_immutable",
+  "file_permissions": "0600",
+  "directory_permissions": "0700",
+  "record_events": [
+    "user_request",
+    "assistant_decision",
+    "tool_started",
+    "tool_finished",
+    "mutation_proposed",
+    "mutation_applied",
+    "approval_granted",
+    "approval_denied",
+    "checkpoint_created",
+    "rollback_applied",
+    "task_changed",
+    "calendar_changed",
+    "provider_selected",
+    "error",
+    "response_completed"
+  ],
+  "privacy": {
+    "redact_common_credentials": true,
+    "include_raw_prompts": false,
+    "include_hidden_chain_of_thought": false,
+    "include_file_contents": false,
+    "include_tool_arguments": false,
+    "include_environment_variables": false,
+    "include_secret_material": false,
+    "allow_content_hashes": true,
+    "max_summary_characters": 2000
+  },
+  "training": {
+    "automatic_training_eligibility": false,
+    "require_schema_validation": true,
+    "require_deduplication": true,
+    "require_human_curation": true,
+    "separate_curated_dataset": true
+  },
+  "controls": {
+    "user_can_disable_capture": true,
+    "user_can_export": true,
+    "user_can_request_deletion": true
+  }
+}
