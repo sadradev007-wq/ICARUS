@@ -5,6 +5,9 @@ const views = $$(".view");
 const navButtons = $$("[data-view]");
 const modal = $("#modal-backdrop");
 const toast = $("#toast");
+const priorityDrawer = $("#priority-drawer");
+const priorityPanel = $("#priority-panel");
+const priorityToggle = $("#priority-toggle");
 let toastTimer;
 
 function notify(message) {
@@ -15,12 +18,30 @@ function notify(message) {
 }
 function navigate(name) {
   if (!labels[name]) return;
+  priorityPanel.hidden = true;
+  priorityToggle.setAttribute("aria-expanded", "false");
   views.forEach(view => view.classList.toggle("active", view.id === `view-${name}`));
   navButtons.forEach(button => button.classList.toggle("active", button.dataset.view === name));
   $("#current-section").textContent = labels[name];
   if (window.innerWidth <= 600) window.scrollTo({top:0,behavior:"smooth"});
 }
 navButtons.forEach(button => button.addEventListener("click", () => navigate(button.dataset.view)));
+
+priorityToggle.addEventListener("click", () => {
+  const opening = priorityPanel.hidden;
+  priorityPanel.hidden = !opening;
+  priorityToggle.setAttribute("aria-expanded", String(opening));
+});
+$("#priority-close").addEventListener("click", () => {
+  priorityPanel.hidden = true;
+  priorityToggle.setAttribute("aria-expanded", "false");
+});
+document.addEventListener("click", event => {
+  if (!priorityPanel.hidden && !priorityDrawer.contains(event.target)) {
+    priorityPanel.hidden = true;
+    priorityToggle.setAttribute("aria-expanded", "false");
+  }
+});
 
 function openModal() {
   modal.hidden = false;
