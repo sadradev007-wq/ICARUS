@@ -10,6 +10,7 @@ from .review import IndependentReviewer
 from .tools import ToolRegistry
 from .training_data import TaskDatasetWriter
 from .workspace import Workspace
+from .agent_gate import require_agent_runtime_enabled
 
 SYSTEM_PROMPT = """You are ICARUS, a careful senior software engineering agent.
 Inspect before changing anything. Work only inside the supplied workspace.
@@ -48,6 +49,7 @@ class AgentRuntime:
         return result
 
     def run(self, task: str, *, task_id: str | None = None) -> RunResult:
+        require_agent_runtime_enabled()
         run_id = uuid4().hex
         messages = [
             {"role":"system","content":SYSTEM_PROMPT},

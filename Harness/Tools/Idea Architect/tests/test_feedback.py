@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from idea_architect.feedback import System2FeedbackEvaluator, FeedbackProtocolError
@@ -32,12 +33,15 @@ class FakeReview(JsonModel):
 
 class FeedbackTests(unittest.TestCase):
     def setUp(self):
+        self.agent_gate = patch("idea_architect.agent_gate.AGENTS_ENABLED", True)
+        self.agent_gate.start()
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         self.task = {"task_id": "TASK-1", "acceptance_criteria": ["report exists"]}
 
     def tearDown(self):
         self.temp.cleanup()
+        self.agent_gate.stop()
 
     def test_model_receives_outputs_and_host_verifier_confirms(self):
         model = FakeReview()

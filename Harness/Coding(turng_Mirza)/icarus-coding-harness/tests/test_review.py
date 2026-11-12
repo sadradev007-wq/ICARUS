@@ -19,6 +19,8 @@ def git(root: Path, *args: str) -> str:
 
 class ReviewTests(unittest.TestCase):
     def setUp(self):
+        self.agent_gate = patch("icarus_harness.agent_gate.AGENTS_ENABLED", True)
+        self.agent_gate.start()
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         git(self.root, "init")
@@ -31,6 +33,7 @@ class ReviewTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+        self.agent_gate.stop()
 
     def test_review_receives_tracked_and_untracked_changes_with_secrets_redacted(self):
         (self.root / "app.py").write_text('API_TOKEN="ghp_123456789012345678901234567890"\nvalue = 2\n', encoding="utf-8")

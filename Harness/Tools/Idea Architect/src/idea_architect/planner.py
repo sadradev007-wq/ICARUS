@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 from .models import JsonModel
 from .protocol import PROTOCOL_VERSION, validate_plan, validate_expansion
+from .agent_gate import require_agents_enabled
 
 SYSTEM1_PROMPT = """You are ICARUS System 1, the fast project planner.
 Return exactly one JSON object using ITP-1.0; no markdown or prose.
@@ -25,6 +26,7 @@ class PlanningEngine:
         self.system1, self.system2, self.max_depth = system1, system2, max_depth
 
     def create_plan(self, idea: str, project_id: str) -> dict[str, Any]:
+        require_agents_enabled()
         if not idea.strip():
             raise ValueError("idea cannot be empty")
         plan = self.system1.generate_json(

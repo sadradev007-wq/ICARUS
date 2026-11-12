@@ -19,6 +19,7 @@ from typing import Any, Protocol
 from .protocol import write_json
 from .crash_recovery import DurableJournal, persist_queue, recover_interrupted_tasks, restore_plan, restore_queue
 from .scheduler import DependencyError, task_is_ready, topological_batches
+from .agent_gate import require_agents_enabled
 
 
 def _now() -> str:
@@ -358,6 +359,7 @@ class ExecutionEngine:
 
     @_serialized
     def run(self, task_id: str) -> dict[str, Any]:
+        require_agents_enabled()
         queue = self._read_queue()
         task = self._find_task(queue, task_id)
         approval = task.get("approval")

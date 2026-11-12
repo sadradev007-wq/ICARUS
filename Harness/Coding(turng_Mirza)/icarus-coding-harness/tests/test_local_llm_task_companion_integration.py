@@ -76,7 +76,9 @@ class LocalOpenAICompatibleIntegrationTests(unittest.TestCase):
                     ),
                     agent=AgentConfig(max_steps=1),
                 )
-                with patch.dict("os.environ", {"ICARUS_TEST_API_KEY": "integration-only-token"}):
+                with patch.dict("os.environ", {"ICARUS_TEST_API_KEY": "integration-only-token"}), patch(
+                    "icarus_harness.agent_gate.AGENTS_ENABLED", True
+                ):
                     result = AgentRuntime(
                         Workspace(workspace_root), config, approve=lambda _: False
                     ).run(prompt, task_id=task_id)

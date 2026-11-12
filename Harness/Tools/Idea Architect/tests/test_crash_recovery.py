@@ -2,6 +2,7 @@ import json
 import multiprocessing
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from idea_architect.crash_recovery import (
@@ -13,6 +14,8 @@ from idea_architect.protocol import write_json
 
 
 def _competing_approval_worker(project_dir, barrier, results):
+    import idea_architect.agent_gate as gate
+    gate.AGENTS_ENABLED = True  # Explicitly opt in only inside the isolated test worker.
     registry = HandlerRegistry()
     registry.register("test.handler", lambda task, root: {"y": "done"})
     engine = ExecutionEngine(Path(project_dir), registry)
@@ -25,6 +28,8 @@ def _competing_approval_worker(project_dir, barrier, results):
 
 
 def _competing_run_worker(project_dir, marker_path, barrier, results):
+    import idea_architect.agent_gate as gate
+    gate.AGENTS_ENABLED = True  # Explicitly opt in only inside the isolated test worker.
     registry = HandlerRegistry()
 
     def handler(task, root):
@@ -45,6 +50,8 @@ def _competing_run_worker(project_dir, marker_path, barrier, results):
 
 class CrashRecoveryTests(unittest.TestCase):
     def setUp(self):
+        self.agent_gate = patch("idea_architect.agent_gate.AGENTS_ENABLED", True)
+        self.agent_gate.start()
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         self.queue_path = self.root / "execution" / "execution_queue.json"
@@ -61,6 +68,7 @@ class CrashRecoveryTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+        self.agent_gate.stop()
 
     def test_journal_replays_latest_queue_checkpoint(self):
         first = {

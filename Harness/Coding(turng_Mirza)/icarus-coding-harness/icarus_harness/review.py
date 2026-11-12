@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from typing import Any, Callable
 
+from .agent_gate import require_agent_runtime_enabled
 from .workspace import Workspace, WorkspaceError
 
 
@@ -238,6 +239,7 @@ class IndependentReviewer:
         return "review_status=completed\n" + json.dumps(report, ensure_ascii=False, indent=2)
 
     def review(self) -> str:
+        require_agent_runtime_enabled()
         changed_paths, diff_text, notes = self._collect()
         if not changed_paths:
             report = {

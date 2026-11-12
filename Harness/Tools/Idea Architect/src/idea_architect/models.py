@@ -6,6 +6,7 @@ import urllib.request
 from typing import Any
 
 from .protocol import parse_json_object
+from .agent_gate import require_agents_enabled
 
 
 class JsonModel(ABC):
@@ -24,6 +25,7 @@ class OllamaJsonModel(JsonModel):
         self.timeout = timeout
 
     def generate_json(self, *, role: str, system_prompt: str, payload: dict[str, Any]) -> dict[str, Any]:
+        require_agents_enabled()
         if role not in self.models or not self.models[role]:
             raise ValueError(f"No Ollama model configured for role: {role}")
         request_body = {

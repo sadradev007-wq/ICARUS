@@ -10,6 +10,7 @@ import hashlib
 from pathlib import Path
 from typing import Any, Callable
 
+from .agent_gate import require_agents_enabled
 from .execution import EvaluationResult
 from .models import JsonModel
 from .protocol import write_json
@@ -51,6 +52,7 @@ class System2FeedbackEvaluator:
         self.deterministic_verifier = deterministic_verifier
 
     def __call__(self, task: dict[str, Any], outputs: dict[str, Any]) -> EvaluationResult:
+        require_agents_enabled()
         task_id = task.get("task_id") or task.get("id")
         criteria = task.get("acceptance_criteria")
         if not isinstance(task_id, str) or not task_id:

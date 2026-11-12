@@ -2,6 +2,10 @@
 
 An original, approval-first coding-agent runtime developed alongside 119 pinned reference repositories in ../sample. Relevant projects are consulted selectively for each feature; ICARUS is an integration layer, not a fork of any single project.
 
+## Current execution state
+
+> **Agent quarantine (current default):** the Coding Harness agent runtime is disabled by a code-level kill switch. `icarus-harness run` stops before any model request, tool description/dispatch, workspace mutation, Task Companion feedback, or training-data capture. Read-only commands such as `inspect` and `status` remain available. The gate lives in `icarus_harness/agent_gate.py`; workspace config and environment variables cannot re-enable it. Re-activation is reserved for an explicit change in the next architecture phase.
+
 ## Features
 - OpenAI-compatible model endpoint, including local model servers.
 - Bounded agent/tool loop with typed tool schemas.
