@@ -97,6 +97,11 @@ class ActionJournal:
         except Exception:
             if parent_fd >= 0:
                 os.close(parent_fd)
+            elif "current_fd" in locals():
+                try:
+                    os.close(current_fd)
+                except OSError:
+                    pass
             raise
 
     @staticmethod
