@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .agent_gate import require_agents_enabled
 from .models import JsonModel
 from .execution import ExecutionEngine, HandlerRegistry
 from .protocol import write_json
@@ -39,6 +40,7 @@ class System2Replanner:
         self.queue_path = self.project_dir / "execution" / "execution_queue.json"
 
     def propose(self, task: dict[str, Any], *, execution_feedback: dict[str, Any]) -> dict[str, Any]:
+        require_agents_enabled()
         task_id = task.get("task_id")
         if not isinstance(task_id, str) or not task_id:
             raise ReplanError("task_id is required")
