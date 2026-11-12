@@ -123,6 +123,20 @@
       </div>
       <footer class="app-footer"><span>ICARUS Personal Companion <i>·</i> Prototype 0.1</span><span>ساخته‌شده برای کنترل انسانی، حافظهٔ شفاف و توسعهٔ تدریجی</span></footer>
     </main>
+    <aside class="priority-drawer" id="priority-drawer" aria-label="پنل اولویت‌ها">
+      <button class="priority-rail-button" id="priority-toggle" type="button" aria-expanded="false" aria-controls="priority-panel" title="نمایش کارهای اولویت‌دار">
+        <span>☷</span><small>اولویت</small><b id="priority-badge">۳</b>
+      </button>
+      <section class="priority-panel" id="priority-panel" hidden>
+        <div class="priority-panel-head"><div><b>کارهای در اولویت</b><small>نمای سریع از برنامه</small></div><button class="more-button" id="priority-close" aria-label="بستن">×</button></div>
+        <div class="priority-summary"><strong>۳</strong><span>کار مهم باقی‌مانده</span></div>
+        <article class="priority-item"><i class="priority-mark critical-mark"></i><div><b>اتصال حافظهٔ محلی</b><small>امروز · ۱۸:۰۰</small></div></article>
+        <article class="priority-item"><i class="priority-mark high-mark"></i><div><b>تکمیل نمای تقویم</b><small>فردا · اولویت بالا</small></div></article>
+        <article class="priority-item"><i class="priority-mark normal-mark"></i><div><b>مرور مستندات Vikunja</b><small>پنج‌شنبه · معمولی</small></div></article>
+        <button class="subtle-button" data-view="tasks">رفتن به همهٔ وظایف ←</button>
+        <button class="priority-add" data-action="new-task">＋ افزودن کار</button>
+      </section>
+    </aside>
   </div>
 
   <div class="modal-backdrop" id="modal-backdrop" hidden>
