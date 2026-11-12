@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "task-companion-feedback-edge-cases-20261112",
+  "created_at": "2026-11-12T08:54:45+03:30",
+  "task": "رفع سه نقص باقی‌مانده در چرخهٔ بازخورد Task Companion و Coding Harness: حفظ نتیجهٔ CLI در EOF، پنهان‌کردن پیشنهادهای کارهای بسته، و جلوگیری از لینک مردهٔ بازخورد در پنل کشویی.",
+  "status": "completed",
+  "summary": "پیشنهادهای بازخورد فقط زمانی در inbox و API ظاهر می‌شوند که task هدف هنوز فعال باشد؛ اعمال مستقیم رویداد stale همچنان رد می‌شود. EOF یا خطای ورودی در تأیید اختیاری CLI به معنی رد پیشنهاد است و نتیجهٔ اجرای تکمیل‌شده همچنان به شکل JSON چاپ می‌شود. لینک بازبینی در پنل کشویی اکنون داشبورد را دوباره بارگذاری می‌کند تا بخش feedback که پس از بارگذاری اولیه ایجاد شده است واقعاً در DOM وجود داشته باشد.",
+  "steps": 7,
+  "tools_called": [
+    "qodo_review_findings_retrieval",
+    "cli_optional_feedback_prompt_inspection",
+    "taskstore_active_task_filter",
+    "task_dashboard_feedback_anchor_inspection",
+    "cli_taskstore_and_dashboard_regression_tests",
+    "documentation_updates",
+    "github_actions_job_and_log_verification"
+  ],
+  "verification": {
+    "tests_reported": true,
+    "review_status": "static_diff_reviewed",
+    "ci_status": "passed",
+    "tested_commit": "66ae281da17cb8b94dbd4c3e1b6bce93579104fa",
+    "workflow_runs": [
+      {
+        "name": "Coding Harness tests",
+        "id": 43157806003,
+        "python_versions": [
+          "3.11",
+          "3.12"
+        ],
+        "tests_per_version": 70,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect tests",
+        "id": 43157806091,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 87,
+        "conclusion": "success"
+      },
+      {
+        "name": "Idea Architect CI",
+        "id": 43157805845,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 87,
+        "compile": "success",
+        "conclusion": "success"
+      }
+    ],
+    "limitations": "آزمون محلی ادعا نشده است. لینک بازخورد با آزمون HTTP/HTML بررسی شد، نه آزمون مرورگر واقعی. اجرای مدل محلی واقعی هنوز خارج از دامنهٔ این وظیفه است. task record در commit بعدی اضافه می‌شود و CI آن head جداگانه بررسی خواهد شد."
+  },
+  "changed_paths": [
+    "Harness/Tools/Idea Architect/src/idea_architect/task_companion.py",
+    "Harness/Tools/Idea Architect/tests/test_execution_feedback.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/icarus_harness/cli.py",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/tests/test_cli.py",
+    "Harness/Tools/Idea Architect/src/idea_architect/task_dashboard.py",
+    "Harness/Tools/Idea Architect/tests/test_task_dashboard.py",
+    "Harness/Tools/Task Companion/README.md",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/README.md",
+    "Harness/Coding(turng_Mirza)/icarus-coding-harness/docs/ARCHITECTURE.md",
+    "Local LLM/Train Data/tasks/20261112-task-companion-feedback-edge-cases.json"
+  ],
+  "data_policy": {
+    "redacted": true,
+    "file_contents_included": false,
+    "tool_arguments_included": false,
+    "raw_tool_output_included": false
+  }
+}
