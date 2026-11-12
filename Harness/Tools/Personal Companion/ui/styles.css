@@ -27,3 +27,16 @@
 .priority-add{width:100%;margin-top:14px;padding:9px;border:1px solid #514477;border-radius:9px;background:#2c2740;color:#d4c5ff;font-size:9px}
 @media(max-width:850px){.app-shell{grid-template-columns:70px minmax(0,1fr) 48px}.priority-drawer{width:48px}.priority-panel{right:48px}}
 @media(max-width:600px){.app-shell{display:block;padding-bottom:62px}.priority-drawer{position:fixed;top:60px;left:0;width:43px;height:58px;padding:4px;background:transparent;border:0}.priority-rail-button{width:37px;height:43px;background:#242036;box-shadow:0 5px 18px #0006}.priority-rail-button small{display:none}.priority-panel{position:fixed;top:114px;left:8px;right:auto;width:min(285px,calc(100vw - 16px));height:min(65vh,520px);border:1px solid #39364d;border-radius:13px;box-shadow:0 15px 50px #0009}}
+
+
+/* Categorized task workspace */
+.task-category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:18px}
+.task-category{min-width:0;border:1px solid var(--border);border-radius:14px;background:var(--surface-soft);overflow:hidden}
+.task-category>header{display:flex;align-items:center;gap:10px;padding:14px;border-bottom:1px solid var(--border)}
+.task-category>header>div{display:grid;gap:3px;flex:1;min-width:0}
+.task-category>header b{font-size:13px}.task-category>header small{font-size:11px;color:var(--muted)}
+.category-icon{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--surface);font-weight:700}
+.category-icon.purple{color:#a78bfa}.category-icon.blue{color:#60a5fa}.category-icon.green{color:#4ade80}.category-icon.amber{color:#fbbf24}
+.category-count{min-width:24px;height:24px;border-radius:99px;display:grid;place-items:center;background:var(--surface);color:var(--muted);font-size:11px}
+.task-category-items{padding:0 12px}.task-category-items .task-row{padding:12px 2px;gap:9px}.task-category-items .task-row:last-child{border-bottom:0}
+@media(max-width:900px){.task-category-grid{grid-template-columns:1fr}}
