@@ -10,6 +10,8 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parents[1]
 UI_ROOT = ROOT / "ui"
 TAXONOMY_PATH = ROOT / "data" / "taxonomy.fa.json"
+PROVIDER_CONFIG = ROOT / "config" / "providers.example.json"
+LOCAL_PROVIDER_CONFIG = ROOT / "config" / "providers.local.json"
 MAX_BODY = 256_000
 ROUTES = {
  "system1_local": ("ICARUS_SYSTEM1_LOCAL_URL","ICARUS_SYSTEM1_LOCAL_MODEL",None,"http://127.0.0.1:11434/v1","qwen2.5:3b"),
@@ -28,18 +30,29 @@ def read_json(h):
  return json.loads(h.rfile.read(n).decode())
 def provider(route):
  if route not in ROUTES: raise ValueError("مسیر مدل نامعتبر است.")
- ue,me,ke,du,dm=ROUTES[route]; base=os.environ.get(ue,du); model=os.environ.get(me,dm)
+ config_path=LOCAL_PROVIDER_CONFIG if LOCAL_PROVIDER_CONFIG.is_file() else PROVIDER_CONFIG
+ try:
+  with config_path.open(encoding="utf-8") as stream: config=json.load(stream)
+  route_config=config["routes"][route]
+ except (OSError,KeyError,TypeError,json.JSONDecodeError) as exc:
+  raise RuntimeError("تنظیمات مسیرهای مدل معتبر نیست.") from exc
+ if not route_config.get("enabled",False): raise ValueError("این مسیر در providers.local.json فعال نشده است.")
+ url_env,model_env,key_env,default_url,default_model=ROUTES[route]
+ base=os.environ.get(url_env,route_config.get("base_url") or default_url)
+ model=os.environ.get(model_env,route_config.get("model") or default_model)
  if not base or not model: raise ValueError("URL یا نام مدل این مسیر تنظیم نشده است.")
- key=os.environ.get(ke) if ke else None
- if ke and not key: raise ValueError("کلید API در متغیر محیطی "+ke+" تنظیم نشده است.")
- return base.rstrip("/")+"/chat/completions",model,key
+ secret_env=route_config.get("api_key_env") or key_env
+ key=os.environ.get(secret_env) if secret_env else None
+ if secret_env and not key: raise ValueError("کلید API در متغیر محیطی "+secret_env+" تنظیم نشده است.")
+ return base.rstrip("/")+"/chat/completions",model,key,int(route_config.get("timeout_seconds",90))
+
 def ask(route,system,payload):
- endpoint,model,key=provider(route)
+ endpoint,model,key,timeout=provider(route)
  body=json.dumps({"model":model,"temperature":0.2,"response_format":{"type":"json_object"},"messages":[{"role":"system","content":system},{"role":"user","content":json.dumps(payload,ensure_ascii=False)}]}).encode()
  headers={"Content-Type":"application/json"}
  if key: headers["Authorization"]="Bearer "+key
  try:
-  with urlopen(Request(endpoint,data=body,headers=headers,method="POST"),timeout=90) as response: data=json.loads(response.read().decode())
+  with urlopen(Request(endpoint,data=body,headers=headers,method="POST"),timeout=timeout) as response: data=json.loads(response.read().decode())
  except HTTPError as exc: raise RuntimeError("سرویس مدل خطای "+str(exc.code)+" داد: "+exc.read(800).decode("utf-8","replace")) from exc
  except (URLError,TimeoutError) as exc: raise RuntimeError("اتصال به مدل برقرار نشد: "+str(exc)) from exc
  try: return json.loads(data["choices"][0]["message"]["content"]),model
