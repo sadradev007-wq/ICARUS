@@ -17,11 +17,12 @@ _SECRET_PATTERNS = (
 
 
 def redact_text(value: str, limit: int) -> str:
-    text = value[:limit]
-    text = _SECRET_PATTERNS[0].sub(lambda m: m.group(1) + m.group(2) + "[REDACTED]", text)
+    # Redaction can expand a short credential into "[REDACTED]"; enforce the
+    # storage contract only after every secret pattern has been replaced.
+    text = _SECRET_PATTERNS[0].sub(lambda m: m.group(1) + m.group(2) + "[REDACTED]", value)
     text = _SECRET_PATTERNS[1].sub(lambda m: m.group(1) + "[REDACTED]", text)
     text = _SECRET_PATTERNS[2].sub(r"\1[REDACTED]@", text)
-    return text
+    return text[:max(0, limit)]
 
 
 class TaskDatasetWriter:

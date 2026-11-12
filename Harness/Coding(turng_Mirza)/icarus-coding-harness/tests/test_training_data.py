@@ -106,6 +106,12 @@ class TaskDatasetWriterTests(unittest.TestCase):
             self.assertIsNone(TaskDatasetWriter(Path(temp)).record("task", RunResult("completed", "", 1, [])))
             self.assertFalse((Path(temp) / "Local LLM").exists())
 
+    def test_redaction_limit_is_applied_after_secret_expansion(self):
+        value = "x" * 989 + " password=x"
+        redacted = redact_text(value, 1000)
+        self.assertEqual(len(redacted), 1000)
+        self.assertNotIn("password=x", redacted)
+
 
 if __name__ == "__main__":
     unittest.main()

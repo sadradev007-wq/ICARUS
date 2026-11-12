@@ -100,6 +100,32 @@ class ExecutionFeedbackTests(unittest.TestCase):
             self.store.apply_execution_event(invalid, user_approved=True)
         self.assertEqual(self.store.list_tasks()[0]["status"], "inbox")
 
+    def test_pending_events_skips_malformed_and_incomplete_files(self):
+        malformed_id = "E-" + "7" * 32
+        (self.event_dir / f"{malformed_id}.json").write_text("{", encoding="utf-8")
+        incomplete = dict(self.event, event_id="E-" + "8" * 32)
+        incomplete.pop("created_at")
+        self._write_event(incomplete)
+
+        self.assertEqual(self.store.pending_execution_events(), [self.event])
+
+    def test_pending_events_skips_oversized_files(self):
+        oversized_id = "E-" + "9" * 32
+        (self.event_dir / f"{oversized_id}.json").write_text(
+            "x" * (16 * 1024 + 1), encoding="utf-8"
+        )
+        self.assertEqual(self.store.pending_execution_events(), [self.event])
+
+    def test_handled_event_filename_is_skipped_before_parsing(self):
+        data = json.loads(self.path.read_text(encoding="utf-8"))
+        data["applied_execution_events"] = [self.event["event_id"]]
+        self.path.write_text(json.dumps(data), encoding="utf-8")
+        (self.event_dir / f'{self.event["event_id"]}.json').write_text(
+            "{malformed but already handled", encoding="utf-8"
+        )
+
+        self.assertEqual(self.store.pending_execution_events(), [])
+
 
 if __name__ == "__main__":
     unittest.main()
