@@ -40,3 +40,45 @@
 .category-count{min-width:24px;height:24px;border-radius:99px;display:grid;place-items:center;background:var(--surface);color:var(--muted);font-size:11px}
 .task-category-items{padding:0 12px}.task-category-items .task-row{padding:12px 2px;gap:9px}.task-category-items .task-row:last-child{border-bottom:0}
 @media(max-width:900px){.task-category-grid{grid-template-columns:1fr}}
+
+
+/* AI taxonomy and calendar planner */
+.ai-organizer-panel,.taxonomy-panel,.calendar-planner,.calendar-saved{padding:18px;margin-bottom:16px}
+.organizer-help{font-size:10px;color:var(--muted);line-height:1.9;margin:8px 0 14px}
+.ai-organizer-controls{display:grid;gap:10px}
+.ai-organizer-controls textarea,.calendar-constraints textarea{width:100%;resize:vertical;min-height:64px;border:1px solid var(--border);border-radius:10px;background:#12131f;color:var(--text);padding:11px;font:inherit;font-size:10px;line-height:1.9}
+.ai-action-row,.calendar-action-row{display:flex;align-items:end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ai-action-row label,.calendar-input-grid label,.calendar-constraints{display:grid;gap:6px;font-size:10px;color:#c9c6d8;flex:1;min-width:170px}
+.ai-action-row select,.calendar-input-grid input,.calendar-input-grid select{width:100%;border:1px solid var(--border);border-radius:9px;background:#12131f;color:var(--text);padding:10px;font:inherit;font-size:10px}
+.ai-result{margin-top:14px;padding:14px;border:1px solid #514477;border-radius:12px;background:#211e31;display:grid;gap:9px}
+.ai-result[hidden]{display:none}
+.ai-result>b{font-size:12px;color:#e5dcff}
+.ai-result>p{font-size:10px;line-height:1.9;color:#d0cde0;margin:0}
+.ai-result>small{font-size:9px;color:#a8a2bf}
+.ai-result-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:5px}
+.ai-result-actions button{font-size:9px;padding:8px 12px}
+.taxonomy-search{width:min(290px,45%);border:1px solid var(--border);border-radius:8px;background:#12131f;color:var(--text);padding:8px 10px;font-size:10px}
+.taxonomy-tree{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:620px;overflow:auto;padding:3px}
+.taxonomy-category{border:1px solid var(--border);border-radius:10px;background:#151623;overflow:hidden;min-width:0}
+.taxonomy-category summary{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px;cursor:pointer;list-style:none}
+.taxonomy-category summary::-webkit-details-marker{display:none}
+.taxonomy-category summary:after{content:"＋";color:#bba8ff;margin-right:6px}
+.taxonomy-category[open] summary:after{content:"−"}
+.taxonomy-category summary b{font-size:10px;line-height:1.7}
+.taxonomy-category summary span{font-size:8px;color:var(--muted);white-space:nowrap}
+.taxonomy-children{display:grid;gap:4px;padding:0 8px 9px}
+.taxonomy-child{border:0;border-radius:7px;background:#202132;color:#bdbbd0;text-align:right;padding:7px 9px;font-size:9px;line-height:1.7}
+.taxonomy-child:hover{background:#332c4b;color:#eee7ff}
+.empty-state{font-size:10px;line-height:1.9;color:var(--muted);padding:15px}
+.calendar-input-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+.calendar-constraints{margin:10px 0}
+.calendar-action-row{align-items:center;margin-top:12px}
+.calendar-saved-event{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 2px;border-top:1px solid var(--border)}
+.calendar-saved-main{display:grid;gap:5px;min-width:0}
+.calendar-saved-main b{font-size:11px}
+.calendar-saved-main small{font-size:9px;color:var(--muted);line-height:1.7}
+.calendar-proposal-event{display:grid;gap:4px;padding:10px 0;border-top:1px solid #403754}
+.calendar-proposal-event b{font-size:10px;color:#e6dcff}
+.calendar-proposal-event small{font-size:9px;color:#b8b2cc}
+.ai-conflicts{margin:5px 0;padding-right:20px;color:#e5b98a;font-size:9px;line-height:1.9}
+@media(max-width:700px){.taxonomy-tree{grid-template-columns:1fr}.calendar-input-grid{grid-template-columns:1fr}.taxonomy-search{width:100%}.taxonomy-panel>.panel-title{align-items:stretch;flex-direction:column}.calendar-action-row{align-items:stretch}.calendar-action-row button{width:100%}}
