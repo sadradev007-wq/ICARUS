@@ -1,37 +1,42 @@
 # ICARUS Personal Companion UI
 
-A responsive Persian RTL GUI prototype for the Personal Companion.
+A Persian RTL interface for the local-first Personal Companion.
 
 ## Views
 
-- Chat-first home with suggested actions and today's focus.
-- Tasks list and task creation modal.
-- Weekly calendar projection.
-- User-visible, editable-memory concept.
-- Folder-oriented workspace library.
-- Four independent LLM provider cards.
-- JSON action journal / activity feed.
-- Privacy, permissions, and quarantine settings.
+- دستیار: chat-first workspace (free chat still needs its separate adapter).
+- کارها: task list grouped by the 50-domain taxonomy.
+- تقویم: AI-assisted scheduling proposals and locally stored, user-approved events.
+- Memory, library, four provider routes, activity, and settings.
 
-## Run locally
+## Run the integrated local app
 
-No runtime dependencies are required. From this directory:
+From Harness/Tools/Personal Companion (the package root), run:
 
 ```bash
-python3 -m http.server 4173
+python -m icarus_personal_companion.server
 ```
 
-Then open `http://127.0.0.1:4173`.
+Then open http://127.0.0.1:4173. The Python server serves the UI and its local API together; python -m http.server is not sufficient for AI features.
 
-Use pnpm for project scripts:
+Run UI checks from ui/:
 
 ```bash
-pnpm test
-pnpm check
+corepack pnpm test
+corepack pnpm check
 ```
 
-## Prototype boundary
+## AI configuration
 
-This is a frontend prototype, not yet connected to the Python TaskStore, chat service, memory store, Vikunja, calendar backend, or LLM provider adapters. New tasks are stored only in browser localStorage and are explicitly labeled as local prototype drafts. Chat replies are illustrative placeholders. No AI tools or legacy agents execute from this UI.
+The taxonomy classifier defaults to system1_local; calendar planning defaults to system2_local. The server reads config/providers.local.json when present, otherwise config/providers.example.json. Copy the example file to providers.local.json and adjust model URLs/names and enabled flags. API keys must be supplied only through environment variables named by api_key_env; never commit keys.
 
-The GUI is intentionally chat-first, with a stable left-to-right application shell in desktop layout, RTL Persian content, compact global navigation, visible quarantine status, and a responsive bottom navigation on mobile. The full backend integration is a separate implementation step.
+Four routes are supported: system1_local, system1_api, system2_local, and system2_api. The example enables the two local routes. API routes are disabled until explicitly enabled and configured.
+
+## Approval and persistence boundaries
+
+- AI classification only proposes a category/subcategory; a user click is required before the task is saved.
+- Calendar planning requires explicit availability windows and timezone. The server rejects events outside those windows and overlapping proposals.
+- AI calendar proposals are not saved until the user explicitly approves them. Approved tasks/events currently persist in browser localStorage; Vikunja, CalDAV, and Google Calendar sync are not connected yet.
+- AI proposal and approval metadata is written to privacy-bounded JSON action events under Local LLM/Train Data/events/. Raw prompts, tool arguments, file contents, and secrets are not journaled.
+- The legacy Idea Architect and Coding Harness agents remain quarantined. These bounded planning endpoints do not unlock their tool execution.
+- The free-form chat still uses a placeholder response and is not connected to the model API.
