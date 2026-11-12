@@ -21,7 +21,7 @@ The local server binds to 127.0.0.1:4173 by default and serves both the UI and A
 - POST /api/ai/calendar — propose a schedule for supplied tasks and explicit free-time windows.
 - POST /api/audit/approval — journal a user's explicit approval before the UI applies a proposal.
 
-The four model routes are configured through config/providers.local.json (copy from config/providers.example.json). API keys are environment variables only. The local routes use OpenAI-compatible endpoints; Ollama's OpenAI-compatible API is the default local endpoint.
+The four model routes are configured through config/providers.local.json (copy from config/providers.example.json). Create the local file with `cp config/providers.example.json config/providers.local.json`; it is ignored by Git. API keys are environment variables only. The local routes use OpenAI-compatible endpoints; Ollama's OpenAI-compatible API is the default local endpoint.
 
 ## Safety and data boundaries
 
