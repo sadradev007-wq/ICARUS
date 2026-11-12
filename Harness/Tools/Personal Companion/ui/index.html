@@ -23,7 +23,7 @@
       </div>
       <p class="nav-caption">فضای کار</p>
       <nav class="nav-list">
-        <button class="nav-item active" data-view="chat"><span class="nav-icon">✳</span><span>گفت‌وگو</span><kbd>۱</kbd></button>
+        <button class="nav-item active" data-view="chat"><span class="nav-icon">✳</span><span>دستیار</span><kbd>۱</kbd></button>
         <button class="nav-item" data-view="tasks"><span class="nav-icon">▤</span><span>وظایف</span><span class="nav-count">۶</span></button>
         <button class="nav-item" data-view="calendar"><span class="nav-icon">▦</span><span>تقویم</span></button>
         <button class="nav-item" data-view="memory"><span class="nav-icon">◈</span><span>حافظه</span></button>
@@ -43,7 +43,7 @@
 
     <main class="main-area">
       <header class="topbar">
-        <div class="breadcrumbs"><span>Universe</span><span class="slash">/</span><strong id="current-section">گفت‌وگو</strong></div>
+        <div class="breadcrumbs"><span>Universe</span><span class="slash">/</span><strong id="current-section">دستیار</strong></div>
         <div class="topbar-actions">
           <span class="connection"><i></i> محلی</span>
           <button class="icon-button" aria-label="جست‌وجو" title="جست‌وجو">⌕</button>
@@ -55,7 +55,7 @@
       <div class="content-wrap">
         <section class="view active" id="view-chat">
           <div class="welcome-row">
-            <div><p class="eyebrow">چهارشنبه، ۲۱ آبان ۱۴۰۵</p><h1>سلام، صدرا <span class="wave">✳</span></h1><p class="subheading">از کجا شروع کنیم؟ ایده‌هایت را ثبت کن؛ من مرتبشان می‌کنم.</p></div>
+            <div><p class="eyebrow">چهارشنبه، ۲۱ آبان ۱۴۰۵</p><h1>دستیار ایکاروس <span class="wave">✳</span></h1><p class="subheading">از کجا شروع کنیم؟ ایده‌هایت را ثبت کن؛ من مرتبشان می‌کنم.</p></div>
             <button class="primary-button" data-action="new-task"><span>＋</span> کار جدید</button>
           </div>
           <div class="chat-layout">
@@ -77,14 +77,14 @@
         </section>
 
         <section class="view" id="view-tasks">
-          <div class="page-heading"><div><p class="eyebrow">مدیریت زمان و اجرا</p><h1>وظایف</h1><p class="subheading">کارها، اولویت‌ها و موعدها در یک نمای واحد.</p></div><button class="primary-button" data-action="new-task">＋ کار جدید</button></div>
+          <div class="page-heading"><div><p class="eyebrow">مدیریت زمان و اجرا</p><h1>کارها</h1><p class="subheading">همهٔ کارها بر اساس حوزه و پروژه دسته‌بندی شده‌اند؛ از همین‌جا پیگیری و اولویت‌بندی کن.</p></div><button class="primary-button" data-action="new-task">＋ کار جدید</button></div>
           <div class="stats-grid"><article class="stat-card"><span>کارهای فعال</span><b>۱۲</b><small>۲ مورد بیشتر از هفتهٔ قبل</small></article><article class="stat-card"><span>موعد امروز</span><b>۳</b><small>۱ مورد نزدیک به تأخیر</small></article><article class="stat-card"><span>تکمیل‌شده</span><b>۸</b><small>در هفت روز گذشته</small></article><article class="stat-card"><span>در انتظار تأیید</span><b>۲</b><small>نیازمند تصمیم تو</small></article></div>
-          <div class="panel table-panel"><div class="panel-title"><div><b>فهرست کارها</b><span class="muted-inline">· ۶ مورد نمونه</span></div><div class="filter-row"><button class="filter-chip selected">همه</button><button class="filter-chip">امروز</button><button class="filter-chip">اولویت بالا</button></div></div><div class="task-list" id="task-list">
-            <article class="task-row"><span class="task-check"></span><div class="task-main"><b>اتصال حافظهٔ محلی به Companion</b><small>ICARUS / Personal Companion</small></div><span class="priority-pill urgent">بالا</span><time>امروز، ۱۸:۰۰</time><button class="more-button">···</button></article>
-            <article class="task-row"><span class="task-check"></span><div class="task-main"><b>مرور مستندات Vikunja API</b><small>ICARUS / Integrations</small></div><span class="priority-pill medium">متوسط</span><time>فردا، ۱۲:۰۰</time><button class="more-button">···</button></article>
-            <article class="task-row"><span class="task-check done">✓</span><div class="task-main"><b>تعریف Schema رویدادهای JSON</b><small>ICARUS / Local LLM</small></div><span class="priority-pill muted-pill">تکمیل‌شده</span><time>دیروز</time><button class="more-button">···</button></article>
-            <article class="task-row"><span class="task-check"></span><div class="task-main"><b>طراحی نمای تقویم هفتگی</b><small>ICARUS / UX</small></div><span class="priority-pill medium">متوسط</span><time>پنج‌شنبه</time><button class="more-button">···</button></article>
-            <article class="task-row"><span class="task-check"></span><div class="task-main"><b>انتخاب مدل System 1 محلی</b><small>ICARUS / LLM</small></div><span class="priority-pill low">پایین</span><time>بدون موعد</time><button class="more-button">···</button></article>
+          <div class="panel table-panel"><div class="panel-title"><div><b>کارهای دسته‌بندی‌شده</b><span class="muted-inline">· حوزه‌های کاری</span></div><div class="filter-row"><button class="filter-chip selected" data-task-filter="all">همه</button><button class="filter-chip" data-task-filter="today">امروز</button><button class="filter-chip" data-task-filter="high">اولویت بالا</button></div></div>
+          <div class="task-category-grid" id="task-list">
+            <section class="task-category" data-task-category="projects"><header><span class="category-icon purple">▣</span><div><b>پروژه‌ها و توسعه</b><small>ICARUS، Universe و پروژه‌های فعال</small></div><span class="category-count">۲</span></header><div class="task-category-items"><article class="task-row"><span class="task-check"></span><div class="task-main"><b>اتصال حافظهٔ محلی به Companion</b><small>ICARUS / Personal Companion</small></div><span class="priority-pill urgent">بالا</span><time>امروز، ۱۸:۰۰</time><button class="more-button">···</button></article><article class="task-row"><span class="task-check"></span><div class="task-main"><b>طراحی نمای تقویم هفتگی</b><small>ICARUS / UX</small></div><span class="priority-pill medium">متوسط</span><time>پنج‌شنبه</time><button class="more-button">···</button></article></div></section>
+            <section class="task-category" data-task-category="research"><header><span class="category-icon blue">⌕</span><div><b>پژوهش و یکپارچه‌سازی</b><small>مستندات، APIها و بررسی فنی</small></div><span class="category-count">۱</span></header><div class="task-category-items"><article class="task-row"><span class="task-check"></span><div class="task-main"><b>مرور مستندات Vikunja API</b><small>ICARUS / Integrations</small></div><span class="priority-pill medium">متوسط</span><time>فردا، ۱۲:۰۰</time><button class="more-button">···</button></article></div></section>
+            <section class="task-category" data-task-category="learning"><header><span class="category-icon green">⌁</span><div><b>یادگیری و مطالعه</b><small>درس‌ها، مهارت‌ها و برنامهٔ آموزشی</small></div><span class="category-count">۱</span></header><div class="task-category-items"><article class="task-row"><span class="task-check"></span><div class="task-main"><b>مطالعهٔ مبانی معماری نرم‌افزار</b><small>Universe / Learning</small></div><span class="priority-pill low">پایین</span><time>بدون موعد</time><button class="more-button">···</button></article></div></section>
+            <section class="task-category" data-task-category="ideas"><header><span class="category-icon amber">✧</span><div><b>ایده‌ها و پیگیری</b><small>ورودی‌های تازه و کارهای نیازمند تصمیم</small></div><span class="category-count">۱</span></header><div class="task-category-items"><article class="task-row"><span class="task-check done">✓</span><div class="task-main"><b>تعریف Schema رویدادهای JSON</b><small>ICARUS / Local LLM</small></div><span class="priority-pill muted-pill">تکمیل‌شده</span><time>دیروز</time><button class="more-button">···</button></article></div></section>
           </div></div>
         </section>
 
@@ -142,7 +142,7 @@
   <div class="modal-backdrop" id="modal-backdrop" hidden>
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-head"><div><p class="eyebrow">ثبت در فضای کاری</p><h2 id="modal-title">کار جدید</h2></div><button class="icon-button" data-close-modal aria-label="بستن">×</button></div>
-      <form id="task-form"><label>عنوان کار<input name="title" required maxlength="180" placeholder="مثلاً اتصال حافظهٔ محلی"></label><label>پروژه / پوشه<select name="folder"><option>ICARUS / Personal Companion</option><option>Universe / Learning</option><option>Ideas / Inbox</option></select></label><div class="form-split"><label>اولویت<select name="priority"><option value="high">بالا</option><option value="normal" selected>معمولی</option><option value="low">پایین</option><option value="critical">بحرانی</option></select></label><label>موعد<input name="due" type="datetime-local"></label></div><label>توضیحات<textarea name="description" rows="3" placeholder="جزئیات اختیاری…"></textarea></label><div class="modal-actions"><button class="outline-button" type="button" data-close-modal>انصراف</button><button class="primary-button" type="submit">ثبت پیش‌نویس کار</button></div><p class="form-note">این نسخهٔ نمایشی اطلاعات را فقط در مرورگر ذخیره می‌کند؛ هنوز به TaskStore متصل نیست.</p></form>
+      <form id="task-form"><label>عنوان کار<input name="title" required maxlength="180" placeholder="مثلاً اتصال حافظهٔ محلی"></label><label>دسته‌بندی کار<select name="category"><option value="projects">پروژه‌ها و توسعه</option><option value="research">پژوهش و یکپارچه‌سازی</option><option value="learning">یادگیری و مطالعه</option><option value="personal">امور شخصی</option><option value="ideas">ایده‌ها و پیگیری</option></select></label><label>پروژه / پوشه<select name="folder"><option>ICARUS / Personal Companion</option><option>Universe / Learning</option><option>Ideas / Inbox</option></select></label><div class="form-split"><label>اولویت<select name="priority"><option value="high">بالا</option><option value="normal" selected>معمولی</option><option value="low">پایین</option><option value="critical">بحرانی</option></select></label><label>موعد<input name="due" type="datetime-local"></label></div><label>توضیحات<textarea name="description" rows="3" placeholder="جزئیات اختیاری…"></textarea></label><div class="modal-actions"><button class="outline-button" type="button" data-close-modal>انصراف</button><button class="primary-button" type="submit">ثبت پیش‌نویس کار</button></div><p class="form-note">این نسخهٔ نمایشی اطلاعات را فقط در مرورگر ذخیره می‌کند؛ هنوز به TaskStore متصل نیست.</p></form>
     </section>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
