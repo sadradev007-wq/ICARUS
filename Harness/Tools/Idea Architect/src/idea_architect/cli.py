@@ -14,6 +14,7 @@ from .models import OfflineDemoModel, OllamaJsonModel
 from .orchestrator import ProjectOrchestrator
 from .planner import PlanningEngine
 from .visualization import export_project_graph
+from .agent_gate import require_agents_enabled
 
 
 def _load_trusted_registry(module_path: str | None) -> HandlerRegistry:
@@ -101,6 +102,8 @@ def main() -> None:
         args.review_task, args.refresh_graph, args.serve,
     ))
     if project_actions:
+        if any((args.approve_task, args.run_task, args.retry_task, args.serve, args.trusted_handler_module)):
+            require_agents_enabled()
         if args.idea or not args.project_dir:
             parser.error("project operations require --project-dir and no positional idea")
         project_dir = Path(args.project_dir).expanduser().resolve()
