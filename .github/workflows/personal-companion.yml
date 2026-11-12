@@ -27,3 +27,19 @@ jobs:
       - name: Run tests
         working-directory: Harness/Tools/Personal Companion
         run: python -m unittest discover -s tests -v
+
+  ui-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Check UI JavaScript
+        working-directory: Harness/Tools/Personal Companion/ui
+        run: pnpm check
+      - name: Run UI contract tests
+        working-directory: Harness/Tools/Personal Companion/ui
+        run: pnpm test
