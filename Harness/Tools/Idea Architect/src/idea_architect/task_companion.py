@@ -195,6 +195,12 @@ class TaskStore:
                 {value for value in handled_values if isinstance(value, str)}
                 if isinstance(handled_values, list) else set()
             )
+            active_task_ids = {
+                task.get("id") for task in data["tasks"]
+                if isinstance(task, dict)
+                and isinstance(task.get("id"), str)
+                and task.get("status") in ACTIVE_STATUSES
+            }
             events = []
             try:
                 paths = sorted(event_dir.glob("E-*.json"))
@@ -222,7 +228,7 @@ class TaskStore:
                         path.name, type(exc).__name__,
                     )
                     continue
-                if run_id not in handled_runs:
+                if event["task_id"] in active_task_ids and run_id not in handled_runs:
                     events.append(event)
             return events
 

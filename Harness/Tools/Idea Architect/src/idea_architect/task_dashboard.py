@@ -195,7 +195,7 @@ button:hover{{filter:brightness(1.12)}}.submit{{grid-column:1/-1;justify-self:st
 <h3 id="drawer-waiting-title">در انتظار</h3><div data-waiting></div></section>
 <section class="task-drawer__section" aria-labelledby="drawer-feedback-title">
 <h3 id="drawer-feedback-title">اجراهای منتظر تأیید</h3><div data-pending-feedback></div></section>
-<a class="task-drawer__link" data-feedback-link href="#execution-feedback" hidden>بازبینی پیشنهادهای اجرای هارنس</a>
+<a class="task-drawer__link" data-feedback-link href="/#execution-feedback" hidden>بازبینی پیشنهادهای اجرای هارنس</a>
 <a class="task-drawer__link" data-all-tasks href="#tasks">نمایش همهٔ کارها</a>
 <button class="task-drawer__refresh" type="button" data-drawer-refresh>به‌روزرسانی فهرست</button>
 </section></aside>
