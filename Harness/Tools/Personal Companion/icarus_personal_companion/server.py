@@ -76,11 +76,19 @@ def classify(p):
  JOURNAL.record("assistant_decision",actor="assistant",action_name="taxonomy.classify",target_type="task",summary="Generated a taxonomy classification proposal; input length="+str(len(item)),outcome="proposed",approval_required=True,approval_status="pending",provider_route=route,model=model)
  return {"proposal":result,"model":model,"route":route,"requires_user_approval":True,"applied":False}
 def calendar_plan(p):
- route=p.get("route","system2_local"); tasks=p.get("tasks"); windows=p.get("available_windows"); tz=p.get("timezone")
+ route=p.get("route","system2_local"); tasks=p.get("tasks"); windows=p.get("available_windows"); busy=p.get("busy_events",[]); tz=p.get("timezone")
  if not isinstance(tasks,list) or not tasks or len(tasks)>200: raise ValueError("فهرست ۱ تا ۲۰۰ کار لازم است.")
  if not isinstance(windows,list) or not windows or len(windows)>30: raise ValueError("حداقل یک بازهٔ زمانی آزاد لازم است.")
+ if not isinstance(busy,list) or len(busy)>500: raise ValueError("فهرست رویدادهای قبلی نامعتبر است.")
  if not isinstance(tz,str) or not tz.strip(): raise ValueError("منطقهٔ زمانی لازم است.")
  parsed_windows=[]
+ parsed_busy=[]
+ for event in busy:
+  try:
+   bs=datetime.fromisoformat(event["start"].replace("Z","+00:00")); be=datetime.fromisoformat(event["end"].replace("Z","+00:00"))
+  except (KeyError,TypeError,ValueError,AttributeError) as exc: raise ValueError("رویدادهای قبلی باید زمان ISO-8601 معتبر داشته باشند.") from exc
+  if bs.tzinfo is None or be.tzinfo is None or be<=bs: raise ValueError("یکی از رویدادهای قبلی زمان نامعتبر دارد.")
+  parsed_busy.append((bs,be))
  for window in windows:
   try:
    ws=datetime.fromisoformat(window["start"].replace("Z","+00:00")); we=datetime.fromisoformat(window["end"].replace("Z","+00:00"))
@@ -92,8 +100,8 @@ def calendar_plan(p):
  "Every event must fit wholly inside one availability window and events must not overlap. "
  "Use ISO-8601 timestamps with explicit UTC offsets. If duration_minutes is absent, estimate conservatively "
  "and explicitly label that estimate in reason. Do not claim events saved; this is a proposal only. "
- "Tasks that do not fit must be listed in conflicts.")
- result,model=ask(route,system,{"tasks":tasks,"available_windows":windows,"timezone":tz,"date_range":p.get("date_range"),"constraints":p.get("constraints",[])})
+ "Tasks that do not fit must be listed in conflicts. Avoid every supplied busy event.")
+ result,model=ask(route,system,{"tasks":tasks,"available_windows":windows,"busy_events":busy,"timezone":tz,"date_range":p.get("date_range"),"constraints":p.get("constraints",[])})
  events=result.get("events")
  if not isinstance(events,list) or len(events)>300: raise RuntimeError("فهرست رویدادها نامعتبر است.")
  known={str(t.get("id")) for t in tasks if isinstance(t,dict) and t.get("id") is not None}
@@ -105,6 +113,7 @@ def calendar_plan(p):
   except (KeyError,TypeError,ValueError,AttributeError) as exc: raise RuntimeError("زمان باید ISO-8601 معتبر باشد.") from exc
   if start.tzinfo is None or end.tzinfo is None or end<=start: raise RuntimeError("زمان رویداد باید offset معتبر داشته باشد.")
   if not any(start>=ws and end<=we for ws,we in parsed_windows): raise RuntimeError("مدل رویدادی خارج از زمان آزاد تعیین‌شده پیشنهاد کرده است.")
+  if any(start<be and end>bs for bs,be in parsed_busy): raise RuntimeError("پیشنهاد مدل با رویداد ثبت‌شدهٔ قبلی تداخل دارد.")
   parsed_events.append((start,end))
  parsed_events.sort(key=lambda pair:pair[0])
  for previous,current in zip(parsed_events,parsed_events[1:]):
