@@ -13,6 +13,13 @@ test("the GUI exposes all eight primary workspaces", () => {
   }
 });
 
+test("the application shell contains a collapsible global priority drawer", () => {
+  assert.match(html, /id="priority-drawer"/);
+  assert.match(html, /id="priority-toggle"/);
+  assert.match(html, /id="priority-panel"/);
+  assert.match(js, /priorityToggle\.setAttribute\("aria-expanded"/);
+});
+
 test("the prototype keeps its local-only and quarantine boundaries visible", () => {
   assert.match(html, /نمونهٔ رابط/);
   assert.match(html, /قرنطینه فعال است/);
