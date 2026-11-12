@@ -6,12 +6,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from .action_journal import ActionJournal
 
 ROOT = Path(__file__).resolve().parents[1]
 UI_ROOT = ROOT / "ui"
 TAXONOMY_PATH = ROOT / "data" / "taxonomy.fa.json"
 PROVIDER_CONFIG = ROOT / "config" / "providers.example.json"
 LOCAL_PROVIDER_CONFIG = ROOT / "config" / "providers.local.json"
+WORKSPACE_ROOT = ROOT.parents[2]
+JOURNAL = ActionJournal(WORKSPACE_ROOT)
 MAX_BODY = 256_000
 ROUTES = {
  "system1_local": ("ICARUS_SYSTEM1_LOCAL_URL","ICARUS_SYSTEM1_LOCAL_MODEL",None,"http://127.0.0.1:11434/v1","qwen2.5:3b"),
@@ -70,6 +73,7 @@ def classify(p):
  cid=result.get("category_id"); sid=result.get("subcategory_id"); confidence=result.get("confidence",0)
  if cid not in valid or sid not in valid[cid]: raise RuntimeError("مدل شناسه‌ای خارج از taxonomy پیشنهاد کرد.")
  if not isinstance(confidence,(int,float)) or not 0<=confidence<=1: raise RuntimeError("درجهٔ اطمینان نامعتبر است.")
+ JOURNAL.record("assistant_decision",actor="assistant",action_name="taxonomy.classify",target_type="task",summary="Generated a taxonomy classification proposal; input length="+str(len(item)),outcome="proposed",approval_required=True,approval_status="pending",provider_route=route,model=model)
  return {"proposal":result,"model":model,"route":route,"requires_user_approval":True,"applied":False}
 def calendar_plan(p):
  route=p.get("route","system2_local"); tasks=p.get("tasks"); windows=p.get("available_windows"); tz=p.get("timezone")
@@ -105,7 +109,16 @@ def calendar_plan(p):
  parsed_events.sort(key=lambda pair:pair[0])
  for previous,current in zip(parsed_events,parsed_events[1:]):
   if current[0]<previous[1]: raise RuntimeError("پیشنهاد مدل شامل رویدادهای هم‌پوشان است.")
+ JOURNAL.record("assistant_decision",actor="assistant",action_name="calendar.plan",target_type="calendar_event",summary="Generated a calendar proposal for "+str(len(tasks))+" tasks and "+str(len(windows))+" availability windows",outcome="proposed",approval_required=True,approval_status="pending",provider_route=route,model=model)
  return {"proposal":result,"model":model,"route":route,"requires_user_approval":True,"applied":False}
+def audit_approval(p):
+ if p.get("approved") is not True: raise ValueError("تأیید صریح کاربر لازم است.")
+ action=p.get("action"); route=p.get("route"); model=p.get("model","unknown")
+ if action not in {"taxonomy.classification","calendar.plan"}: raise ValueError("نوع تأیید نامعتبر است.")
+ if route not in ROUTES: raise ValueError("مسیر مدل نامعتبر است.")
+ target="task" if action=="taxonomy.classification" else "calendar_event"
+ JOURNAL.record("approval_granted",actor="user",action_name=action+".approve",target_type=target,summary="User explicitly approved the proposed "+action+" change",outcome="succeeded",approval_required=True,approval_status="approved",approved_by="user",provider_route=route,model=model)
+ return {"audited":True,"approved_by":"user"}
 
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,fmt,*args): print("%s - %s"%(self.address_string(),fmt%args))
@@ -121,6 +134,7 @@ class Handler(BaseHTTPRequestHandler):
    p=read_json(self)
    if self.path=="/api/ai/classify": result=classify(p)
    elif self.path=="/api/ai/calendar": result=calendar_plan(p)
+   elif self.path=="/api/audit/approval": result=audit_approval(p)
    else: return send_json(self,404,{"error":"مسیر API پیدا نشد."})
    return send_json(self,200,result)
   except (ValueError,json.JSONDecodeError) as exc: return send_json(self,400,{"error":str(exc)})
