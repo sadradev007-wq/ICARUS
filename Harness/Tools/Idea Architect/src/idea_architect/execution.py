@@ -294,7 +294,6 @@ class ExecutionEngine:
 
     @_serialized
     def retry(self, task_id: str, *, requested_by: str, reason: str) -> dict[str, Any]:
-        require_agents_enabled()
         """Request a fresh human approval for another attempt of a failed task."""
         if not requested_by.strip() or not reason.strip():
             raise ValueError("requested_by and reason are required")
