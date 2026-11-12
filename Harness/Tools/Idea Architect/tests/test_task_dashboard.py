@@ -267,6 +267,10 @@ class TaskDashboardTests(unittest.TestCase):
                     payload = json.loads(body)
                     self.assertEqual(payload["pending_execution_events"], [])
 
+    def test_feedback_drawer_link_reloads_before_anchor_navigation(self):
+        _, page = self.get()
+        self.assertIn('data-feedback-link href="/#execution-feedback"', page)
+
 
 if __name__ == "__main__":
     unittest.main()

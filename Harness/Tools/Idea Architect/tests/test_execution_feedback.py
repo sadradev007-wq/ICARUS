@@ -56,8 +56,13 @@ class ExecutionFeedbackTests(unittest.TestCase):
 
     def test_refuses_stale_event_for_closed_task(self):
         self.store.complete(self.task["id"])
+        self.assertEqual(self.store.pending_execution_events(), [])
         with self.assertRaisesRegex(ValueError, "no longer active"):
             self.store.apply_execution_event(self.event, user_approved=True)
+
+    def test_pending_events_hides_suggestions_for_archived_tasks(self):
+        self.store.archive(self.task["id"])
+        self.assertEqual(self.store.pending_execution_events(), [])
 
     def _write_event(self, event):
         path = self.event_dir / f"{event['event_id']}.json"

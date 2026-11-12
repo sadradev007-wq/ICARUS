@@ -162,3 +162,8 @@ The Coding Harness resolves the selected TaskStore path before creating the adja
 - endpoint نسخهٔ v1 و schema سخت‌گیرانهٔ آن بدون تغییر باقی می‌ماند؛ مصرف‌کنندگان قدیمی لازم نیست مهاجرت کنند.
 - schema نسخهٔ جدید در `Harness/Tools/Task Companion/schemas/task-api.v2.schema.json` قرار دارد.
 - پنل فعلی از v2 برای نمایش شناسهٔ اجرای هر پیشنهاد استفاده می‌کند. نمایش شناسه صرفاً برای ردیابی است و هیچ اختیاری برای پذیرش پیشنهاد یا تغییر وضعیت ایجاد نمی‌کند.
+
+
+### Feedback edge-case behavior
+
+Pending suggestions are shown only while their target task remains active. If a task is completed, archived, or removed from the active set by another path, its old suggestion is hidden; direct application still rejects stale feedback. The dashboard's drawer link reloads the current page before navigating to the feedback anchor, so feedback arriving after initial page load is rendered before the link is followed.

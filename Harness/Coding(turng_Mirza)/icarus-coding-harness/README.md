@@ -63,3 +63,6 @@ See docs/ARCHITECTURE.md and docs/ROADMAP.md.
 
 ## Local integration verification
 The integration test starts a deterministic OpenAI-compatible HTTP fixture on loopback and exercises the real urllib client, AgentRuntime, TaskDatasetWriter, and Task Companion event writer in one bounded run. It verifies that task_id and run_id match across the task-run JSON and feedback event. This is a transport and contract integration test; it does not claim that a real model or Ollama weights were executed. The Task Companion consumer separately enforces one decision per run_id, including dismissal, while legacy events without run_id remain supported.
+
+
+If stdin reaches EOF or raises an input error at the optional Task Companion feedback prompt, ICARUS treats that prompt as a decline, does not write an event, and still prints the completed run's JSON result and exit status.

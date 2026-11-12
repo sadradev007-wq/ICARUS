@@ -65,3 +65,6 @@ Current limitations: no streaming, durable patch queue outside Git refs, semanti
 
 ## Local endpoint integration test
 The Coding Harness integration test uses a loopback HTTP fixture that implements the OpenAI Chat Completions response shape. It exercises the actual HTTP adapter and bounded runtime, then checks that the resulting task-run record and Task Companion feedback event share task_id/run_id. It does not substitute for a smoke test against an installed local model server.
+
+
+Pending execution suggestions are exposed only while their target task remains active. The CLI's optional feedback prompt treats EOF or input errors as a decline, preserving the already-completed run result. The drawer's feedback link reloads the dashboard before navigating to the server-rendered feedback section, avoiding a dead fragment target when an event arrives after initial render.
