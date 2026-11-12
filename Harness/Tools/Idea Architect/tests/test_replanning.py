@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from idea_architect.models import JsonModel
@@ -26,6 +27,8 @@ class ProposalModel(JsonModel):
 
 class ReplanningTests(unittest.TestCase):
     def setUp(self):
+        self.agent_gate = patch("idea_architect.agent_gate.AGENTS_ENABLED", True)
+        self.agent_gate.start()
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         write_json(self.root / "execution" / "execution_queue.json", {
@@ -43,6 +46,7 @@ class ReplanningTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+        self.agent_gate.stop()
 
     def test_proposal_does_not_mutate_queue_until_approved(self):
         task = {"task_id": "T1", "acceptance_criteria": ["y exists"]}
