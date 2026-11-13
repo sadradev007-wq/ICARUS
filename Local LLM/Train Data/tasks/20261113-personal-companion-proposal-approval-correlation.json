@@ -4,8 +4,8 @@
   "created_at": "2026-11-13T08:12:37+03:30",
   "task": "اتصال پیشنهادهای دسته‌بندی و تقویم Personal Companion به تصمیم صریح کاربر از طریق proposal_id یک‌بارمصرف و ثبت هم‌بسته در Local LLM Action Journal.",
   "status": "completed",
-  "summary": "برای هر پیشنهاد AI یک شناسه P- با ۳۲ رقم hex ساخته می‌شود؛ شناسه به رویداد پیشنهاد و رویداد تأیید یا رد در Action Journal منتقل می‌شود. تصمیم فقط با تطابق شناسه، action، route و model معتبر است، پس از ۱۵ دقیقه منقضی می‌شود و فقط یک بار قابل ثبت است. UI شناسه را برای تأیید و رد ارسال می‌کند. درخواست‌های JSON غیرشیء نیز پیش از پردازش رد می‌شوند.",
-  "steps": 9,
+  "summary": "برای هر پیشنهاد AI یک شناسه P- با ۳۲ رقم hex ساخته می‌شود؛ شناسه به رویداد پیشنهاد و رویداد تأیید یا رد در Action Journal منتقل می‌شود. تصمیم فقط با تطابق شناسه، action، route و model معتبر است، پس از ۱۵ دقیقه منقضی می‌شود و فقط یک بار قابل ثبت است. UI شناسه را برای تأیید و رد ارسال می‌کند. درخواست‌های JSON غیرشیء و انواع نامعتبر route/action/taxonomy/confidence نیز امن رد می‌شوند.",
+  "steps": 10,
   "tools_called": [
     "github_repository_inspection",
     "contract_review",
@@ -20,23 +20,23 @@
     "tests_reported": true,
     "review_status": "static_diff_reviewed",
     "ci_status": "passed",
-    "tested_commit": "0cd99c3cd393dc5afa3a9e47adfe5d7c3a6b02cf",
+    "tested_commit": "d3a0006dad13b68b87b9b9b6771deedfb2251889",
     "workflow_runs": [
       {
         "name": "Personal Companion tests",
-        "id": 43368283104,
+        "id": 43368469041,
         "python_versions": [
           "3.10",
           "3.12"
         ],
-        "tests_per_version": 20,
+        "tests_per_version": 23,
         "ui_tests": 8,
         "pnpm_check": "passed",
         "conclusion": "success"
       },
       {
         "name": "Coding Harness tests",
-        "id": 43368283200,
+        "id": 43368469102,
         "python_versions": [
           "3.11",
           "3.12"
