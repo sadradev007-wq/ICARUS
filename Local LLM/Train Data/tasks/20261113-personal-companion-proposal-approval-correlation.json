@@ -5,7 +5,7 @@
   "task": "اتصال پیشنهادهای دسته‌بندی و تقویم Personal Companion به تصمیم صریح کاربر از طریق proposal_id یک‌بارمصرف و ثبت هم‌بسته در Local LLM Action Journal.",
   "status": "completed",
   "summary": "برای هر پیشنهاد AI یک شناسه P- با ۳۲ رقم hex ساخته می‌شود؛ شناسه به رویداد پیشنهاد و رویداد تأیید یا رد در Action Journal منتقل می‌شود. تصمیم فقط با تطابق شناسه، action، route و model معتبر است، پس از ۱۵ دقیقه منقضی می‌شود و فقط یک بار قابل ثبت است. UI شناسه را برای تأیید و رد ارسال می‌کند. درخواست‌های JSON غیرشیء نیز پیش از پردازش رد می‌شوند.",
-  "steps": 8,
+  "steps": 9,
   "tools_called": [
     "github_repository_inspection",
     "contract_review",
@@ -13,29 +13,30 @@
     "proposal_approval_registry",
     "ui_integration",
     "regression_tests",
-    "documentation_update"
+    "documentation_update",
+    "github_actions_verification"
   ],
   "verification": {
     "tests_reported": true,
     "review_status": "static_diff_reviewed",
     "ci_status": "passed",
-    "tested_commit": "b5ed9dfef556078871ce6290e4746e96ee55dc78",
+    "tested_commit": "0cd99c3cd393dc5afa3a9e47adfe5d7c3a6b02cf",
     "workflow_runs": [
       {
         "name": "Personal Companion tests",
-        "id": 43367981951,
+        "id": 43368283104,
         "python_versions": [
           "3.10",
           "3.12"
         ],
-        "tests_per_version": 19,
+        "tests_per_version": 20,
         "ui_tests": 8,
         "pnpm_check": "passed",
         "conclusion": "success"
       },
       {
         "name": "Coding Harness tests",
-        "id": 43367981890,
+        "id": 43368283200,
         "python_versions": [
           "3.11",
           "3.12"
@@ -44,7 +45,7 @@
         "conclusion": "success"
       }
     ],
-    "limitations": "No local test execution is claimed. Coding Harness production agent runtime remains quarantined and was not invoked; the workflow ran its unit tests only. No real Ollama/model weights or persistent TaskStore/CalDAV/Google Calendar integration were exercised."
+    "limitations": "No local test execution is claimed. The legacy Coding Harness production agent runtime remains quarantined and was not invoked; only its existing unit-test suite ran in CI. No real Ollama/model weights or persistent TaskStore/CalDAV/Google Calendar integration were exercised."
   },
   "changed_paths": [
     "Harness/Tools/Personal Companion/icarus_personal_companion/action_journal.py",
