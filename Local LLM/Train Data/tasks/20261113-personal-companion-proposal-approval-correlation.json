@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "personal-companion-proposal-approval-correlation-20261113",
+  "created_at": "2026-11-13T08:12:37+03:30",
+  "task": "اتصال پیشنهادهای دسته‌بندی و تقویم Personal Companion به تصمیم صریح کاربر از طریق proposal_id یک‌بارمصرف و ثبت هم‌بسته در Local LLM Action Journal.",
+  "status": "completed",
+  "summary": "برای هر پیشنهاد AI یک شناسه P- با ۳۲ رقم hex ساخته می‌شود؛ شناسه به رویداد پیشنهاد و رویداد تأیید یا رد در Action Journal منتقل می‌شود. تصمیم فقط با تطابق شناسه، action، route و model معتبر است، پس از ۱۵ دقیقه منقضی می‌شود و فقط یک بار قابل ثبت است. UI شناسه را برای تأیید و رد ارسال می‌کند. درخواست‌های JSON غیرشیء نیز پیش از پردازش رد می‌شوند.",
+  "steps": 8,
+  "tools_called": [
+    "github_repository_inspection",
+    "contract_review",
+    "action_journal_extension",
+    "proposal_approval_registry",
+    "ui_integration",
+    "regression_tests",
+    "documentation_update"
+  ],
+  "verification": {
+    "tests_reported": false,
+    "review_status": "static_diff_review_pending",
+    "ci_status": "pending",
+    "limitations": "Coding Harness production runtime is quarantined by repository policy and was not invoked. Local test execution is not claimed; GitHub Actions verification is pending."
+  },
+  "changed_paths": [
+    "Harness/Tools/Personal Companion/icarus_personal_companion/action_journal.py",
+    "Harness/Tools/Personal Companion/icarus_personal_companion/server.py",
+    "Local LLM/Train Data/schemas/action-event.schema.json",
+    "Harness/Tools/Personal Companion/tests/test_action_journal.py",
+    "Harness/Tools/Personal Companion/tests/test_ai_planner.py",
+    "Harness/Tools/Personal Companion/ui/app.js",
+    "Harness/Tools/Personal Companion/ui/tests/app.test.js",
+    "Harness/Tools/Personal Companion/README.md",
+    "Harness/Tools/Personal Companion/ARCHITECTURE.md",
+    "Local LLM/Train Data/README.md",
+    "Local LLM/Train Data/tasks/20261113-personal-companion-proposal-approval-correlation.json"
+  ],
+  "data_policy": {
+    "raw_prompts_included": false,
+    "file_contents_included": false,
+    "tool_arguments_included": false,
+    "secrets_included": false
+  }
+}
