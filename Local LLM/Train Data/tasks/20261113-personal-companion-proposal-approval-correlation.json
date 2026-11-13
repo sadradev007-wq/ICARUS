@@ -16,10 +16,35 @@
     "documentation_update"
   ],
   "verification": {
-    "tests_reported": false,
-    "review_status": "static_diff_review_pending",
-    "ci_status": "pending",
-    "limitations": "Coding Harness production runtime is quarantined by repository policy and was not invoked. Local test execution is not claimed; GitHub Actions verification is pending."
+    "tests_reported": true,
+    "review_status": "static_diff_reviewed",
+    "ci_status": "passed",
+    "tested_commit": "b5ed9dfef556078871ce6290e4746e96ee55dc78",
+    "workflow_runs": [
+      {
+        "name": "Personal Companion tests",
+        "id": 43367981951,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 19,
+        "ui_tests": 8,
+        "pnpm_check": "passed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Coding Harness tests",
+        "id": 43367981890,
+        "python_versions": [
+          "3.11",
+          "3.12"
+        ],
+        "tests_per_version": 73,
+        "conclusion": "success"
+      }
+    ],
+    "limitations": "No local test execution is claimed. Coding Harness production agent runtime remains quarantined and was not invoked; the workflow ran its unit tests only. No real Ollama/model weights or persistent TaskStore/CalDAV/Google Calendar integration were exercised."
   },
   "changed_paths": [
     "Harness/Tools/Personal Companion/icarus_personal_companion/action_journal.py",
