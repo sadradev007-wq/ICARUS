@@ -65,6 +65,31 @@ class ClassificationTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "خارج از taxonomy"):
                 server.classify({"item": "موضوع"})
 
+    def test_provider_rejects_non_string_routes(self):
+        with self.assertRaisesRegex(ValueError, "مسیر مدل"):
+            server.provider([])
+
+    def test_classifier_rejects_non_string_taxonomy_ids_and_boolean_confidence(self):
+        category = server.taxonomy()["categories"][0]
+        child = category["children"][0]
+        for model_result in (
+            {"category_id": [], "subcategory_id": child["id"], "confidence": 0.8},
+            {"category_id": category["id"], "subcategory_id": [], "confidence": 0.8},
+            {"category_id": category["id"], "subcategory_id": child["id"], "confidence": True},
+        ):
+            with patch.object(server, "ask", return_value=(model_result, "mock")), patch.object(server.JOURNAL, "record"):
+                with self.assertRaises(RuntimeError):
+                    server.classify({"item": "موضوع", "route": "system1_local"})
+
+    def test_audit_rejects_non_string_action_and_route(self):
+        base = {"approved": True, "model": "mock", "proposal_id": "P-" + "d" * 32}
+        for payload in (
+            {**base, "action": [], "route": "system1_local"},
+            {**base, "action": "calendar.plan", "route": []},
+        ):
+            with self.assertRaises(ValueError):
+                server.audit_approval(payload)
+
     def test_classifier_rejects_empty_input(self):
         with self.assertRaises(ValueError):
             server.classify({"item": "  "})

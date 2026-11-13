@@ -57,7 +57,7 @@ def read_json(h):
  if not isinstance(payload,dict): raise ValueError("بدنهٔ درخواست باید یک شیء JSON باشد.")
  return payload
 def provider(route):
- if route not in ROUTES: raise ValueError("مسیر مدل نامعتبر است.")
+ if not isinstance(route,str) or route not in ROUTES: raise ValueError("مسیر مدل نامعتبر است.")
  config_path=LOCAL_PROVIDER_CONFIG if LOCAL_PROVIDER_CONFIG.is_file() else PROVIDER_CONFIG
  try:
   with config_path.open(encoding="utf-8") as stream: config=json.load(stream)
@@ -96,8 +96,8 @@ def classify(p):
  result,model=ask(route,system,{"item":item,"context":p.get("context",""),"taxonomy":cats})
  valid={c["id"]:{s["id"] for s in c["children"]} for c in cats}
  cid=result.get("category_id"); sid=result.get("subcategory_id"); confidence=result.get("confidence",0)
- if cid not in valid or sid not in valid[cid]: raise RuntimeError("مدل شناسه‌ای خارج از taxonomy پیشنهاد کرد.")
- if not isinstance(confidence,(int,float)) or not 0<=confidence<=1: raise RuntimeError("درجهٔ اطمینان نامعتبر است.")
+ if not isinstance(cid,str) or not isinstance(sid,str) or cid not in valid or sid not in valid[cid]: raise RuntimeError("مدل شناسه‌ای خارج از taxonomy پیشنهاد کرد.")
+ if isinstance(confidence,bool) or not isinstance(confidence,(int,float)) or not 0<=confidence<=1: raise RuntimeError("درجهٔ اطمینان نامعتبر است.")
  proposal_id="P-"+uuid.uuid4().hex
  JOURNAL.record("assistant_decision",actor="assistant",action_name="taxonomy.classify",target_type="task",summary="Generated a taxonomy classification proposal; input length="+str(len(item)),outcome="proposed",approval_required=True,approval_status="pending",provider_route=route,model=model,proposal_id=proposal_id)
  _register_pending_proposal(proposal_id,"taxonomy.classification",route,model)
@@ -155,8 +155,8 @@ def audit_approval(p):
  if type(approved) is not bool: raise ValueError("وضعیت تأیید باید true یا false باشد.")
  action=p.get("action"); route=p.get("route"); model=p.get("model")
  proposal_id=p.get("proposal_id")
- if action not in {"taxonomy.classification","calendar.plan"}: raise ValueError("نوع تأیید نامعتبر است.")
- if route not in ROUTES: raise ValueError("مسیر مدل نامعتبر است.")
+ if not isinstance(action,str) or action not in {"taxonomy.classification","calendar.plan"}: raise ValueError("نوع تأیید نامعتبر است.")
+ if not isinstance(route,str) or route not in ROUTES: raise ValueError("مسیر مدل نامعتبر است.")
  if not isinstance(model,str) or not model.strip() or len(model)>120: raise ValueError("شناسهٔ مدل نامعتبر است.")
  if not isinstance(proposal_id,str) or not re.fullmatch(r"P-[a-f0-9]{32}",proposal_id): raise ValueError("شناسهٔ پیشنهاد نامعتبر است.")
  now=time.monotonic()
