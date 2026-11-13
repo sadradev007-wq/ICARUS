@@ -1,6 +1,6 @@
 """Local-first Personal Companion API with approval-first AI proposals."""
 from __future__ import annotations
-import json, os, mimetypes
+import json, os, mimetypes, re, threading, time, uuid
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -22,15 +22,40 @@ ROUTES = {
  "system2_local": ("ICARUS_SYSTEM2_LOCAL_URL","ICARUS_SYSTEM2_LOCAL_MODEL",None,"http://127.0.0.1:11434/v1","qwen2.5:7b"),
  "system2_api": ("ICARUS_SYSTEM2_API_URL","ICARUS_SYSTEM2_API_MODEL","ICARUS_SYSTEM2_API_KEY",None,None),
 }
+
+_PENDING_PROPOSALS = {}
+_PENDING_PROPOSALS_LOCK = threading.Lock()
+_PENDING_PROPOSAL_TTL_SECONDS = 900
+
+
+def _register_pending_proposal(proposal_id, action, route, model):
+ now = time.monotonic()
+ with _PENDING_PROPOSALS_LOCK:
+  expired = [key for key, value in _PENDING_PROPOSALS.items() if now - value[0] > _PENDING_PROPOSAL_TTL_SECONDS]
+  for key in expired:
+   _PENDING_PROPOSALS.pop(key, None)
+  _PENDING_PROPOSALS[proposal_id] = (now, action, route, model)
+
+
 def send_json(h,status,data):
  raw=json.dumps(data,ensure_ascii=False).encode()
  h.send_response(status); h.send_header("Content-Type","application/json; charset=utf-8")
  h.send_header("Content-Length",str(len(raw))); h.send_header("Cache-Control","no-store")
  h.end_headers(); h.wfile.write(raw)
 def read_json(h):
- n=int(h.headers.get("Content-Length","0"))
+ try:
+  n=int(h.headers.get("Content-Length","0"))
+ except (TypeError,ValueError) as exc:
+  raise ValueError("طول درخواست نامعتبر است.") from exc
  if n<2 or n>MAX_BODY: raise ValueError("اندازهٔ درخواست نامعتبر است.")
- return json.loads(h.rfile.read(n).decode())
+ raw=h.rfile.read(n)
+ if len(raw)!=n: raise ValueError("بدنهٔ درخواست ناقص است.")
+ try:
+  payload=json.loads(raw.decode("utf-8"))
+ except (UnicodeDecodeError,json.JSONDecodeError) as exc:
+  raise ValueError("بدنهٔ درخواست JSON معتبر نیست.") from exc
+ if not isinstance(payload,dict): raise ValueError("بدنهٔ درخواست باید یک شیء JSON باشد.")
+ return payload
 def provider(route):
  if route not in ROUTES: raise ValueError("مسیر مدل نامعتبر است.")
  config_path=LOCAL_PROVIDER_CONFIG if LOCAL_PROVIDER_CONFIG.is_file() else PROVIDER_CONFIG
@@ -73,8 +98,10 @@ def classify(p):
  cid=result.get("category_id"); sid=result.get("subcategory_id"); confidence=result.get("confidence",0)
  if cid not in valid or sid not in valid[cid]: raise RuntimeError("مدل شناسه‌ای خارج از taxonomy پیشنهاد کرد.")
  if not isinstance(confidence,(int,float)) or not 0<=confidence<=1: raise RuntimeError("درجهٔ اطمینان نامعتبر است.")
- JOURNAL.record("assistant_decision",actor="assistant",action_name="taxonomy.classify",target_type="task",summary="Generated a taxonomy classification proposal; input length="+str(len(item)),outcome="proposed",approval_required=True,approval_status="pending",provider_route=route,model=model)
- return {"proposal":result,"model":model,"route":route,"requires_user_approval":True,"applied":False}
+ proposal_id="P-"+uuid.uuid4().hex
+ JOURNAL.record("assistant_decision",actor="assistant",action_name="taxonomy.classify",target_type="task",summary="Generated a taxonomy classification proposal; input length="+str(len(item)),outcome="proposed",approval_required=True,approval_status="pending",provider_route=route,model=model,proposal_id=proposal_id)
+ _register_pending_proposal(proposal_id,"taxonomy.classification",route,model)
+ return {"proposal":result,"model":model,"route":route,"proposal_id":proposal_id,"requires_user_approval":True,"applied":False}
 def calendar_plan(p):
  route=p.get("route","system2_local"); tasks=p.get("tasks"); windows=p.get("available_windows"); busy=p.get("busy_events",[]); tz=p.get("timezone")
  if not isinstance(tasks,list) or not tasks or len(tasks)>200: raise ValueError("فهرست ۱ تا ۲۰۰ کار لازم است.")
@@ -118,16 +145,37 @@ def calendar_plan(p):
  parsed_events.sort(key=lambda pair:pair[0])
  for previous,current in zip(parsed_events,parsed_events[1:]):
   if current[0]<previous[1]: raise RuntimeError("پیشنهاد مدل شامل رویدادهای هم‌پوشان است.")
- JOURNAL.record("assistant_decision",actor="assistant",action_name="calendar.plan",target_type="calendar_event",summary="Generated a calendar proposal for "+str(len(tasks))+" tasks and "+str(len(windows))+" availability windows",outcome="proposed",approval_required=True,approval_status="pending",provider_route=route,model=model)
- return {"proposal":result,"model":model,"route":route,"requires_user_approval":True,"applied":False}
+ proposal_id="P-"+uuid.uuid4().hex
+ JOURNAL.record("assistant_decision",actor="assistant",action_name="calendar.plan",target_type="calendar_event",summary="Generated a calendar proposal for "+str(len(tasks))+" tasks and "+str(len(windows))+" availability windows",outcome="proposed",approval_required=True,approval_status="pending",provider_route=route,model=model,proposal_id=proposal_id)
+ _register_pending_proposal(proposal_id,"calendar.plan",route,model)
+ return {"proposal":result,"model":model,"route":route,"proposal_id":proposal_id,"requires_user_approval":True,"applied":False}
 def audit_approval(p):
- if p.get("approved") is not True: raise ValueError("تأیید صریح کاربر لازم است.")
- action=p.get("action"); route=p.get("route"); model=p.get("model","unknown")
+ if not isinstance(p,dict): raise ValueError("درخواست تأیید باید یک شیء باشد.")
+ approved=p.get("approved")
+ if type(approved) is not bool: raise ValueError("وضعیت تأیید باید true یا false باشد.")
+ action=p.get("action"); route=p.get("route"); model=p.get("model")
+ proposal_id=p.get("proposal_id")
  if action not in {"taxonomy.classification","calendar.plan"}: raise ValueError("نوع تأیید نامعتبر است.")
  if route not in ROUTES: raise ValueError("مسیر مدل نامعتبر است.")
- target="task" if action=="taxonomy.classification" else "calendar_event"
- JOURNAL.record("approval_granted",actor="user",action_name=action+".approve",target_type=target,summary="User explicitly approved the proposed "+action+" change",outcome="succeeded",approval_required=True,approval_status="approved",approved_by="user",provider_route=route,model=model)
- return {"audited":True,"approved_by":"user"}
+ if not isinstance(model,str) or not model.strip() or len(model)>120: raise ValueError("شناسهٔ مدل نامعتبر است.")
+ if not isinstance(proposal_id,str) or not re.fullmatch(r"P-[a-f0-9]{32}",proposal_id): raise ValueError("شناسهٔ پیشنهاد نامعتبر است.")
+ now=time.monotonic()
+ with _PENDING_PROPOSALS_LOCK:
+  pending=_PENDING_PROPOSALS.get(proposal_id)
+  if pending is None: raise ValueError("پیشنهاد پیدا نشد، منقضی شده یا قبلاً رسیدگی شده است.")
+  created_at,expected_action,expected_route,expected_model=pending
+  if now-created_at>_PENDING_PROPOSAL_TTL_SECONDS:
+   _PENDING_PROPOSALS.pop(proposal_id,None)
+   raise ValueError("مهلت تأیید پیشنهاد پایان یافته است؛ دوباره پیشنهاد بگیر.")
+  if (action,route,model)!=(expected_action,expected_route,expected_model):
+   raise ValueError("اطلاعات تأیید با پیشنهاد اصلی مطابقت ندارد.")
+  target="task" if action=="taxonomy.classification" else "calendar_event"
+  event_type="approval_granted" if approved else "approval_denied"
+  approval_status="approved" if approved else "denied"
+  outcome="succeeded" if approved else "denied"
+  JOURNAL.record(event_type,actor="user",action_name=action+(".approve" if approved else ".reject"),target_type=target,summary="User "+("approved" if approved else "rejected")+" the proposed "+action+" change",outcome=outcome,approval_required=True,approval_status=approval_status,approved_by="user",provider_route=route,model=model,proposal_id=proposal_id)
+  _PENDING_PROPOSALS.pop(proposal_id,None)
+ return {"audited":True,"approved_by":"user","approved":approved,"proposal_id":proposal_id}
 
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,fmt,*args): print("%s - %s"%(self.address_string(),fmt%args))

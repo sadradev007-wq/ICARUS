@@ -36,6 +36,21 @@ class ActionJournalTests(unittest.TestCase):
             self.assertFalse(payload["privacy"]["file_content_included"])
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
+    def test_proposal_id_is_persisted_and_validated(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            journal = ActionJournal(Path(temporary))
+            proposal_id = "P-" + "a" * 32
+            path = journal.record(
+                "assistant_decision", actor="assistant", action_name="calendar.plan",
+                outcome="proposed", approval_required=True, approval_status="pending",
+                proposal_id=proposal_id,
+            )
+            assert path is not None
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["proposal_id"], proposal_id)
+            with self.assertRaises(ValueError):
+                journal.record("assistant_decision", actor="assistant", action_name="calendar.plan", proposal_id="invalid")
+
     def test_disabled_capture_writes_nothing(self):
         with tempfile.TemporaryDirectory() as temporary:
             journal = ActionJournal(Path(temporary), enabled=False)

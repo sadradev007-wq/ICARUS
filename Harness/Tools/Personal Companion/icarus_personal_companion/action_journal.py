@@ -128,6 +128,7 @@ class ActionJournal:
         conversation_id: str | None = None,
         task_id: str | None = None,
         run_id: str | None = None,
+        proposal_id: str | None = None,
         provider_route: str | None = None,
         model: str | None = None,
         content_sha256: str | None = None,
@@ -148,11 +149,14 @@ class ActionJournal:
         if content_sha256 is not None and not re.fullmatch(r"[a-f0-9]{64}", content_sha256):
             raise ValueError("content_sha256 must be a lowercase SHA-256 digest")
         for value, field in (
-            (conversation_id, "conversation_id"), (task_id, "task_id"), (run_id, "run_id")
+            (conversation_id, "conversation_id"), (task_id, "task_id"),
+            (run_id, "run_id"), (proposal_id, "proposal_id")
         ):
             self._validate_id(value, field)
         if run_id is not None and not re.fullmatch(r"[a-f0-9]{32}", run_id):
             raise ValueError("run_id must be a 32-character lowercase UUID hex value")
+        if proposal_id is not None and not re.fullmatch(r"P-[a-f0-9]{32}", proposal_id):
+            raise ValueError("proposal_id must be a P-prefixed 32-character lowercase UUID hex value")
         if not isinstance(action_name, str) or not action_name.strip():
             raise ValueError("action_name cannot be empty")
         if not isinstance(summary, str):
@@ -201,7 +205,8 @@ class ActionJournal:
             if model is not None:
                 event["provider"]["model"] = _redact(model, 120)
         for key, value in (
-            ("conversation_id", conversation_id), ("task_id", task_id), ("run_id", run_id)
+            ("conversation_id", conversation_id), ("task_id", task_id),
+            ("run_id", run_id), ("proposal_id", proposal_id)
         ):
             if value is not None:
                 event[key] = value
