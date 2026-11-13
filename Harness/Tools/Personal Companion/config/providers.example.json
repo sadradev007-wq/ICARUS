@@ -6,7 +6,7 @@
       "enabled": true,
       "kind": "local",
       "base_url": "http://127.0.0.1:11434/v1",
-      "model": "qwen2.5:7b",
+      "model": "qwen2.5:3b",
       "api_key_env": null,
       "timeout_seconds": 90
     },
@@ -19,7 +19,7 @@
       "timeout_seconds": 90
     },
     "system2_local": {
-      "enabled": false,
+      "enabled": true,
       "kind": "local",
       "base_url": "http://127.0.0.1:11434/v1",
       "model": "qwen2.5:7b",
@@ -38,12 +38,16 @@
   "routing": {
     "simple_intent": "system1_local",
     "complex_reasoning": "system2_local",
-    "allow_automatic_fallback": false
+    "allow_automatic_fallback": false,
+    "category_classification": "system1_local",
+    "calendar_planning": "system2_local"
   },
   "safety": {
-    "chat_only_initially": true,
+    "chat_only_initially": false,
     "legacy_agents_enabled": false,
     "tool_execution_requires_policy": true,
-    "provider_config_cannot_change_permissions": true
+    "provider_config_cannot_change_permissions": true,
+    "ai_planning_requires_user_approval": true,
+    "calendar_planning_uses_explicit_availability": true
   }
 }

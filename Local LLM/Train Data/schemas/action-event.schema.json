@@ -16,6 +16,7 @@
     "conversation_id": { "type": "string", "maxLength": 128 },
     "task_id": { "type": "string", "maxLength": 128 },
     "run_id": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
+    "proposal_id": { "type": "string", "pattern": "^P-[a-f0-9]{32}$", "description": "Correlates an AI proposal with its one-time user approval or rejection event." },
     "event_type": {
       "enum": ["user_request", "assistant_decision", "tool_started", "tool_finished", "mutation_proposed", "mutation_applied", "approval_granted", "approval_denied", "checkpoint_created", "rollback_applied", "task_changed", "calendar_changed", "provider_selected", "error", "response_completed"]
     },

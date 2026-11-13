@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0.0",
+  "record_id": "personal-companion-proposal-approval-correlation-20261113",
+  "created_at": "2026-11-13T08:12:37+03:30",
+  "task": "اتصال پیشنهادهای دسته‌بندی و تقویم Personal Companion به تصمیم صریح کاربر از طریق proposal_id یک‌بارمصرف و ثبت هم‌بسته در Local LLM Action Journal.",
+  "status": "completed",
+  "summary": "برای هر پیشنهاد AI یک شناسه P- با ۳۲ رقم hex ساخته می‌شود؛ شناسه به رویداد پیشنهاد و رویداد تأیید یا رد در Action Journal منتقل می‌شود. تصمیم فقط با تطابق شناسه، action، route و model معتبر است، پس از ۱۵ دقیقه منقضی می‌شود و فقط یک بار قابل ثبت است. UI شناسه را برای تأیید و رد ارسال می‌کند. درخواست‌های JSON غیرشیء و انواع نامعتبر route/action/taxonomy/confidence نیز امن رد می‌شوند.",
+  "steps": 10,
+  "tools_called": [
+    "github_repository_inspection",
+    "contract_review",
+    "action_journal_extension",
+    "proposal_approval_registry",
+    "ui_integration",
+    "regression_tests",
+    "documentation_update",
+    "github_actions_verification"
+  ],
+  "verification": {
+    "tests_reported": true,
+    "review_status": "static_diff_reviewed",
+    "ci_status": "passed",
+    "tested_commit": "d3a0006dad13b68b87b9b9b6771deedfb2251889",
+    "workflow_runs": [
+      {
+        "name": "Personal Companion tests",
+        "id": 43368469041,
+        "python_versions": [
+          "3.10",
+          "3.12"
+        ],
+        "tests_per_version": 23,
+        "ui_tests": 8,
+        "pnpm_check": "passed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Coding Harness tests",
+        "id": 43368469102,
+        "python_versions": [
+          "3.11",
+          "3.12"
+        ],
+        "tests_per_version": 73,
+        "conclusion": "success"
+      }
+    ],
+    "limitations": "No local test execution is claimed. The legacy Coding Harness production agent runtime remains quarantined and was not invoked; only its existing unit-test suite ran in CI. No real Ollama/model weights or persistent TaskStore/CalDAV/Google Calendar integration were exercised."
+  },
+  "changed_paths": [
+    "Harness/Tools/Personal Companion/icarus_personal_companion/action_journal.py",
+    "Harness/Tools/Personal Companion/icarus_personal_companion/server.py",
+    "Local LLM/Train Data/schemas/action-event.schema.json",
+    "Harness/Tools/Personal Companion/tests/test_action_journal.py",
+    "Harness/Tools/Personal Companion/tests/test_ai_planner.py",
+    "Harness/Tools/Personal Companion/ui/app.js",
+    "Harness/Tools/Personal Companion/ui/tests/app.test.js",
+    "Harness/Tools/Personal Companion/README.md",
+    "Harness/Tools/Personal Companion/ARCHITECTURE.md",
+    "Local LLM/Train Data/README.md",
+    "Local LLM/Train Data/tasks/20261113-personal-companion-proposal-approval-correlation.json"
+  ],
+  "data_policy": {
+    "raw_prompts_included": false,
+    "file_contents_included": false,
+    "tool_arguments_included": false,
+    "secrets_included": false
+  }
+}
