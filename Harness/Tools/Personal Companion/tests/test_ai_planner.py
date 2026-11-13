@@ -44,6 +44,13 @@ class ClassificationTests(unittest.TestCase):
         self.assertEqual(journal_record.call_count, 2)
         self.assertEqual(journal_record.call_args.kwargs["proposal_id"], result["proposal_id"])
 
+    def test_expired_proposal_cannot_be_approved(self):
+        proposal_id = "P-" + "c" * 32
+        with patch.object(server.time, "monotonic", side_effect=[100.0, 100.0 + server._PENDING_PROPOSAL_TTL_SECONDS + 1]):
+            server._register_pending_proposal(proposal_id, "calendar.plan", "system2_local", "mock-model")
+            with self.assertRaisesRegex(ValueError, "مهلت"):
+                server.audit_approval({"approved": True, "action": "calendar.plan", "route": "system2_local", "model": "mock-model", "proposal_id": proposal_id})
+
     def test_approval_rejects_unknown_replayed_and_mismatched_proposals(self):
         proposal_id = "P-" + "b" * 32
         server._register_pending_proposal(proposal_id, "calendar.plan", "system2_local", "mock-model")
