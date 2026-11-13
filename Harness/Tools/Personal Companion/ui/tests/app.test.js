@@ -54,6 +54,12 @@ test("legacy agents remain visibly quarantined and AI providers are independentl
   }
 });
 
+test("classification and calendar decisions use the server-issued one-time proposal ID", () => {
+  assert.equal((js.match(/proposal_id:data\.proposal_id/g) || []).length, 4);
+  assert.match(js, /approved:false/);
+  assert.match(js, /شناسهٔ پیشنهاد معتبر/);
+});
+
 test("responsive and reduced-motion rules are present", () => {
   assert.match(css, /@media\(max-width:600px\)/);
   assert.match(css, /prefers-reduced-motion/);

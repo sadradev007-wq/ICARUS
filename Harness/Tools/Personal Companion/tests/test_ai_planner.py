@@ -1,8 +1,15 @@
 import json
+import re
 import unittest
+from io import BytesIO
 from unittest.mock import patch
 
 from icarus_personal_companion import server
+
+
+def clear_pending_proposals():
+    with server._PENDING_PROPOSALS_LOCK:
+        server._PENDING_PROPOSALS.clear()
 
 
 class TaxonomyTests(unittest.TestCase):
@@ -14,6 +21,9 @@ class TaxonomyTests(unittest.TestCase):
 
 
 class ClassificationTests(unittest.TestCase):
+    def setUp(self):
+        clear_pending_proposals()
+
     def test_classifier_only_returns_a_valid_taxonomy_path_and_requires_approval(self):
         category = server.taxonomy()["categories"][0]
         child = category["children"][0]
@@ -24,11 +34,24 @@ class ClassificationTests(unittest.TestCase):
             "rationale": "A test rationale",
             "alternatives": [],
         }
-        with patch.object(server, "ask", return_value=(model_result, "mock-model")), patch.object(server.JOURNAL, "record"):
+        with patch.object(server, "ask", return_value=(model_result, "mock-model")), patch.object(server.JOURNAL, "record") as journal_record:
             result = server.classify({"item": "مطالعهٔ نمونه", "route": "system1_local"})
+            self.assertIsNotNone(re.fullmatch(r"P-[a-f0-9]{32}", result["proposal_id"]))
+            server.audit_approval({"approved": True, "action": "taxonomy.classification", "route": "system1_local", "model": "mock-model", "proposal_id": result["proposal_id"]})
         self.assertTrue(result["requires_user_approval"])
         self.assertFalse(result["applied"])
         self.assertEqual(result["proposal"]["category_id"], category["id"])
+        self.assertEqual(journal_record.call_count, 2)
+        self.assertEqual(journal_record.call_args.kwargs["proposal_id"], result["proposal_id"])
+
+    def test_approval_rejects_unknown_replayed_and_mismatched_proposals(self):
+        proposal_id = "P-" + "b" * 32
+        server._register_pending_proposal(proposal_id, "calendar.plan", "system2_local", "mock-model")
+        with self.assertRaisesRegex(ValueError, "مطابقت"):
+            server.audit_approval({"approved": True, "action": "taxonomy.classification", "route": "system2_local", "model": "mock-model", "proposal_id": proposal_id})
+        server.audit_approval({"approved": True, "action": "calendar.plan", "route": "system2_local", "model": "mock-model", "proposal_id": proposal_id})
+        with self.assertRaisesRegex(ValueError, "پیدا نشد"):
+            server.audit_approval({"approved": True, "action": "calendar.plan", "route": "system2_local", "model": "mock-model", "proposal_id": proposal_id})
 
     def test_classifier_rejects_unknown_taxonomy_ids(self):
         with patch.object(server, "ask", return_value=({"category_id": "unknown", "subcategory_id": "bad", "confidence": 1}, "mock")), patch.object(server.JOURNAL, "record"):
@@ -42,6 +65,7 @@ class ClassificationTests(unittest.TestCase):
 
 class CalendarPlanningTests(unittest.TestCase):
     def setUp(self):
+        clear_pending_proposals()
         self.payload = {
             "route": "system2_local",
             "tasks": [{"id": "task-1", "title": "مطالعه", "duration_minutes": 60}],
@@ -92,17 +116,41 @@ class CalendarPlanningTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             server.calendar_plan(payload)
 
-    def test_calendar_rejects_approval_when_user_has_not_approved(self):
-        with self.assertRaises(ValueError):
-            server.audit_approval({"approved": False, "action": "calendar.plan", "route": "system2_local"})
+    def test_calendar_approval_requires_a_live_proposal_reference(self):
+        with self.assertRaisesRegex(ValueError, "شناسهٔ پیشنهاد"):
+            server.audit_approval({"approved": True, "action": "calendar.plan", "route": "system2_local", "model": "mock"})
 
-    def test_calendar_approval_is_recorded_as_explicit_user_action(self):
-        with patch.object(server.JOURNAL, "record") as record:
-            result = server.audit_approval({"approved": True, "action": "calendar.plan", "route": "system2_local", "model": "mock"})
-        self.assertTrue(result["audited"])
-        record.assert_called_once()
-        self.assertEqual(record.call_args.kwargs["approval_status"], "approved")
-        self.assertEqual(record.call_args.kwargs["approved_by"], "user")
+    def test_calendar_approval_is_recorded_against_the_original_proposal(self):
+        proposal = {"events": [{"title": "مطالعه", "task_id": "task-1", "start": "2026-11-12T09:00:00-08:00", "end": "2026-11-12T10:00:00-08:00"}], "conflicts": [], "notes": []}
+        with patch.object(server, "ask", return_value=(proposal, "mock")), patch.object(server.JOURNAL, "record") as record:
+            result = server.calendar_plan(self.payload)
+            approval = server.audit_approval({"approved": True, "action": "calendar.plan", "route": "system2_local", "model": "mock", "proposal_id": result["proposal_id"]})
+        self.assertTrue(approval["audited"])
+        self.assertTrue(approval["approved"])
+        self.assertEqual(record.call_count, 2)
+        self.assertEqual(record.call_args_list[0].kwargs["proposal_id"], result["proposal_id"])
+        self.assertEqual(record.call_args_list[1].args[0], "approval_granted")
+        self.assertEqual(record.call_args_list[1].kwargs["proposal_id"], result["proposal_id"])
+        self.assertEqual(record.call_args_list[1].kwargs["approval_status"], "approved")
+        self.assertEqual(record.call_args_list[1].kwargs["approved_by"], "user")
+
+    def test_calendar_rejection_is_audited_and_cannot_be_replayed(self):
+        proposal = {"events": [{"title": "مطالعه", "task_id": "task-1", "start": "2026-11-12T09:00:00-08:00", "end": "2026-11-12T10:00:00-08:00"}], "conflicts": [], "notes": []}
+        with patch.object(server, "ask", return_value=(proposal, "mock")), patch.object(server.JOURNAL, "record") as record:
+            result = server.calendar_plan(self.payload)
+            denied = server.audit_approval({"approved": False, "action": "calendar.plan", "route": "system2_local", "model": "mock", "proposal_id": result["proposal_id"]})
+            self.assertFalse(denied["approved"])
+            self.assertEqual(record.call_args.args[0], "approval_denied")
+            self.assertEqual(record.call_args.kwargs["approval_status"], "denied")
+            with self.assertRaisesRegex(ValueError, "پیدا نشد"):
+                server.audit_approval({"approved": False, "action": "calendar.plan", "route": "system2_local", "model": "mock", "proposal_id": result["proposal_id"]})
+
+    def test_read_json_rejects_non_object_payloads(self):
+        class Request:
+            headers = {"Content-Length": "2"}
+            rfile = BytesIO(b"[]")
+        with self.assertRaisesRegex(ValueError, "شیء JSON"):
+            server.read_json(Request())
 
 
 if __name__ == "__main__":
