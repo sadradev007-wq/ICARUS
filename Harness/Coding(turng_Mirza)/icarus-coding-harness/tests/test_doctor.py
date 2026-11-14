@@ -85,6 +85,16 @@ class ModelDoctorTests(unittest.TestCase):
         self.assertEqual(report["credential_source"], "local_default")
         self.assertEqual(self.server.requests[0][2], "Bearer local")
 
+    def test_report_does_not_echo_configured_url_path(self):
+        private_path = "deployment-path-token"
+        base_url = f"http://127.0.0.1:{self.server.server_port}/v1/{private_path}"
+
+        report = run_doctor(self.config(base_url=base_url))
+
+        self.assertEqual(report["status"], "ok")
+        self.assertNotIn(private_path, json.dumps(report))
+        self.assertEqual(self.server.requests[0][1], f"/v1/{private_path}/models")
+
     def test_missing_model_is_warning_not_success(self):
         report = run_doctor(self.config(model="not-installed"))
 
