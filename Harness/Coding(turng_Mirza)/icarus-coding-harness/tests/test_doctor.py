@@ -128,6 +128,8 @@ class ModelDoctorTests(unittest.TestCase):
         for unsafe_url in (
             f"http://user:password@127.0.0.1:{self.server.server_port}/v1",
             f"http://127.0.0.1:{self.server.server_port}/v1?token=secret",
+            f"http://127.0.0.1:{self.server.server_port}/v1?",
+            f"http://127.0.0.1:{self.server.server_port}/v1#",
         ):
             with self.subTest(url=unsafe_url):
                 report = run_doctor(self.config(base_url=unsafe_url))
