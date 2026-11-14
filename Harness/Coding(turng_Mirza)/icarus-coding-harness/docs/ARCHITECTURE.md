@@ -7,6 +7,12 @@ CLI -> Task Companion JSON adapter -> AgentRuntime -> OpenAI-compatible model ad
                  -> TaskDatasetWriter -> Local LLM/Train Data/tasks (one JSON record per run)
                  -> optional execution event -> Task Companion confirmation -> TaskStore
 
+## Read-only model doctor
+
+The CLI has a separate `doctor` path: it loads the same `HarnessConfig` as the runtime, validates the model endpoint settings, and issues a bounded `GET /models` request. It does not instantiate `AgentRuntime` or `OpenAICompatibleModel`, call Chat Completions, write Local LLM task records, or create Task Companion feedback. Redirects are rejected so the configured Authorization header is not forwarded to another origin. Non-loopback HTTP endpoints are rejected before any request, preventing credentials from being sent in cleartext. The report contract is `schemas/harness-doctor.v1.schema.json`.
+
+This diagnostic is intentionally compatible with the current agent quarantine: it verifies endpoint reachability and the advertised model list only. It does not prove inference compatibility or activate any agent.
+
 The runtime is deliberately bounded. Workspace resolves every path against a canonical root. Tool schemas are explicit. The policy layer centralizes approval and command allowlisting. Git is observed but never automatically committed or pushed.
 
 ## Task Companion launch and feedback

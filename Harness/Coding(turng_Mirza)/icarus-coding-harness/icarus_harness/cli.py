@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from . import __version__
 from .config import HarnessConfig
+from .doctor import run_doctor
 from .git import diff, status
 from .runtime import AgentRuntime
 from .task_bridge import load_task_prompt, write_execution_event
@@ -29,6 +30,12 @@ def main() -> None:
     inspect.add_argument("--workspace", default=".")
     git = sub.add_parser("status")
     git.add_argument("--workspace", default=".")
+    doctor = sub.add_parser(
+        "doctor",
+        help="Check the configured OpenAI-compatible model endpoint without inference",
+    )
+    doctor.add_argument("--workspace", default=".")
+
     args = parser.parse_args()
     if args.action == "run":
         if args.task_id and (not args.task_store or args.task):
@@ -38,6 +45,13 @@ def main() -> None:
         if not args.task_id and not args.task:
             parser.error("run requires a task prompt or --task-store with --task-id")
     try:
+        if args.action == "doctor":
+            report = run_doctor(HarnessConfig.load(Path(args.workspace).resolve()).model)
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            if report["status"] == "error":
+                sys.exit(2)
+            return
+
         ws = Workspace(Path(args.workspace))
         if args.action == "init":
             meta = ws.resolve(".icarus")
