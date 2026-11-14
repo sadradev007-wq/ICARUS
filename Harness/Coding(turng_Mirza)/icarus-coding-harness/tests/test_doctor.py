@@ -6,6 +6,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -167,6 +168,37 @@ class ModelDoctorTests(unittest.TestCase):
 
         self.assertEqual(report["status"], "error")
         self.assertEqual(self.server.requests, [])
+
+    def test_versioned_report_schema_is_valid_json(self):
+        schema_path = Path(__file__).resolve().parents[1] / "schemas" / "harness-doctor.v1.schema.json"
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(schema["properties"]["schema"]["const"], "icarus.harness-doctor.v1")
+        self.assertIn("checks", schema["required"])
+
+    def test_cli_returns_two_for_endpoint_errors(self):
+        with tempfile.TemporaryDirectory() as workspace:
+            with (
+                patch.object(sys, "argv", [
+                    "icarus-harness", "doctor", "--workspace", workspace
+                ]),
+                patch.object(
+                    cli.HarnessConfig,
+                    "load",
+                    return_value=SimpleNamespace(model=self.config()),
+                ),
+                patch.object(cli, "run_doctor", return_value={
+                    "schema": "icarus.harness-doctor.v1",
+                    "status": "error",
+                    "checks": [],
+                    "chat_completions_probe": "skipped",
+                }),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                with self.assertRaises(SystemExit) as raised:
+                    cli.main()
+
+        self.assertEqual(raised.exception.code, 2)
 
     def test_cli_doctor_is_available_while_agent_runtime_is_quarantined(self):
         with tempfile.TemporaryDirectory() as workspace:
