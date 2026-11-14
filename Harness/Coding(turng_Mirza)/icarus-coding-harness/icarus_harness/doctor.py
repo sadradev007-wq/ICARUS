@@ -89,6 +89,8 @@ def run_doctor(config: ModelConfig) -> dict[str, Any]:
         or parsed.password is not None
         or parsed.query
         or parsed.fragment
+        or "?" in base_url
+        or "#" in base_url
     ):
         return _report([_check(
             "configuration",
