@@ -67,8 +67,8 @@ def run_doctor(config: ModelConfig) -> dict[str, Any]:
 
     if not isinstance(base_url, str) or not base_url.strip() or any(ch.isspace() for ch in base_url):
         return _report([_check("configuration", "error", "Model base URL must be a non-empty URL.")])
-    if not isinstance(model, str) or not model.strip():
-        return _report([_check("configuration", "error", "Configured model name must be non-empty text.")])
+    if not isinstance(model, str) or not model.strip() or model != model.strip():
+        return _report([_check("configuration", "error", "Configured model name must be non-empty text without surrounding whitespace.")])
     if not isinstance(api_key_env, str) or not _API_KEY_ENV_PATTERN.fullmatch(api_key_env):
         return _report([_check("configuration", "error", "API-key environment variable name is invalid.")])
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not 0 < timeout <= 600:
@@ -109,9 +109,10 @@ def run_doctor(config: ModelConfig) -> dict[str, Any]:
     if parsed.scheme == "http" and not loopback:
         checks.append(_check(
             "transport",
-            "warning",
-            "The endpoint uses unencrypted HTTP on a non-loopback host; use HTTPS on an untrusted network.",
+            "error",
+            "Refusing to send authorization over unencrypted HTTP to a non-loopback host; configure HTTPS.",
         ))
+        return _report(checks, model=model, endpoint=endpoint)
     else:
         checks.append(_check("transport", "ok", "Endpoint transport is HTTPS or loopback HTTP."))
 
