@@ -78,7 +78,7 @@ def run_doctor(config: ModelConfig) -> dict[str, Any]:
         parsed = urlsplit(base_url)
         host = parsed.hostname
         # Accessing .port also validates malformed port syntax.
-        parsed.port
+        port = parsed.port
     except ValueError:
         return _report([_check("configuration", "error", "Model base URL is malformed.")])
 
@@ -96,8 +96,13 @@ def run_doctor(config: ModelConfig) -> dict[str, Any]:
             "Model base URL must use HTTP(S) and must not contain userinfo, query parameters, or a fragment.",
         )])
 
-    endpoint = base_url.rstrip("/") + "/models"
-    model_name = model.strip()
+    endpoint_url = base_url.rstrip("/") + "/models"
+    authority = f"[{host}]" if ":" in host else host
+    if port is not None:
+        authority += f":{port}"
+    # Do not echo a configured URL path: some deployments put sensitive tokens there.
+    endpoint_label = f"{parsed.scheme}://{authority}"
+    model_name = model
     checks.append(_check("configuration", "ok", "Model URL, name, credential setting, and timeout are valid."))
 
     loopback = host.lower() == "localhost"
@@ -112,15 +117,15 @@ def run_doctor(config: ModelConfig) -> dict[str, Any]:
             "error",
             "Refusing to send authorization over unencrypted HTTP to a non-loopback host; configure HTTPS.",
         ))
-        return _report(checks, model=model, endpoint=endpoint)
+        return _report(checks, model=model, endpoint=endpoint_label)
     else:
         checks.append(_check("transport", "ok", "Endpoint transport is HTTPS or loopback HTTP."))
 
     if api_key_env in os.environ:
         api_key = os.environ[api_key_env]
-        if not api_key or "\r" in api_key or "\n" in api_key:
+        if not api_key or api_key != api_key.strip() or any(ch.isspace() for ch in api_key):
             checks.append(_check("credentials", "error", "Configured API-key environment variable is empty or invalid."))
-            return _report(checks, model=model_name, endpoint=endpoint)
+            return _report(checks, model=model_name, endpoint=endpoint_label)
         credential_source = "environment"
     else:
         # Match OpenAICompatibleModel's local-server fallback without displaying it.
@@ -129,7 +134,7 @@ def run_doctor(config: ModelConfig) -> dict[str, Any]:
     checks.append(_check("credentials", "ok", "Authorization will use the configured environment key or the local default; its value is never reported."))
 
     request = Request(
-        endpoint,
+        endpoint_url,
         headers={
             "Accept": "application/json",
             "Authorization": f"Bearer {api_key}",
@@ -142,7 +147,7 @@ def run_doctor(config: ModelConfig) -> dict[str, Any]:
             raw = response.read(_MAX_RESPONSE_BYTES + 1)
             if len(raw) > _MAX_RESPONSE_BYTES:
                 checks.append(_check("endpoint", "error", "Model-list response exceeded the 1 MiB safety limit."))
-                return _report(checks, model=model_name, endpoint=endpoint, credential_source=credential_source)
+                return _report(checks, model=model_name, endpoint=endpoint_label, credential_source=credential_source)
     except HTTPError as exc:
         if exc.code in {301, 302, 303, 307, 308}:
             message = f"Endpoint redirected with HTTP {exc.code}; redirects are not followed."
@@ -153,20 +158,20 @@ def run_doctor(config: ModelConfig) -> dict[str, Any]:
         else:
             message = f"Endpoint returned HTTP {exc.code}."
         checks.append(_check("endpoint", "error", message))
-        return _report(checks, model=model_name, endpoint=endpoint, credential_source=credential_source)
+        return _report(checks, model=model_name, endpoint=endpoint_label, credential_source=credential_source)
     except (URLError, TimeoutError, OSError):
         checks.append(_check(
             "endpoint",
             "error",
             f"Could not reach the model endpoint within {timeout} seconds.",
         ))
-        return _report(checks, model=model_name, endpoint=endpoint, credential_source=credential_source)
+        return _report(checks, model=model_name, endpoint=endpoint_label, credential_source=credential_source)
 
     try:
         payload = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         checks.append(_check("endpoint", "error", "GET /models did not return valid UTF-8 JSON."))
-        return _report(checks, model=model_name, endpoint=endpoint, credential_source=credential_source)
+        return _report(checks, model=model_name, endpoint=endpoint_label, credential_source=credential_source)
 
     models = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(models, list):
@@ -175,7 +180,7 @@ def run_doctor(config: ModelConfig) -> dict[str, Any]:
             "error",
             "Response is not an OpenAI-compatible model list containing a data array.",
         ))
-        return _report(checks, model=model_name, endpoint=endpoint, credential_source=credential_source)
+        return _report(checks, model=model_name, endpoint=endpoint_label, credential_source=credential_source)
 
     available = {
         item.get("id")
@@ -199,6 +204,6 @@ def run_doctor(config: ModelConfig) -> dict[str, Any]:
     return _report(
         checks,
         model=model_name,
-        endpoint=endpoint,
+        endpoint=endpoint_label,
         credential_source=credential_source,
     )
