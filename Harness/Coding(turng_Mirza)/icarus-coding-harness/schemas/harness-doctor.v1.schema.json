@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/harness-doctor.v1.schema.json",
+  "title": "ICARUS Coding Harness Model Doctor Report",
+  "type": "object",
+  "required": ["schema", "status", "checks", "chat_completions_probe"],
+  "properties": {
+    "schema": {
+      "const": "icarus.harness-doctor.v1"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ok", "warning", "error"]
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "endpoint": {
+      "type": "string",
+      "format": "uri"
+    },
+    "credential_source": {
+      "type": "string",
+      "enum": ["environment", "local_default"]
+    },
+    "chat_completions_probe": {
+      "const": "skipped"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "status", "message"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ok", "warning", "error", "skipped"]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
