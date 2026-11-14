@@ -20,6 +20,8 @@ class _ModelHandler(BaseHTTPRequestHandler):
         self.server.requests.append((self.command, self.path, self.headers.get("Authorization")))
         self.send_response(self.server.status_code)
         self.send_header("Content-Type", self.server.content_type)
+        if self.server.location:
+            self.send_header("Location", self.server.location)
         self.end_headers()
         self.wfile.write(self.server.body)
 
@@ -39,6 +41,7 @@ class ModelDoctorTests(unittest.TestCase):
         self.server.requests = []
         self.server.status_code = 200
         self.server.content_type = "application/json"
+        self.server.location = None
         self.server.body = json.dumps({
             "object": "list",
             "data": [{"id": "qwen2.5-coder:7b", "object": "model"}],
@@ -118,6 +121,35 @@ class ModelDoctorTests(unittest.TestCase):
             with self.subTest(url=unsafe_url):
                 report = run_doctor(self.config(base_url=unsafe_url))
                 self.assertEqual(report["status"], "error")
+        self.assertEqual(self.server.requests, [])
+
+    def test_refuses_remote_plain_http_before_sending_credentials(self):
+        report = run_doctor(self.config(base_url="http://model.example.invalid:11434/v1"))
+
+        self.assertEqual(report["status"], "error")
+        self.assertEqual(self.server.requests, [])
+
+    def test_does_not_follow_redirects(self):
+        self.server.status_code = 302
+        self.server.location = "http://127.0.0.1:1/redirect-target"
+
+        report = run_doctor(self.config())
+
+        self.assertEqual(report["status"], "error")
+        self.assertEqual(len(self.server.requests), 1)
+        self.assertIn("redirected", json.dumps(report))
+
+    def test_rejects_empty_environment_key_before_network_access(self):
+        with patch.dict(os.environ, {"ICARUS_DOCTOR_TEST_KEY": " "}):
+            report = run_doctor(self.config())
+
+        self.assertEqual(report["status"], "error")
+        self.assertEqual(self.server.requests, [])
+
+    def test_rejects_model_name_with_surrounding_whitespace(self):
+        report = run_doctor(self.config(model=" qwen2.5-coder:7b "))
+
+        self.assertEqual(report["status"], "error")
         self.assertEqual(self.server.requests, [])
 
     def test_rejects_invalid_timeout_before_network_access(self):
