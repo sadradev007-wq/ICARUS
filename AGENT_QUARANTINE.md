@@ -17,6 +17,7 @@ This is a temporary architecture boundary, not a deletion or rewrite of the exis
 - Read-only repository/project inspection and queue status.
 - Existing task records, previous execution results, and visualization files.
 - Human review of already-created execution results and ordinary Task Companion operations.
+- Read-only Coding Harness model diagnostics (`icarus-harness doctor`): configuration checks and `GET /models` only; no Chat Completions inference, runtime construction, training-data capture, or task mutation.
 
 ## Enforcement
 
