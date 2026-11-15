@@ -23,6 +23,12 @@ The local server binds to 127.0.0.1:4173 by default and serves both the UI and A
 
 The four model routes are configured through config/providers.local.json (copy from config/providers.example.json). Create the local file with `cp config/providers.example.json config/providers.local.json`; it is ignored by Git. API keys are environment variables only. The local routes use OpenAI-compatible endpoints; Ollama's OpenAI-compatible API is the default local endpoint.
 
+## Provider configuration contract
+
+The versioned contract is `schemas/llm-providers.v1.schema.json`. It describes all four route profiles, the simple/complex routing selectors, the category/calendar selectors, and every safety metadata field shipped in `config/providers.example.json`. The schema and example must evolve together; `tests/test_provider_config_contract.py` checks their structural agreement using only the Python standard library.
+
+`safety.chat_only_initially` is a rollout-mode description, not an authorization switch. The schema keeps the independent invariants explicit: legacy agents stay disabled, tool execution remains policy-gated, provider configuration cannot grant permissions, AI plans require user approval, and calendar planning requires explicit availability. Actual runtime permission remains controlled by code and the agent quarantine, never by a model response or provider selection.
+
 ## Safety and data boundaries
 
 AI endpoints produce proposals only. Every proposal receives an opaque `proposal_id`; its approval or rejection must present the matching server-issued ID, action, route, and model. The ID expires after 15 minutes and is consumed by the first decision. Proposal and decision action-journal records share that ID. Category assignments and calendar events are not applied until the user explicitly approves them. Calendar proposals are checked server-side to ensure every event is within a supplied availability window, has an offset-aware ISO-8601 time, references an input task, and does not overlap another proposed event.
