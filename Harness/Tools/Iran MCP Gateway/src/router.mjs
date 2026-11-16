@@ -25,7 +25,7 @@ function normalizeTool(server, tool) {
     title: tool.title ?? tool.name,
     summary: tool.summary ?? "",
     readOnly: tool.read_only === true && server.read_only === true,
-    requiresApproval: server.read_only !== true || isMutatingTool(tool)
+    requiresApproval: server.read_only !== true || tool.read_only !== true || isMutatingTool(tool)
   };
 }
 
