@@ -6,7 +6,7 @@
   "packageManager": "pnpm@10.0.0",
   "description": "Full-catalog installer and registry for Iranian MCP servers in ICARUS",
   "scripts": {
-    "install": "node src/install.mjs",
+    "configure": "node src/install.mjs",
     "catalog": "node src/catalog.mjs",
     "test": "node --test"
   }
