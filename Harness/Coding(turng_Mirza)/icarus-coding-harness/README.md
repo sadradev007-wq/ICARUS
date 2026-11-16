@@ -4,7 +4,7 @@ An original, approval-first coding-agent runtime developed alongside 119 pinned 
 
 ## Current execution state
 
-> **Agent quarantine (current default):** the Coding Harness agent runtime is disabled by a code-level kill switch. \`icarus-harness run\` stops before any model request, tool description/dispatch, workspace mutation, Task Companion feedback, or training-data capture. Read-only commands such as \`inspect\` and \`status\` remain available. The gate lives in \`icarus_harness/agent_gate.py\`; workspace config and environment variables cannot re-enable it. Re-activation is reserved for an explicit change in the next architecture phase.
+> **Agent quarantine (current default):** the Coding Harness agent runtime is disabled by a code-level kill switch. `icarus-harness run` stops before any model request, tool description/dispatch, workspace mutation, Task Companion feedback, or training-data capture. Read-only commands such as `inspect` and `status` remain available. The gate lives in `icarus_harness/agent_gate.py`; workspace config and environment variables cannot re-enable it. Re-activation is reserved for an explicit change in the next architecture phase.
 
 ## Features
 - OpenAI-compatible model endpoint, including local model servers.
@@ -45,7 +45,7 @@ Check the configured OpenAI-compatible endpoint without enabling the agent runti
 
     icarus-harness doctor --workspace .
 
-The command validates the model URL, configured model name, timeout, and API-key environment-variable setting, then performs only GET /models. It reports whether the configured model ID is present. JSON output follows schemas/harness-doctor.v1.schema.json; exit code is 0 for ok or warning, and 2 for error.
+The command validates the model URL, configured model name, timeout, and API-key environment-variable setting, then performs only `GET <base_url>/models`. It reports whether the configured model ID is present. JSON output follows `schemas/harness-doctor.v1.schema.json`; exit code is 0 for `ok` or `warning`, and 2 for `error`.
 
 It never prints API-key values, follows endpoint redirects, sends Chat Completions requests, writes task-run records, or changes the workspace. It refuses non-loopback plain-HTTP endpoints rather than sending authorization in cleartext; use HTTPS for remote model servers. The report shows only the endpoint origin, not the configured URL path. A missing model ID is a warning because some compatible servers expose partial model lists. Chat Completions response compatibility and actual inference remain unverified until a separately approved runtime smoke test; the agent kill switch remains closed.
 
@@ -55,7 +55,7 @@ Check the four Personal Companion routes from its local provider configuration:
 
     icarus-harness doctor --providers-config "Harness/Tools/Personal Companion/config/providers.local.json"
 
-The command validates the complete four-route configuration and its safety invariants, then checks only enabled routes with bounded GET /models requests. Disabled routes are reported as skipped and are never contacted. API routes require their configured environment-variable credential; local routes use their configured key variable or the existing ICARUS_API_KEY/local fallback. The aggregate JSON report follows schemas/provider-health.v1.schema.json.
+The command validates the complete four-route configuration and its safety invariants, then checks only enabled routes with bounded `GET /models` requests. Disabled routes are reported as skipped and are never contacted. API routes require their configured environment-variable credential; local routes use their configured key variable or the existing ICARUS_API_KEY/local fallback. The aggregate JSON report follows `schemas/provider-health.v1.schema.json`.
 
 The provider health check does not send Chat Completions requests, instantiate AgentRuntime, change provider settings, create Task Companion events, or write Local LLM task records. It refuses non-loopback plain HTTP and never includes credential values or configured URL paths in the report. A healthy model-list response does not prove inference compatibility.
 
