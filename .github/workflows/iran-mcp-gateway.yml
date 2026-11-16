@@ -1,0 +1,26 @@
+name: Iran MCP Gateway tests
+
+on:
+  pull_request:
+    paths:
+      - "Harness/Tools/Iran MCP Gateway/**"
+      - ".github/workflows/iran-mcp-gateway.yml"
+  push:
+    branches:
+      - main
+      - feat/iran-mcp-full-installation
+    paths:
+      - "Harness/Tools/Iran MCP Gateway/**"
+      - ".github/workflows/iran-mcp-gateway.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run offline gateway tests
+        working-directory: Harness/Tools/Iran MCP Gateway
+        run: node --test
