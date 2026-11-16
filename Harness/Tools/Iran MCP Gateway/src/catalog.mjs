@@ -1,5 +1,3 @@
-import { readFile } from "node:fs/promises";
-
 export const CATALOG_URL = "https://raw.githubusercontent.com/sepehr071/iran-mcp/main/servers.json";
 
 export async function loadCatalog(url = CATALOG_URL) {
@@ -16,22 +14,20 @@ export async function loadCatalog(url = CATALOG_URL) {
   return entries;
 }
 
-export function toMcpConfig(catalog) {
+export function toMcpConfig(catalog, environment = process.env) {
   const mcpServers = {};
   for (const server of catalog) {
+    const key = server.name.replace(/-mcp$/, "");
     if (server.url) {
-      mcpServers[server.name.replace(/-mcp$/, "")] = {
-        type: "http",
-        url: server.url,
-        ...(server.auth === "oauth" ? { note: "OAuth authorization is completed by the MCP client." } : {})
-      };
+      mcpServers[key] = { type: "http", url: server.url };
     } else if (server.pypi || server.run) {
       const packageName = server.pypi ?? server.name;
-      mcpServers[server.name.replace(/-mcp$/, "")] = {
-        command: "uvx",
-        args: [packageName],
-        env: Object.fromEntries((server.env ?? []).map(item => [item.name, process.env[item.name] ?? ""]))
-      };
+      const env = Object.fromEntries(
+        (server.env ?? [])
+          .filter(item => environment[item.name] !== undefined)
+          .map(item => [item.name, environment[item.name]])
+      );
+      mcpServers[key] = { command: "uvx", args: [packageName], ...(Object.keys(env).length ? { env } : {}) };
     }
   }
   return { mcpServers };
