@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10111b">
+  <meta name="theme-color" content="#f8f9fa">
   <meta name="description" content="ICARUS Personal Companion — chat, memory, tasks and calendar">
   <title>ICARUS · همراه شخصی</title>
   <link rel="stylesheet" href="./styles.css">
@@ -98,6 +98,19 @@
 
         <section class="view" id="view-calendar">
           <div class="page-heading"><div><p class="eyebrow">برنامه‌ریزی زمان</p><h1>تقویم هوشمند</h1><p class="subheading">AI کارهای ثبت‌شده را با توجه به زمان‌های آزاد تو به برنامهٔ پیشنهادی تبدیل می‌کند.</p></div><span class="safe-label"><i></i> ثبت فقط با تأیید تو</span></div>
+          <section class="panel gcal-panel">
+            <div class="gcal-toolbar">
+              <div class="gcal-nav">
+                <button type="button" class="today-button" id="gcal-today">امروز</button>
+                <button type="button" class="gcal-nav-button" id="gcal-prev" aria-label="ماه قبل">›</button>
+                <button type="button" class="gcal-nav-button" id="gcal-next" aria-label="ماه بعد">‹</button>
+                <b id="gcal-title"></b>
+              </div>
+              <span class="muted-inline">روی یک روز کلیک کنید تا رویدادهای همان روز در فهرست پایین نمایش داده شود.</span>
+            </div>
+            <div class="gcal-weekdays"><span>شنبه</span><span>یکشنبه</span><span>دوشنبه</span><span>سه‌شنبه</span><span>چهارشنبه</span><span>پنجشنبه</span><span>جمعه</span></div>
+            <div class="gcal-grid" id="gcal-grid"></div>
+          </section>
           <section class="panel calendar-planner">
             <div class="panel-title"><div><b>برنامه‌ریزی با هوش مصنوعی</b><span class="muted-inline">· System 2 برای زمان‌بندی</span></div><span class="section-icon purple">✧</span></div>
             <p class="organizer-help">کارهای ذخیره‌شده از بخش کارها خوانده می‌شوند. بازهٔ آزاد را مشخص کن؛ AI فقط در همین بازه برنامه می‌چیند و چیزی را خودکار ثبت نمی‌کند.</p>
@@ -111,7 +124,7 @@
             <div class="calendar-action-row"><span id="calendar-task-count" class="muted-inline">۰ کار آمادهٔ برنامه‌ریزی</span><button class="primary-button" id="calendar-plan-button">ساخت برنامه با AI</button></div>
             <div id="calendar-proposal" class="ai-result" hidden></div>
           </section>
-          <section class="panel calendar-saved"><div class="panel-title"><div><b>رویدادهای تقویم</b><span class="muted-inline" id="calendar-event-count">· ۰ رویداد</span></div></div><div id="calendar-event-list" class="calendar-event-list"><p class="empty-state">هنوز رویدادی ثبت نشده است. بعد از تأیید برنامهٔ AI، رویدادها اینجا نمایش داده می‌شوند.</p></div></section>
+          <section class="panel calendar-saved"><div class="panel-title"><div><b>رویدادهای تقویم</b><button type="button" class="filter-chip" id="calendar-day-filter" hidden></button><span class="muted-inline" id="calendar-event-count">· ۰ رویداد</span></div></div><div id="calendar-event-list" class="calendar-event-list"><p class="empty-state">هنوز رویدادی ثبت نشده است. بعد از تأیید برنامهٔ AI، رویدادها اینجا نمایش داده می‌شوند.</p></div></section>
         </section>
 
         <section class="view" id="view-memory">

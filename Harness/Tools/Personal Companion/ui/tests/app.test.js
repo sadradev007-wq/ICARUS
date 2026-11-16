@@ -65,3 +65,11 @@ test("responsive and reduced-motion rules are present", () => {
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /taxonomy-tree/);
 });
+
+test("the calendar view provides a Google Calendar style month grid", () => {
+  assert.match(html, /id="gcal-grid"/);
+  assert.match(html, /id="gcal-today"/);
+  assert.match(html, /id="calendar-day-filter"/);
+  assert.match(js, /renderCalendarGrid/);
+  assert.match(css, /gcal-chip/);
+});
