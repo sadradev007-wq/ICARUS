@@ -84,3 +84,16 @@ test("writes audit events and propagates tool errors", async () => {
   await registry.callTool({ serverName: "shop-mcp", toolName: "product_search", audit: event => events.push(event) });
   assert.deepEqual(events.map(event => event.type), ["mcp.tool.started", "mcp.tool.completed"]);
 });
+
+test("fails closed when a tool omits read_only metadata", async () => {
+  const registry = new McpToolRegistry([{ name: "uncertain-mcp", read_only: true, tools: [{ name: "unknown_action" }] }]);
+  let calls = 0;
+  registry.registerClient("uncertain-mcp", {
+    listTools: async () => ({ tools: [{ name: "unknown_action" }] }),
+    callTool: async () => { calls += 1; return {}; }
+  });
+  await registry.refreshAll();
+  const result = await registry.callTool({ serverName: "uncertain-mcp", toolName: "unknown_action" });
+  assert.equal(result.status, "approval_required");
+  assert.equal(calls, 0);
+});
