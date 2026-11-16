@@ -24,18 +24,29 @@
       "properties": {
         "simple_intent": { "enum": ["system1_local", "system1_api", "system2_local", "system2_api"] },
         "complex_reasoning": { "enum": ["system1_local", "system1_api", "system2_local", "system2_api"] },
+        "category_classification": { "enum": ["system1_local", "system1_api", "system2_local", "system2_api"] },
+        "calendar_planning": { "enum": ["system1_local", "system1_api", "system2_local", "system2_api"] },
         "allow_automatic_fallback": { "type": "boolean" }
       },
       "additionalProperties": false
     },
     "safety": {
       "type": "object",
-      "required": ["chat_only_initially", "legacy_agents_enabled", "tool_execution_requires_policy", "provider_config_cannot_change_permissions"],
+      "required": [
+        "chat_only_initially",
+        "legacy_agents_enabled",
+        "tool_execution_requires_policy",
+        "provider_config_cannot_change_permissions",
+        "ai_planning_requires_user_approval",
+        "calendar_planning_uses_explicit_availability"
+      ],
       "properties": {
-        "chat_only_initially": { "type": "boolean", "const": true },
+        "chat_only_initially": { "type": "boolean" },
         "legacy_agents_enabled": { "type": "boolean", "const": false },
         "tool_execution_requires_policy": { "type": "boolean", "const": true },
-        "provider_config_cannot_change_permissions": { "type": "boolean", "const": true }
+        "provider_config_cannot_change_permissions": { "type": "boolean", "const": true },
+        "ai_planning_requires_user_approval": { "type": "boolean", "const": true },
+        "calendar_planning_uses_explicit_availability": { "type": "boolean", "const": true }
       },
       "additionalProperties": false
     }
