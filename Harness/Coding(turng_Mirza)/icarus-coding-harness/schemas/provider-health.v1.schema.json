@@ -14,7 +14,6 @@
     },
     "routes": {
       "type": "object",
-      "required": ["system1_local", "system1_api", "system2_local", "system2_api"],
       "properties": {
         "system1_local": { "$ref": "#/$defs/route" },
         "system1_api": { "$ref": "#/$defs/route" },

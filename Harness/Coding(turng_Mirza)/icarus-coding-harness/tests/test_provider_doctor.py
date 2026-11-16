@@ -145,6 +145,7 @@ class ProviderDoctorTests(unittest.TestCase):
         report = run_provider_doctor(self.write_config(payload))
 
         self.assertEqual(report["status"], "error")
+        self.assertEqual(report["routes"], {})
         self.assertEqual(self.server.requests, [])
 
     def test_rejects_boolean_timeout_before_network(self):
@@ -212,9 +213,10 @@ class ProviderDoctorTests(unittest.TestCase):
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
         self.assertEqual(schema["properties"]["schema"]["const"], "icarus.provider-health.v1")
         self.assertEqual(
-            set(schema["properties"]["routes"]["required"]),
+            set(schema["properties"]["routes"]["properties"]),
             {"system1_local", "system1_api", "system2_local", "system2_api"},
         )
+        self.assertNotIn("required", schema["properties"]["routes"])
 
     def test_diagnostics_do_not_create_local_llm_training_records(self):
         with patch.dict(os.environ, {}, clear=True):
