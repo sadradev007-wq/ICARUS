@@ -28,7 +28,7 @@ export async function loadCatalog(url = CATALOG_URL, fetchImpl = fetch) {
   return entries;
 }
 
-export function toMcpConfig(catalog, environment = process.env) {
+export function toMcpConfig(catalog, environment = {}) {
   const mcpServers = {};
   for (const server of catalog) {
     const key = server.name.replace(/-mcp$/, "");
