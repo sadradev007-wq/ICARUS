@@ -33,6 +33,8 @@ test("builds local and hosted MCP entries and only injects supplied environment 
   assert.deepEqual(config.mcpServers.private, { command: "uvx", args: ["private"], env: { TOKEN: "injected-secret" } });
   assert.deepEqual(config.mcpServers.public, { type: "http", url: "https://example.test/mcp" });
   assert.equal(JSON.stringify(config).includes("OPTIONAL"), false);
+  const inherited = toMcpConfig([{ name: "private-mcp", pypi: "private", env: [{ name: "TOKEN", isSecret: true }] }]);
+  assert.equal(inherited.mcpServers.private.env, undefined);
 });
 
 test("detects normalized server-name collisions", () => {
