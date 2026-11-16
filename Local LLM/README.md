@@ -29,3 +29,7 @@ The Coding Harness test suite includes a loopback OpenAI-compatible HTTP fixture
 ## Model endpoint diagnostics
 
 The Coding Harness command `icarus-harness doctor` checks the configured OpenAI-compatible server with a bounded `GET /models` request. It does not create a task-run JSON record or an execution-feedback event. It never sends a chat-completion request; actual inference remains unavailable while the agent runtime is quarantined. See the Coding Harness report schema at `Harness/Coding(turng_Mirza)/icarus-coding-harness/schemas/harness-doctor.v1.schema.json`.
+
+## Four-route provider health
+
+The Coding Harness can inspect the Personal Companion `providers.local.json` file with `icarus-harness doctor --providers-config PATH`. It checks enabled routes only, skips disabled routes, and emits the versioned `provider-health.v1` report. This diagnostic is not a task run: it does not create files under `Train Data/tasks/` or `events/`, and it does not send inference requests. API keys remain environment-only and are never copied into the report. See the Coding Harness provider health schema and docs for the exact checks.

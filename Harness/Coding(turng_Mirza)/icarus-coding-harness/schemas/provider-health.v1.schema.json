@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/provider-health.v1.schema.json",
+  "title": "ICARUS four-route provider health report",
+  "type": "object",
+  "required": ["schema", "status", "checks", "routes", "chat_completions_probe"],
+  "properties": {
+    "schema": { "const": "icarus.provider-health.v1" },
+    "status": { "enum": ["ok", "warning", "error"] },
+    "chat_completions_probe": { "const": "skipped" },
+    "checks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/check" }
+    },
+    "routes": {
+      "type": "object",
+      "properties": {
+        "system1_local": { "$ref": "#/$defs/route" },
+        "system1_api": { "$ref": "#/$defs/route" },
+        "system2_local": { "$ref": "#/$defs/route" },
+        "system2_api": { "$ref": "#/$defs/route" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "required": ["name", "status", "message"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["ok", "warning", "error", "skipped"] },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "route": {
+      "type": "object",
+      "required": ["enabled", "kind", "model", "status", "checks"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "kind": { "enum": ["local", "api"] },
+        "model": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["ok", "warning", "error", "skipped"] },
+        "endpoint": { "type": "string" },
+        "credential_source": { "enum": ["environment", "local_default"] },
+        "checks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/check" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

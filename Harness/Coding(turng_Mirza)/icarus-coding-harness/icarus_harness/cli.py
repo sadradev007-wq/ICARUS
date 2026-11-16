@@ -5,6 +5,7 @@ from pathlib import Path
 from . import __version__
 from .config import HarnessConfig
 from .doctor import run_doctor
+from .provider_doctor import run_provider_doctor
 from .git import diff, status
 from .runtime import AgentRuntime
 from .task_bridge import load_task_prompt, write_execution_event
@@ -32,9 +33,13 @@ def main() -> None:
     git.add_argument("--workspace", default=".")
     doctor = sub.add_parser(
         "doctor",
-        help="Check the configured OpenAI-compatible model endpoint without inference",
+        help="Check one model endpoint or all configured Personal Companion provider routes without inference",
     )
     doctor.add_argument("--workspace", default=".")
+    doctor.add_argument(
+        "--providers-config",
+        help="Read-only diagnostics for a Personal Companion providers.local.json file",
+    )
 
     args = parser.parse_args()
     if args.action == "run":
@@ -46,7 +51,10 @@ def main() -> None:
             parser.error("run requires a task prompt or --task-store with --task-id")
     try:
         if args.action == "doctor":
-            report = run_doctor(HarnessConfig.load(Path(args.workspace).resolve()).model)
+            if args.providers_config:
+                report = run_provider_doctor(Path(args.providers_config))
+            else:
+                report = run_doctor(HarnessConfig.load(Path(args.workspace).resolve()).model)
             print(json.dumps(report, ensure_ascii=False, indent=2))
             if report["status"] == "error":
                 sys.exit(2)
