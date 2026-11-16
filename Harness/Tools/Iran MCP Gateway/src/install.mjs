@@ -1,8 +1,9 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadCatalog, toMcpConfig } from "./catalog.mjs";
 
-const here = dirname(new URL(import.meta.url).pathname);
+const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 const target = resolve(process.argv[2] ?? resolve(root, ".mcp.iran.json"));
 const catalog = await loadCatalog();
