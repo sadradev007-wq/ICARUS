@@ -57,3 +57,56 @@ pnpm test
 این پروژه پیکربندی کامل کاتالوگ را تولید می‌کند؛ نصب بسته‌ها، احراز هویت، دسترسی شبکه و سازگاری MCP client به محیط اجرا وابسته‌اند. برخی سرویس‌ها خارج از ایران پاسخ نمی‌دهند یا به پراکسی با IP ایران نیاز دارند. اتصال واقعی هر سرور باید با آزمون سلامت جداگانه تأیید شود.
 
 Upstream: https://github.com/sepehr071/iran-mcp
+
+## Tool Discovery & Router (مرحلهٔ اتصال ابزارها)
+
+ماژول `src/router.mjs` رجیستری و مسیریاب مستقل از transport است. این ماژول به‌جای ساختن یک اتصال فرضی به MCP، کلاینت‌های واقعیِ ساخته‌شده توسط میزبان را می‌پذیرد؛ بنابراین lifecycle، OAuth، proxy، secrets و اتصال stdio/HTTP در اختیار MCP host باقی می‌مانند.
+
+### اتصال
+
+```js
+import { loadCatalog } from "./src/catalog.mjs";
+import { McpToolRegistry } from "./src/router.mjs";
+
+const catalog = await loadCatalog();
+const registry = new McpToolRegistry(catalog);
+
+// برای هر سروری که MCP host واقعاً متصل کرده است:
+registry.registerClient("snapp-mcp", connectedSnappClient);
+await registry.refreshServer("snapp-mcp");
+
+// کشف ابزار مناسب برای مأموریت:
+const candidates = registry.discover("جست‌وجو و مقایسه قیمت کالا", { limit: 8 });
+
+// اجرای ابزار خواندنی:
+const result = await registry.callTool({
+  serverName: "snapp-mcp",
+  toolName: "food_search",
+  arguments: { query: "..." }
+});
+```
+
+کلاینت باید دو متد `listTools()` و `callTool({ name, arguments })` را مطابق قرارداد MCP ارائه کند. ابزارهایی که در metadata کاتالوگ بازبینی‌شده وجود ندارند وارد رجیستری نمی‌شوند.
+
+### تأیید عملیات حساس
+
+`callTool` برای ابزارهای تغییردهنده بدون callback تأیید اجرا نمی‌شود و `approval_required` برمی‌گرداند. میزبان باید callback را به یک UI تأیید انسانی متصل کند؛ پاسخ مدل یا برنامهٔ عامل نباید به‌عنوان تأیید کاربر پذیرفته شود.
+
+```js
+const result = await registry.callTool({
+  serverName: "okala-mcp",
+  toolName: "ok_login",
+  arguments: { phone: userProvidedPhone },
+  authorize: async request => approvalUI.askHuman(request)
+});
+```
+
+اگر سرور در سطح کلی `read_only !== true` باشد، تمام ابزارهای آن محافظه‌کارانه نیازمند تأیید می‌شوند؛ حتی ابزارهایی که metadata ابزارشان read-only اعلام شده است. اگر metadata ابزار نامشخص باشد، نام ابزار نیز با فهرست افعال تغییردهنده بررسی می‌شود. این لایه جایگزین policy engine مستقل و محدودیت دسترسی در سطح سرور نیست.
+
+### آزمون
+
+```bash
+pnpm test
+```
+
+این ماژول کشف، رتبه‌بندی و policy تأیید را پیاده می‌کند؛ خودش transport یا اتصال شبکه نمی‌سازد. میزبان باید کلاینت‌های MCP را ایجاد، احراز هویت، متصل و هنگام قطع اتصال unregister کند.
