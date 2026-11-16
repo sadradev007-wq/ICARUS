@@ -20,7 +20,7 @@ The local configuration is created by copying providers.example.json and remains
 - Enabled API routes require a non-empty environment credential. Local routes use their configured key-variable name or the existing ICARUS_API_KEY/local fallback.
 - Each enabled route is checked with the existing bounded GET /models transport. Redirects are not followed; non-loopback HTTP is rejected; endpoint paths and credential values are not returned.
 
-The aggregate report is icarus.provider-health.v1 and is described by schemas/provider-health.v1.schema.json. A route can be ok, warning, error, or skipped. A missing advertised model is a warning because some OpenAI-compatible servers expose incomplete model lists.
+The aggregate report is icarus.provider-health.v1 and is described by schemas/provider-health.v1.schema.json. A route can be ok, warning, error, or skipped. A missing advertised model is a warning because some OpenAI-compatible servers expose incomplete model lists. Configuration-level failures return an empty routes object; after a valid configuration is loaded, all four route entries are present, including disabled routes marked skipped.
 
 ## Explicit limitations
 
