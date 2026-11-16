@@ -163,6 +163,25 @@ class ProviderDoctorTests(unittest.TestCase):
         self.assertEqual(report["status"], "error")
         self.assertEqual(self.server.requests, [])
 
+    def test_rejects_malformed_url_even_on_disabled_route(self):
+        payload = self.config()
+        payload["routes"]["system1_api"]["base_url"] = "https://example.invalid/v1?token="
+        report = run_provider_doctor(self.write_config(payload))
+
+        self.assertEqual(report["status"], "error")
+        self.assertEqual(self.server.requests, [])
+
+    def test_remote_plain_http_route_is_rejected_before_network(self):
+        payload = self.config()
+        payload["routes"]["system1_local"]["base_url"] = "http://models.example.invalid/v1"
+        payload["routes"]["system2_local"]["enabled"] = False
+        with patch.dict(os.environ, {}, clear=True):
+            report = run_provider_doctor(self.write_config(payload))
+
+        self.assertEqual(report["status"], "error")
+        self.assertEqual(report["routes"]["system1_local"]["status"], "error")
+        self.assertEqual(self.server.requests, [])
+
     def test_warns_when_default_or_routing_selector_is_disabled(self):
         payload = self.config()
         payload["routes"]["system1_local"]["enabled"] = False

@@ -6,6 +6,7 @@ import os
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from .config import ModelConfig
 from .doctor import run_doctor
@@ -73,8 +74,25 @@ def _validate_config(payload: Any) -> str | None:
         kind = route["kind"]
         if not isinstance(kind, str) or kind not in {"local", "api"}:
             return f"Provider route {name} kind must be local or api."
-        if not isinstance(route["base_url"], str) or not route["base_url"].strip():
-            return f"Provider route {name} base_url must be non-empty text."
+        base_url = route["base_url"]
+        if not isinstance(base_url, str) or not base_url.strip() or any(ch.isspace() for ch in base_url):
+            return f"Provider route {name} base_url must be a non-empty URL."
+        try:
+            parsed = urlsplit(base_url)
+            _ = parsed.port
+        except ValueError:
+            return f"Provider route {name} base_url is malformed."
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+            or "?" in base_url
+            or "#" in base_url
+        ):
+            return f"Provider route {name} base_url must use HTTP(S) without userinfo, query, or fragment."
         model = route["model"]
         if not isinstance(model, str) or not model.strip() or model != model.strip():
             return f"Provider route {name} model must be non-empty text without surrounding whitespace."
