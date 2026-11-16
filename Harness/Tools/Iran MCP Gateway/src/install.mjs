@@ -15,4 +15,4 @@ const tools = catalog.reduce((sum, server) => sum + (server.tools?.length ?? 0),
 const local = Object.values(config.mcpServers).filter(server => server.command).length;
 const remote = Object.values(config.mcpServers).filter(server => server.url).length;
 console.log(JSON.stringify({ catalogServers: catalog.length, catalogTools: tools, configuredServers: Object.keys(config.mcpServers).length, localPackageServers: local, hostedServers: remote, output: target }, null, 2));
-console.log("Note: package servers are configured for uvx execution; first invocation downloads packages. Hosted OAuth servers require user authorization in the MCP client. Secrets are not written to the config.");
+console.log("Note: package servers are configured for uvx execution; first invocation downloads packages. Set credentials in the MCP client process environment; they are intentionally not copied into this config. Hosted OAuth servers require user authorization in the MCP client.");
