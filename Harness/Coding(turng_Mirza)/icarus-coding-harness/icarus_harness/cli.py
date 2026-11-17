@@ -33,15 +33,22 @@ def main() -> None:
     git.add_argument("--workspace", default=".")
     doctor = sub.add_parser(
         "doctor",
-        help="Check one model endpoint or all configured Personal Companion provider routes without inference",
+        help="Check model endpoints; an explicit local inference probe is available for provider routes",
     )
     doctor.add_argument("--workspace", default=".")
     doctor.add_argument(
         "--providers-config",
         help="Read-only diagnostics for a Personal Companion providers.local.json file",
     )
+    doctor.add_argument(
+        "--probe-local-inference",
+        action="store_true",
+        help="Explicitly send one bounded, tool-free Chat Completions request to each enabled loopback local route",
+    )
 
     args = parser.parse_args()
+    if args.action == "doctor" and args.probe_local_inference and not args.providers_config:
+        parser.error("--probe-local-inference requires --providers-config")
     if args.action == "run":
         if args.task_id and (not args.task_store or args.task):
             parser.error("--task-id requires --task-store and cannot be combined with a task prompt")
@@ -52,7 +59,10 @@ def main() -> None:
     try:
         if args.action == "doctor":
             if args.providers_config:
-                report = run_provider_doctor(Path(args.providers_config))
+                report = run_provider_doctor(
+                    Path(args.providers_config),
+                    probe_local_inference=args.probe_local_inference,
+                )
             else:
                 report = run_doctor(HarnessConfig.load(Path(args.workspace).resolve()).model)
             print(json.dumps(report, ensure_ascii=False, indent=2))
