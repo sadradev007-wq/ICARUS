@@ -338,6 +338,24 @@ class ModelDoctorTests(unittest.TestCase):
             {"skipped", "passed", "failed"},
         )
 
+    def test_probe_bounds_response_body_to_one_mib(self):
+        self.server.completion_body = b"x" * (1024 * 1024 + 1)
+
+        report = run_doctor(self.config(), probe_inference=True)
+
+        self.assertEqual(report["status"], "error")
+        self.assertEqual(report["chat_completions_probe"], "failed")
+        self.assertIn("1 MiB", json.dumps(report))
+
+    def test_probe_never_echoes_environment_credential(self):
+        secret = "local-inference-probe-secret"
+        with patch.dict(os.environ, {"ICARUS_DOCTOR_TEST_KEY": secret}):
+            report = run_doctor(self.config(), probe_inference=True)
+
+        self.assertEqual(report["chat_completions_probe"], "passed")
+        self.assertNotIn(secret, json.dumps(report))
+        self.assertTrue(all(auth == f"Bearer {secret}" for _, _, auth in self.server.requests))
+
 
 if __name__ == "__main__":
     unittest.main()
