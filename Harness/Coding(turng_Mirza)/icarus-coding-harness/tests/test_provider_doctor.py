@@ -236,8 +236,12 @@ class ProviderDoctorTests(unittest.TestCase):
 
     def test_diagnostics_do_not_create_local_llm_training_records(self):
         with patch.dict(os.environ, {}, clear=True):
-            run_provider_doctor(self.write_config(self.config()))
+            run_provider_doctor(
+                self.write_config(self.config()),
+                probe_local_inference=True,
+            )
         self.assertFalse((self.root / "Local LLM" / "Train Data" / "tasks").exists())
+        self.assertFalse((self.root / "Local LLM" / "Train Data" / "events").exists())
 
     def test_cli_accepts_providers_config_without_starting_agent_runtime(self):
         self.write_config(self.config())
