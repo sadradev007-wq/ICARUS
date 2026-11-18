@@ -7,6 +7,11 @@ CLI -> Task Companion JSON adapter -> AgentRuntime -> OpenAI-compatible model ad
                  -> TaskDatasetWriter -> Local LLM/Train Data/tasks (one JSON record per run)
                  -> optional execution event -> Task Companion confirmation -> TaskStore
 
+
+## Context Engine
+
+The read-only Context Engine inventories bounded workspace text files, classifies them, and ranks relevant snippets under an approximate token budget. Its static dependency graph covers Python imports, relative JavaScript/TypeScript imports, Go imports resolved within local go.mod modules, and basic Rust out-of-line mod declarations plus simple crate/self/super use paths. It does not run compilers, resolve registries, or claim a complete language parser. Source content remains untrusted input and workspace path checks apply before reads.
+
 ## Read-only model doctor
 
 The CLI has a separate `doctor` path: it loads the same `HarnessConfig` as the runtime, validates the model endpoint settings, and issues a bounded `GET /models` request. It does not instantiate `AgentRuntime` or `OpenAICompatibleModel`, call Chat Completions, write Local LLM task records, or create Task Companion feedback. Redirects are rejected so the configured Authorization header is not forwarded to another origin. Non-loopback HTTP endpoints are rejected before any request, preventing credentials from being sent in cleartext. The report contract is `schemas/harness-doctor.v1.schema.json`.

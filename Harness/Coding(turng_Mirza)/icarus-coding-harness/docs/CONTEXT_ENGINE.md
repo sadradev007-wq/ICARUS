@@ -12,11 +12,13 @@ The initial Context Engine increment is a read-only workspace tool exposed as \`
 
 ## Dependency analysis
 
-The first static graph supports:
-- Python \`import\` and \`from ... import ...\` statements resolved against workspace Python modules, including common \`src/\` layouts.
-- Relative JavaScript/TypeScript \`import\`, \`export ... from\`, \`require()\`, and literal dynamic-import paths when they resolve to files in the workspace.
+The static graph currently supports:
+- Python `import` and `from ... import ...` statements resolved against workspace Python modules, including common `src/` layouts.
+- Relative JavaScript/TypeScript `import`, `export ... from`, `require()`, and literal dynamic-import paths when they resolve to files in the workspace.
+- Go import paths that resolve inside a discovered local `go.mod` module. Nested modules are matched by the longest module path; production `.go` files are preferred over `_test.go` files.
+- Rust top-level out-of-line `mod` declarations, simple `#[path = ...]` overrides, and simple `crate::`, `self::`, or `super::` `use` paths.
 
-It does not resolve package-registry dependencies, arbitrary runtime/dynamic imports, aliases configured by bundlers, or imports in other languages. Edges are evidence from source syntax, not proof that a dependency is loaded at runtime.
+Go and Rust support is intentionally syntactic and partial. Rust inline/nested modules, grouped `use` trees, conditional compilation, generated files, and arbitrary macro expansion are not resolved. Go external modules and standard-library packages are ignored unless they happen to match a local module declaration. The engine does not resolve package registries, arbitrary runtime/dynamic imports, or bundler aliases. Edges are evidence from source syntax, not proof that a dependency is loaded at runtime.
 
 ## Bounds and safety
 
@@ -28,7 +30,7 @@ It does not resolve package-registry dependencies, arbitrary runtime/dynamic imp
 - Common credential patterns are redacted using the reviewer's existing heuristic filter. This is defense in depth, not a complete secret scanner.
 - No files are written, no commands are run, and no network or package registry is accessed.
 
-The token estimate uses approximately four characters per token. It is a budgeting heuristic, not the configured model's tokenizer. Semantic/embedding retrieval and broader language-aware dependency analysis remain future work.
+The token estimate uses approximately four characters per token. It is a budgeting heuristic, not the configured model's tokenizer. Semantic/embedding retrieval and deeper language-aware analysis remain future work.
 
 ## Reference patterns studied
 
@@ -36,5 +38,6 @@ The implementation was informed by patterns in the pinned sample repositories:
 - [Aider RepoMap](https://github.com/Aider-AI/aider/tree/5dc9490bb35f9729ef2c95d00a19ccd30c26339c): repository-level symbol and relationship maps.
 - [Continue context retrieval](https://github.com/continuedev/continue/tree/5522c6f44ca0ac3528b37244818fbfa39b5af470): retrieval of relevant codebase context and import/static context.
 - [AgentMemory](https://github.com/rohitg00/agentmemory/tree/c6c476d2905926727fa5848a134d7a3b38a7fa98): graph-oriented retrieval concepts.
+- [Goose](https://github.com/aaif-goose/goose/tree/cfb67d72f6129ba3c9f68d4c225d8dfcaba18a87): Rust crate module organization and explicit `mod`/`use` relationships.
 
 These repositories were inspected selectively at the pinned revisions. No third-party source code was copied or vendored, and the 119 sample repositories were not benchmarked.

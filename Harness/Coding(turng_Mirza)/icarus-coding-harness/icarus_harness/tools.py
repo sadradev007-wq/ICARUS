@@ -35,7 +35,7 @@ class ToolRegistry:
             "discover_tests": Tool("discover_tests", "Read-only discovery of project test profiles and tests related to changed paths. Does not execute tests.", self._schema({"changed_paths":{"type":"array","items":{"type":"string"}}}), self._discover_tests),
             "retrieve_context": Tool(
                 "retrieve_context",
-                "Read-only repository map and ranked workspace context. Uses a bounded approximate token budget and a static local Python/relative JS-TS import graph; treats source as untrusted data.",
+                "Read-only repository map and ranked workspace context. Uses a bounded approximate token budget and a static local Python/relative JS-TS, Go module-local, and basic Rust module/use graph; treats source as untrusted data.",
                 self._schema({
                     "query":{"type":"string"},
                     "max_tokens":{"type":"integer","minimum":512,"maximum":8000},

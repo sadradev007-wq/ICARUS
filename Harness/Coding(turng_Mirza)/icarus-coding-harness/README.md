@@ -13,6 +13,7 @@ An original, approval-first coding-agent runtime developed alongside 119 pinned 
 - Unified diff patch proposals with source-version checks and per-hunk approval.
 - Local Git checkpoints stored in private refs; path-scoped rollback with per-path approval.
 - Read-only test and dependency-ecosystem discovery across Python, JavaScript/TypeScript, Rust, Go, Java, .NET, PHP, Ruby, Dart/Flutter, Swift, C/C++, Elixir, Haskell, and R. pnpm is the default JavaScript package manager.
+- Read-only context retrieval with bounded snippets and a static local dependency graph for Python, relative JS/TS imports, Go module-local imports, and basic Rust module/use paths; semantic retrieval remains future work.
 - Separate, read-only model review of changed files, with a runtime gate requiring a fresh review after mutations.
 - Privacy-bounded JSON task-run capture in the repository's Local LLM/Train Data/tasks/ directory; one record per run.
 - Task Companion launch bridge plus opt-in execution feedback events.

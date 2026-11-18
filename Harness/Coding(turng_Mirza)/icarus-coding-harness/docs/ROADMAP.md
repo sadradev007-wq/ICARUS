@@ -22,6 +22,7 @@
 ## Phase 2 — coding intelligence
 - [x] Initial repository map and local dependency graph (static Python and relative JavaScript/TypeScript imports)
 - [x] Lexical context retrieval with bounded snippets and approximate token budgeting
+- [x] Static Go module-local import and Rust out-of-line module/use edges
 - [ ] Semantic retrieval and broader language-aware dependency analysis
 - Explicit plans and acceptance criteria
 - Bounded diagnosis/repair cycle
