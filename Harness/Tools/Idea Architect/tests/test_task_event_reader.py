@@ -60,6 +60,32 @@ class ExecutionEventReaderTests(unittest.TestCase):
         self.assertTrue(self.event_dir.is_symlink())
         self.assertEqual(list(outside.iterdir()), [])
 
+    def test_resolves_legitimate_symlinked_parent_before_pinning(self):
+        real_parent = self.root / "real-parent"
+        real_parent.mkdir()
+        linked_parent = self.root / "linked-parent"
+        try:
+            linked_parent.symlink_to(real_parent, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("directory symlinks are unavailable")
+
+        store = TaskStore(linked_parent / "tasks.json")
+        task = store.add("Task through a home-directory symlink")
+        event = {
+            "schema": "icarus.execution-event.v1",
+            "event_id": "E-" + "4" * 32,
+            "task_id": task["id"],
+            "run_status": "step_limit",
+            "proposed_status": "in_progress",
+            "summary": "Harness reached its step budget",
+            "created_at": "2026-11-18T04:00:00+00:00",
+            "run_id": "b" * 32,
+        }
+        event_dir = Path(str(store.path.resolve()) + ".events")
+        self.write_event(event_dir, event)
+
+        self.assertEqual(store.pending_execution_events(), [event])
+
     def test_symlinked_event_directory_is_ignored(self):
         outside = self.root / "outside"
         self.write_event(outside, self.event())
