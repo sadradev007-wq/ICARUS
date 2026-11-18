@@ -173,10 +173,13 @@ class TaskStore:
                         "execution-event directory is a symlink or not a directory"
                     ) from exc
                 raise
-            if not stat.S_ISDIR(os.fstat(event_fd).st_mode):
+            try:
+                if not stat.S_ISDIR(os.fstat(event_fd).st_mode):
+                    raise ValueError("execution-event path is not a directory")
+                return event_fd
+            except Exception:
                 os.close(event_fd)
-                raise ValueError("execution-event path is not a directory")
-            return event_fd
+                raise
         finally:
             os.close(parent_fd)
 
