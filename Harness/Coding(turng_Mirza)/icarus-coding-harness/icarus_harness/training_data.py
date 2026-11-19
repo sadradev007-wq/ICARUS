@@ -72,7 +72,7 @@ def validate_task_record(payload: Any) -> None:
         raise ValueError(f"task record is missing fields: {', '.join(sorted(missing))}")
 
     version = payload["schema_version"]
-    if version not in {"1.0.0", "1.1.0"}:
+    if not isinstance(version, str) or version not in {"1.0.0", "1.1.0"}:
         raise ValueError("task record schema_version must be 1.0.0 or 1.1.0")
     _require_text(payload["record_id"], "record_id", minimum=1)
     if version == "1.1.0" and "run_id" not in payload:
@@ -88,7 +88,7 @@ def validate_task_record(payload: Any) -> None:
     _require_text(payload["task"], "task", maximum=8000)
     if "summary" in payload:
         _require_text(payload["summary"], "summary", maximum=4000)
-    if payload["status"] not in {"completed", "step_limit", "error"}:
+    if not isinstance(payload["status"], str) or payload["status"] not in {"completed", "step_limit", "error"}:
         raise ValueError("task record status is invalid")
     _require_integer(payload["steps"], "steps")
     tools = payload["tools_called"]
@@ -121,7 +121,7 @@ def validate_task_record(payload: Any) -> None:
         raise ValueError("task record verification requires tests_reported and review_status")
     if not isinstance(verification["tests_reported"], bool):
         raise ValueError("verification.tests_reported must be a boolean")
-    if verification["review_status"] not in _REVIEW_STATUSES:
+    if not isinstance(verification["review_status"], str) or verification["review_status"] not in _REVIEW_STATUSES:
         raise ValueError("verification.review_status is invalid")
     if "ci_status" in verification:
         _require_text(verification["ci_status"], "verification.ci_status", minimum=1)
@@ -162,7 +162,7 @@ def validate_task_record(payload: Any) -> None:
             raise ValueError("verification.initial_attempt must contain commit, conclusion, and reason")
         if not isinstance(attempt["commit"], str) or _COMMIT_PATTERN.fullmatch(attempt["commit"]) is None:
             raise ValueError("verification.initial_attempt.commit must be a 40-character commit SHA")
-        if attempt["conclusion"] not in {"success", "failure"}:
+        if not isinstance(attempt["conclusion"], str) or attempt["conclusion"] not in {"success", "failure"}:
             raise ValueError("verification.initial_attempt.conclusion is invalid")
         _require_text(attempt["reason"], "verification.initial_attempt.reason", minimum=1)
 
