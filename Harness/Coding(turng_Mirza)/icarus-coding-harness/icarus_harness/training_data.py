@@ -123,7 +123,10 @@ def validate_task_record(payload: Any) -> None:
         raise ValueError("verification.tests_reported must be a boolean")
     if not isinstance(verification["review_status"], str) or verification["review_status"] not in _REVIEW_STATUSES:
         raise ValueError("verification.review_status is invalid")
-    if "ci_status" in verification and verification["ci_status"] not in {"passed", "passed_for_idea_architect"}:
+    if "ci_status" in verification and (
+        not isinstance(verification["ci_status"], str)
+        or verification["ci_status"] not in {"passed", "passed_for_idea_architect"}
+    ):
         raise ValueError("verification.ci_status is invalid")
     if "tested_commit" in verification and (
         not isinstance(verification["tested_commit"], str)
