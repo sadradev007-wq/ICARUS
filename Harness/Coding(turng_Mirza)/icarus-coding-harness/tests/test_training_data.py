@@ -29,6 +29,20 @@ class TaskDatasetWriterTests(unittest.TestCase):
             self.assertRegex(payload["run_id"], r"^[a-f0-9]{32}$")
             self.assertNotIn("task_id", payload)
 
+
+    def test_validates_payload_before_creating_dataset_directories(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            writer = TaskDatasetWriter(root)
+            result = RunResult("completed", "safe summary", 1, [])
+            with patch(
+                "icarus_harness.training_data.validate_task_record",
+                side_effect=ValueError("invalid record"),
+            ):
+                with self.assertRaisesRegex(ValueError, "invalid record"):
+                    writer.record("task", result)
+            self.assertFalse((root / "Local LLM").exists())
+
     def test_writes_task_and_run_correlation_ids(self):
         with tempfile.TemporaryDirectory() as temp:
             run_id = "a" * 32
