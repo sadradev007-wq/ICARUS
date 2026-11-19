@@ -90,6 +90,30 @@ class TaskDatasetWriterTests(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(ValueError):
                 validate_task_record(malformed)
 
+    def test_rejects_non_string_ci_status_without_type_error(self):
+        record = {
+            "schema_version": "1.0.0",
+            "record_id": "record-ci",
+            "created_at": "2026-11-19T08:00:00+03:30",
+            "task": "invalid CI metadata",
+            "status": "completed",
+            "steps": 1,
+            "tools_called": [],
+            "verification": {
+                "tests_reported": True,
+                "review_status": "static_diff_reviewed",
+                "ci_status": [],
+            },
+            "data_policy": {
+                "raw_prompts_included": False,
+                "file_contents_included": False,
+                "tool_arguments_included": False,
+                "secrets_included": False,
+            },
+        }
+        with self.assertRaisesRegex(ValueError, "ci_status"):
+            validate_task_record(record)
+
     def test_rejects_unsafe_or_unknown_privacy_policy(self):
         record = {
             "schema_version": "1.1.0",
