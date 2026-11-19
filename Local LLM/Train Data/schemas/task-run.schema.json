@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://icarus.local/schemas/task-run.schema.json",
-  "title": "ICARUS Harness Task Run",
+  "title": "ICARUS Harness Task and Run Record",
   "type": "object",
   "required": [
     "schema_version",
@@ -137,17 +137,20 @@
                 "minimum": 0
               },
               "pnpm_check": {
-                "type": "string"
+                "type": "string",
+                "minLength": 1
               },
               "conclusion": {
                 "type": "string",
                 "minLength": 1
               },
               "compile": {
-                "type": "string"
+                "type": "string",
+                "minLength": 1
               },
               "pnpm_version": {
-                "type": "string"
+                "type": "string",
+                "minLength": 1
               },
               "tests": {
                 "type": "integer",
