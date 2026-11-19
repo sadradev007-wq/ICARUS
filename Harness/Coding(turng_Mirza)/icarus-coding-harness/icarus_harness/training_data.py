@@ -123,8 +123,8 @@ def validate_task_record(payload: Any) -> None:
         raise ValueError("verification.tests_reported must be a boolean")
     if not isinstance(verification["review_status"], str) or verification["review_status"] not in _REVIEW_STATUSES:
         raise ValueError("verification.review_status is invalid")
-    if "ci_status" in verification:
-        _require_text(verification["ci_status"], "verification.ci_status", minimum=1)
+    if "ci_status" in verification and verification["ci_status"] not in {"passed", "passed_for_idea_architect"}:
+        raise ValueError("verification.ci_status is invalid")
     if "tested_commit" in verification and (
         not isinstance(verification["tested_commit"], str)
         or _COMMIT_PATTERN.fullmatch(verification["tested_commit"]) is None
@@ -184,7 +184,7 @@ def validate_task_record(payload: Any) -> None:
     else:
         raise ValueError("task record data_policy does not match a supported privacy contract")
     if any(policy[key] is not False for key in forbidden):
-        raise ValueError("task record data_policy must exclude raw prompts, files, tool arguments, output, and secrets")
+        raise ValueError("task record data_policy must exclude every sensitive payload category it declares")
 
 
 class TaskDatasetWriter:
