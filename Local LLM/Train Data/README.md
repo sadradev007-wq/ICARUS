@@ -14,6 +14,10 @@ Record user requests, assistant decisions (short summaries only), tool lifecycle
 
 Never store secrets, credentials, raw environment variables, raw file contents, raw tool arguments, or hidden chain-of-thought. Use bounded redacted summaries and optional SHA-256 content hashes. Write atomically with restrictive permissions and do not mutate existing event files.
 
+## Task Companion history projection
+
+Task Companion may be configured with this directory as an optional read-only source. Its versioned `/api/v3/tasks` response correlates records by exact `task_id` and exposes only `record_id`, `run_id`, timestamp, run status, step count, and bounded test/review/CI indicators. It does not expose task text, summaries, tool names, file paths, file contents, tool arguments, raw output, credentials, or environment values. The reader rejects symlinked path components, symlink files, non-regular files, malformed records, and records larger than 1 MiB. It never mutates a task record or TaskStore state. The Coding Harness validator remains the canonical full-record contract; this is a separate read-only UI projection.
+
 ## Curation
 
 Before training, a separate human-reviewed pipeline must validate schemas, redact, deduplicate, classify outcomes, remove private material, and explicitly approve selected records. Failed, denied, and rejected actions may be useful for diagnostics but must not silently become positive training examples.
