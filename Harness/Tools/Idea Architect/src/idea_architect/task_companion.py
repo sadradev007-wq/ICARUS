@@ -18,6 +18,7 @@ from uuid import uuid4
 from .models import JsonModel
 
 from .protocol import write_json
+from .run_history import TaskRunHistoryReader
 
 PRIORITY_RANK = {"critical": 0, "high": 1, "normal": 2, "low": 3}
 ACTIVE_STATUSES = {"inbox", "next", "in_progress", "waiting"}
@@ -84,8 +85,11 @@ def _now() -> str:
 class TaskStore:
     """Small local-first task repository, stored independently of project queues."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, training_data_dir: Path | None = None):
         self.path = Path(path)
+        self.training_data_dir = (
+            Path(training_data_dir).expanduser() if training_data_dir is not None else None
+        )
         self._lock = threading.RLock()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
@@ -314,6 +318,21 @@ class TaskStore:
 
     def archive(self, task_id: str) -> dict[str, Any]:
         return self.update(task_id, status="archived")
+
+    def execution_history_for_tasks(
+        self, task_ids: list[str] | tuple[str, ...] | set[str], *, limit_per_task: int = 5
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Return read-only, allowlisted Coding Harness run metadata for selected tasks."""
+        identifiers = list(task_ids)
+        if self.training_data_dir is None:
+            return {task_id: [] for task_id in identifiers}
+        return TaskRunHistoryReader(self.training_data_dir).list_for_tasks(
+            identifiers, limit_per_task=limit_per_task
+        )
+
+    def execution_history(self, task_id: str, *, limit: int = 5) -> list[dict[str, Any]]:
+        """Return recent run metadata for one task; no task text or run output is exposed."""
+        return self.execution_history_for_tasks([task_id], limit_per_task=limit).get(task_id, [])
 
 
 

@@ -53,7 +53,7 @@ def _valid_run_id(value: Any) -> bool:
 
 def _task_api_payload(store: TaskStore, *, version: int = 1) -> dict[str, Any]:
     """Build a versioned, read-only snapshot for local ICARUS surfaces."""
-    if version not in {1, 2}:
+    if version not in {1, 2, 3}:
         raise ValueError("Unsupported Task Companion API version")
     tasks = store.list_tasks()
     events = store.pending_execution_events()
@@ -76,11 +76,11 @@ def _task_api_payload(store: TaskStore, *, version: int = 1) -> dict[str, Any]:
             "run_status": event["run_status"], "proposed_status": event["proposed_status"],
             "summary": event["summary"], "created_at": event["created_at"],
         }
-        # v1 remains unchanged for strict legacy consumers. v2 exposes valid correlation IDs.
-        if version == 2 and _valid_run_id(event.get("run_id")):
+        # v1 remains unchanged for strict legacy consumers. v2+ exposes valid correlation IDs.
+        if version >= 2 and _valid_run_id(event.get("run_id")):
             public_event["run_id"] = event["run_id"]
         public_events.append(public_event)
-    return {
+    payload = {
         "schema": f"icarus.task-api.v{version}",
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "tasks": public_tasks, "pending_execution_events": public_events,
@@ -90,12 +90,34 @@ def _task_api_payload(store: TaskStore, *, version: int = 1) -> dict[str, Any]:
             "pending_execution_events": len(public_events),
         },
     }
+    if version == 3:
+        history = store.execution_history_for_tasks(
+            [task["id"] for task in public_tasks], limit_per_task=5
+        )
+        by_task = [
+            {"task_id": task["id"], "runs": history.get(task["id"], [])}
+            for task in public_tasks
+        ]
+        payload["task_run_history"] = {
+            "status": "configured" if store.training_data_dir is not None else "not_configured",
+            "by_task": by_task,
+        }
+        payload["counts"]["task_run_records"] = sum(
+            len(item["runs"]) for item in by_task
+        )
+    return payload
 
 def _page(store: TaskStore, token: str, *, message: str = "",
           error: str = "", values: dict[str, str] | None = None) -> str:
     values = values or {}
     tasks = store.list_tasks(include_closed=True)
     events = store.pending_execution_events()
+    history_by_task = (
+        store.execution_history_for_tasks(
+            [task["id"] for task in tasks], limit_per_task=3
+        )
+        if store.training_data_dir is not None else {}
+    )
     event_rows = []
     for event in events:
         event_id = _e(event.get("event_id"))
@@ -129,13 +151,51 @@ def _page(store: TaskStore, token: str, *, message: str = "",
         status = STATUS_LABELS.get(task["status"], task["status"])
         due = task.get("due_at") or "بدون موعد"
         project = task.get("project_id") or "بدون پروژه"
+        runs = history_by_task.get(task["id"], [])
+        history_markup = ""
+        if store.training_data_dir is not None:
+            history_items = []
+            for run in runs:
+                verification = run["verification"]
+                run_id = run.get("run_id")
+                run_reference = (
+                    f'<code dir="ltr">{_e(run_id)}</code>'
+                    if run_id else "اجرای تاریخی؛ شناسهٔ run ثبت نشده است"
+                )
+                run_status = {
+                    "completed": "تکمیل‌شده",
+                    "step_limit": "توقف در سقف گام‌ها",
+                    "error": "خطا",
+                }.get(run["status"], run["status"])
+                test_status = (
+                    "آزمون گزارش شد" if verification["tests_reported"]
+                    else "آزمون گزارش نشده"
+                )
+                ci_status = verification.get("ci_status")
+                ci_label = f" · CI: {_e(ci_status)}" if ci_status else ""
+                history_items.append(
+                    '<li><strong>' + _e(run_status) + '</strong> · ' +
+                    _e(run["created_at"]) + ' · ' + _e(str(run["steps"])) +
+                    ' گام · ' + _e(test_status) + ' · بازبینی: ' +
+                    _e(verification["review_status"]) + ci_label +
+                    '<br>شناسهٔ اجرا: ' + run_reference + '</li>'
+                )
+            history_body = (
+                "<ul>" + "".join(history_items) + "</ul>"
+                if history_items else '<p class="muted">اجرای ثبت‌شده‌ای برای این کار پیدا نشد.</p>'
+            )
+            history_markup = (
+                f'<details class="run-history"><summary>تاریخچهٔ اجرای Coding Harness ({len(runs)})</summary>'
+                + history_body + "</details>"
+            )
         rows.append(
             '<article class="task">'
             '<div class="task-title"><div><h3>' + _e(task["title"]) + '</h3>'
             '<p>' + _e(task.get("description")) + '</p></div>'
             '<span class="priority ' + _e(task["priority"]) + '">' + _e(priority) + '</span></div>'
             '<div class="meta"><span>' + _e(status) + '</span><span>' + _e(project) +
-            '</span><span>' + _e(due) + '</span></div></article>'
+            '</span><span>' + _e(due) + '</span></div>'
+            + history_markup + '</article>'
         )
     task_list = "".join(rows) or '<p class="empty">هنوز کاری ثبت نشده است. اولین کار را از فرم بالا اضافه کن.</p>'
     notice = ('<div class="notice success">' + _e(message) + '</div>') if message else ""
@@ -163,6 +223,9 @@ button{{font:inherit;border:0;border-radius:10px;background:#8061c7;color:white;
 button:hover{{filter:brightness(1.12)}}.submit{{grid-column:1/-1;justify-self:start;min-width:170px}}
 .notice{{padding:12px 15px;border-radius:10px;margin:0 0 16px}}.success{{background:#18382f;color:#b8f3d9}}.error{{background:#47262e;color:#ffd0d5}}
 .task{{background:#191e2b;border:1px solid #30364a;border-radius:14px;padding:16px;margin:12px 0}}
+.run-history{{margin-top:14px;border-top:1px solid #30364a;padding-top:8px;color:#c8d0e4}}
+.run-history summary{{cursor:pointer;padding:8px 0}}.run-history ul{{margin:8px 0;padding-right:22px}}
+.run-history li{{margin:8px 0;overflow-wrap:anywhere}}.run-history code{{direction:ltr;unicode-bidi:embed}}
 .feedback{{border-color:#8061c7}}.actions{{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}}
 .actions form{{display:block;background:transparent;padding:0}}.secondary{{background:#444b5e}}
 .task-title{{display:flex;align-items:start;justify-content:space-between;gap:12px}}h3{{margin:0 0 7px;font-size:1rem}}.task p{{margin:0;color:#aab2c8;white-space:pre-wrap;overflow-wrap:anywhere}}
@@ -275,8 +338,8 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                     self._respond(404, "Not found")
                     return
                 self._respond(200, asset, content_type)
-            elif path in {"/api/v1/tasks", "/api/v2/tasks"}:
-                version = 2 if path == "/api/v2/tasks" else 1
+            elif path in {"/api/v1/tasks", "/api/v2/tasks", "/api/v3/tasks"}:
+                version = 3 if path == "/api/v3/tasks" else 2 if path == "/api/v2/tasks" else 1
                 payload = json.dumps(
                     _task_api_payload(store, version=version),
                     ensure_ascii=False,

@@ -15,8 +15,17 @@ def main() -> None:
         "ICARUS_TASKS_FILE", "~/.local/share/icarus/tasks.json"
     ), help="Local task JSON path")
     parser.add_argument("--port", type=int, default=8766)
+    parser.add_argument(
+        "--training-data-dir",
+        default=os.environ.get("ICARUS_TRAIN_DATA_DIR"),
+        help="Optional Local LLM Train Data/tasks directory for read-only run history",
+    )
     args = parser.parse_args()
-    store = TaskStore(Path(args.data).expanduser())
+    training_data_dir = (
+        Path(args.training_data_dir).expanduser()
+        if args.training_data_dir else None
+    )
+    store = TaskStore(Path(args.data).expanduser(), training_data_dir=training_data_dir)
     serve_task_companion(store, port=args.port)
 
 

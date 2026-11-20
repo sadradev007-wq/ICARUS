@@ -205,7 +205,65 @@ class TaskDashboardTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as caught_v2:
             urllib.request.urlopen(request_v2)
         self.assertEqual(caught_v2.exception.code, 404)
+        request_v3 = urllib.request.Request(self.base + "/api/v3/tasks", data=b"", method="POST")
+        with self.assertRaises(urllib.error.HTTPError) as caught_v3:
+            urllib.request.urlopen(request_v3)
+        self.assertEqual(caught_v3.exception.code, 404)
         self.assertEqual(self.store.list_tasks()[0]["status"], "next")
+
+    def test_v3_api_and_task_page_show_only_allowlisted_run_history(self):
+        records = Path(self.temp.name) / "Local LLM" / "Train Data" / "tasks"
+        records.mkdir(parents=True)
+        self.store.training_data_dir = records
+        task = self.store.add("History-backed task")
+        payload = {
+            "schema_version": "1.1.0",
+            "record_id": "a" * 32,
+            "run_id": "b" * 32,
+            "task_id": task["id"],
+            "created_at": "2026-11-20T07:00:00+00:00",
+            "task": "private prompt must not appear",
+            "status": "completed",
+            "summary": "private summary must not appear",
+            "steps": 3,
+            "tools_called": ["read_file"],
+            "verification": {
+                "tests_reported": True,
+                "review_status": "completed",
+                "ci_status": "passed",
+            },
+            "data_policy": {
+                "redacted": True,
+                "file_contents_included": False,
+                "tool_arguments_included": False,
+                "raw_tool_output_included": False,
+            },
+        }
+        (records / f"20261120T070000-{'a' * 32}.json").write_text(
+            json.dumps(payload), encoding="utf-8"
+        )
+
+        status, body = self.get("/api/v3/tasks")
+        self.assertEqual(status, 200)
+        snapshot = json.loads(body)
+        self.assertEqual(snapshot["schema"], "icarus.task-api.v3")
+        self.assertEqual(snapshot["task_run_history"]["status"], "configured")
+        history = snapshot["task_run_history"]["by_task"]
+        self.assertEqual(history[0]["task_id"], task["id"])
+        self.assertEqual(history[0]["runs"][0]["run_id"], "b" * 32)
+        self.assertEqual(snapshot["counts"]["task_run_records"], 1)
+        self.assertNotIn("private prompt", body)
+        self.assertNotIn("private summary", body)
+        self.assertNotIn("tools_called", body)
+
+        _, v2_body = self.get("/api/v2/tasks")
+        self.assertNotIn("task_run_history", json.loads(v2_body))
+
+        _, page = self.get("/")
+        self.assertIn("تاریخچهٔ اجرای Coding Harness", page)
+        self.assertIn("b" * 32, page)
+        self.assertNotIn("private prompt", page)
+        self.assertNotIn("private summary", page)
 
     def test_rejects_non_loopback_host_header(self):
         request = urllib.request.Request(
