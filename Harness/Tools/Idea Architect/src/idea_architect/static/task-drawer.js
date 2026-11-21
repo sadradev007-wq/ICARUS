@@ -48,7 +48,7 @@ if (root) {
   }
 
   function runHistoryDetails(task, sections) {
-    if (sections.runHistoryStatus === "unsupported") return null;
+    if (sections.runHistoryStatus !== "configured") return null;
     const runs = sections.runHistoryByTask.get(task.id) ?? [];
     const details = document.createElement("details");
     details.className = "task-drawer__run-history";
@@ -56,13 +56,6 @@ if (root) {
     summary.textContent = "تاریخچهٔ اجرای هارنس (" + new Intl.NumberFormat("fa-IR").format(runs.length) + ")";
     details.append(summary);
 
-    if (sections.runHistoryStatus === "not_configured") {
-      const empty = document.createElement("p");
-      empty.className = "task-drawer__empty";
-      empty.textContent = "مسیر Local LLM/Train Data/tasks برای icarus-tasks تنظیم نشده است.";
-      details.append(empty);
-      return details;
-    }
     if (!runs.length) {
       const empty = document.createElement("p");
       empty.className = "task-drawer__empty";

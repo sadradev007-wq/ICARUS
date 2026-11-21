@@ -177,7 +177,7 @@ export function selectDrawerSections(snapshot, now = Date.now(), dueWindowMs = 4
     pendingFeedback: [...valid.pending_execution_events]
       .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
       .slice(0, 5),
-    pendingFeedbackCount: valid.counts.pending_execution_events,
+    pendingFeedbackCount: valid.pending_execution_events.length,
     runHistoryByTask: runHistory.byTask,
     runHistoryStatus: runHistory.status,
     taskRunRecordsCount: runHistory.recordCount,

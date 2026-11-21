@@ -68,6 +68,7 @@ test("accepts v2 snapshots and legacy events without run IDs", () => {
   const snapshot = makeSnapshot([makeTask("T-001", "high", "next")],
     [makeEvent("1", "T-legacy", "2026-11-07T04:00:00Z")]);
   assert.equal(parseTaskSnapshot(snapshot), snapshot);
+  assert.equal(selectDrawerSections(snapshot).runHistoryStatus, "unsupported");
 });
 
 test("accepts v3 snapshots with privacy-bounded run history and legacy records", () => {
@@ -85,6 +86,15 @@ test("accepts v3 snapshots with privacy-bounded run history and legacy records",
   assert.equal(sections.taskRunRecordsCount, 2);
   assert.equal(sections.runHistoryByTask.get("T-001")[0].run_id, "b".repeat(32));
   assert.equal(sections.runHistoryByTask.get("T-002")[0].run_id, null);
+});
+
+test("reports an explicitly unconfigured history source without inventing records", () => {
+  const task = makeTask("T-not-configured", "normal", "next");
+  const snapshot = makeV3Snapshot([task], {}, "not_configured");
+  const sections = selectDrawerSections(snapshot);
+  assert.equal(sections.runHistoryStatus, "not_configured");
+  assert.equal(sections.taskRunRecordsCount, 0);
+  assert.deepEqual(sections.runHistoryByTask.get(task.id), []);
 });
 
 test("rejects private or unknown run-history fields", () => {
