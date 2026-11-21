@@ -161,9 +161,23 @@ The Coding Harness resolves the selected TaskStore path before creating the adja
 - رویدادهای جدید، در صورت وجود، فیلد `run_id` با الگوی ۳۲ رقم هگزادسیمال دارند. رویدادهای قدیمی بدون این فیلد همچنان در v2 معتبرند.
 - endpoint نسخهٔ v1 و schema سخت‌گیرانهٔ آن بدون تغییر باقی می‌ماند؛ مصرف‌کنندگان قدیمی لازم نیست مهاجرت کنند.
 - schema نسخهٔ جدید در `Harness/Tools/Task Companion/schemas/task-api.v2.schema.json` قرار دارد.
-- پنل فعلی از v2 برای نمایش شناسهٔ اجرای هر پیشنهاد استفاده می‌کند. نمایش شناسه صرفاً برای ردیابی است و هیچ اختیاری برای پذیرش پیشنهاد یا تغییر وضعیت ایجاد نمی‌کند.
+- پنل کشویی نمونه ابتدا v3 را می‌خواند و فقط در پاسخ 404 از سرور قدیمی به v2 برمی‌گردد. شناسهٔ رویداد و run صرفاً برای ردیابی‌اند و هیچ اختیاری برای پذیرش پیشنهاد یا تغییر وضعیت ایجاد نمی‌کنند.
 
 
 ### Feedback edge-case behavior
 
 Pending suggestions are shown only while their target task remains active. If a task is completed, archived, or removed from the active set by another path, its old suggestion is hidden; direct application still rejects stale feedback. The dashboard's drawer link reloads the current page before navigating to the feedback anchor, so feedback arriving after initial page load is rendered before the link is followed.
+
+
+## API خواندنی Task Companion (v3) و تاریخچهٔ اجرای Harness
+
+مسیر `GET /api/v3/tasks` همان snapshot نسخهٔ v2 را حفظ می‌کند و یک projection فقط‌خواندنی از سوابق `Local LLM/Train Data/tasks/` را در `task_run_history` اضافه می‌کند.
+
+- هر ورودی `by_task` دقیقاً با `task_id` یک کار فعال تطبیق داده می‌شود.
+- هر اجرا فقط `record_id`، `run_id` (برای سوابق تاریخی ممکن است null باشد)، زمان، وضعیت، تعداد گام و نشانگرهای محدود آزمون/بازبینی/CI را منتشر می‌کند.
+- شمارندهٔ `counts.task_run_records` باید با تعداد اجراهای projection برابر باشد؛ هر کار حداکثر پنج اجرای اخیر دریافت می‌کند.
+- prompt، summary، نام ابزارها، مسیر فایل‌ها، محتوای فایل، آرگومان ابزار، خروجی خام، کلیدها و متغیرهای محیطی در قرارداد v3 وجود ندارند.
+- نسخه‌های v1 و v2 بدون تغییر باقی می‌مانند. پنل کشویی نمونه ابتدا v3 را می‌خواند و فقط در پاسخ HTTP 404 به v2 برمی‌گردد؛ خطای دیگر یا پاسخ نامعتبر به‌عنوان خطا نمایش داده می‌شود و پنهان نمی‌گردد.
+- اگر `ICARUS_TRAIN_DATA_DIR` یا `--training-data-dir` تنظیم نشده باشد، وضعیت تاریخچه `not_configured` است و هیچ مسیری حدس زده نمی‌شود.
+
+قرارداد ماشین‌خوان در `Harness/Tools/Task Companion/schemas/task-api.v3.schema.json` قرار دارد. این API همچنان فقط‌خواندنی است و هیچ مجوزی برای اجرای Harness یا تغییر وضعیت کار ایجاد نمی‌کند.

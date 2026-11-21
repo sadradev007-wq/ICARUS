@@ -231,3 +231,31 @@ body.task-drawer-open {
 
 .task-drawer__feedback { border-color: #514477; }
 .task-drawer__feedback code { display: inline-block; max-width: 100%; margin-top: 3px; color: #d9caff; overflow-wrap: anywhere; font-size: .68rem; }
+
+.task-drawer__run-history {
+  margin-top: 10px;
+  border-top: 1px solid #343d52;
+  padding-top: 7px;
+  color: #c8d0e4;
+}
+.task-drawer__run-history summary {
+  cursor: pointer;
+  padding: 5px 0;
+  color: #d9caff;
+  font-size: .76rem;
+}
+.task-drawer__run-history ol {
+  margin: 7px 0 0;
+  padding-right: 20px;
+}
+.task-drawer__run-history li {
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.task-drawer__run-history code {
+  display: inline-block;
+  max-width: 100%;
+  color: #d9caff;
+  overflow-wrap: anywhere;
+  font-size: .68rem;
+}

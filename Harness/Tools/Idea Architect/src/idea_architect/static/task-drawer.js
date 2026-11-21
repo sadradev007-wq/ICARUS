@@ -11,7 +11,12 @@ if (root) {
   const refreshButton = query("[data-drawer-refresh]");
   const priorityLabels = { critical: "بحرانی", high: "بالا", normal: "معمولی", low: "پایین" };
   const statusLabels = { inbox: "صندوق ورودی", next: "بعدی", in_progress: "در حال انجام", waiting: "منتظر" };
-  const runStatusLabels = { completed: "اجرای تکمیل‌شده", step_limit: "توقف در سقف گام‌ها" };
+  const runStatusLabels = { completed: "اجرای تکمیل‌شده", step_limit: "توقف در سقف گام‌ها", error: "اجرای ناموفق" };
+  const reviewStatusLabels = {
+    completed: "تکمیل‌شده", no_changes: "بدون تغییر", required: "نیازمند بازبینی",
+    unavailable: "بازبین در دسترس نبود", invalid_or_unknown: "نامشخص",
+    static_diff_reviewed: "بررسی ایستای diff",
+  };
   let refreshing = false;
 
   function setStatus(state, message) {
@@ -42,7 +47,55 @@ if (root) {
     return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(date);
   }
 
-  function taskCard(task) {
+  function runHistoryDetails(task, sections) {
+    if (sections.runHistoryStatus !== "configured") return null;
+    const runs = sections.runHistoryByTask.get(task.id) ?? [];
+    const details = document.createElement("details");
+    details.className = "task-drawer__run-history";
+    const summary = document.createElement("summary");
+    summary.textContent = "تاریخچهٔ اجرای هارنس (" + new Intl.NumberFormat("fa-IR").format(runs.length) + ")";
+    details.append(summary);
+
+    if (!runs.length) {
+      const empty = document.createElement("p");
+      empty.className = "task-drawer__empty";
+      empty.textContent = "برای این کار اجرای ثبت‌شده‌ای وجود ندارد.";
+      details.append(empty);
+      return details;
+    }
+
+    const list = document.createElement("ol");
+    for (const run of runs) {
+      const item = document.createElement("li");
+      const heading = document.createElement("strong");
+      heading.textContent = runStatusLabels[run.status] ?? run.status;
+      const verification = run.verification;
+      const meta = document.createElement("p");
+      const parts = [
+        formatDue(run.created_at),
+        new Intl.NumberFormat("fa-IR").format(run.steps) + " گام",
+        verification.tests_reported ? "آزمون گزارش شد" : "آزمون گزارش نشده",
+        "بازبینی: " + (reviewStatusLabels[verification.review_status] ?? verification.review_status),
+      ];
+      if (verification.ci_status) parts.push("CI: " + verification.ci_status);
+      meta.textContent = parts.join(" · ");
+      const correlation = document.createElement("p");
+      if (run.run_id) {
+        const code = document.createElement("code");
+        code.dir = "ltr";
+        code.textContent = run.run_id;
+        correlation.append("شناسهٔ اجرا: ", code);
+      } else {
+        correlation.textContent = "رکورد تاریخی؛ شناسهٔ اجرا ثبت نشده است.";
+      }
+      item.append(heading, meta, correlation);
+      list.append(item);
+    }
+    details.append(list);
+    return details;
+  }
+
+  function taskCard(task, sections) {
     const article = document.createElement("article");
     article.className = "task-drawer__task";
     const title = document.createElement("a");
@@ -57,10 +110,12 @@ if (root) {
     if (task.due_at) parts.push("موعد: " + formatDue(task.due_at));
     meta.textContent = parts.join(" · ");
     article.append(title, meta);
+    const history = runHistoryDetails(task, sections);
+    if (history) article.append(history);
     return article;
   }
 
-  function renderList(container, tasks, emptyText) {
+  function renderList(container, tasks, emptyText, sections) {
     container.replaceChildren();
     if (!tasks.length) {
       const empty = document.createElement("p");
@@ -69,7 +124,7 @@ if (root) {
       container.append(empty);
       return;
     }
-    for (const task of tasks) container.append(taskCard(task));
+    for (const task of tasks) container.append(taskCard(task, sections));
   }
 
   function feedbackCard(event) {
@@ -115,20 +170,38 @@ if (root) {
     query("[data-feedback-link]").hidden = sections.pendingFeedbackCount === 0;
 
     if (sections.recommended) {
-      renderList(query("[data-recommended]"), [sections.recommended], "فعلاً کاری برای انجام نیست.");
+      renderList(query("[data-recommended]"), [sections.recommended], "فعلاً کاری برای انجام نیست.", sections);
       query("[data-recommended-reason]").textContent =
         sections.recommended.status === "waiting"
           ? "همهٔ کارهای فعال منتظر هستند؛ این مورد برای پیگیری نمایش داده شده است."
           : "بر اساس ترتیب اولویت و موعد ثبت‌شده در TaskStore انتخاب شده است.";
     } else {
-      renderList(query("[data-recommended]"), [], "فعلاً کاری برای انجام ثبت نشده است.");
+      renderList(query("[data-recommended]"), [], "فعلاً کاری برای انجام ثبت نشده است.", sections);
       query("[data-recommended-reason]").textContent = "با ثبت یک کار، اقدام بعدی اینجا نمایش داده می‌شود.";
     }
-    renderList(query("[data-urgent]"), sections.urgent, "کار بحرانی یا با اولویت بالا وجود ندارد.");
-    renderList(query("[data-due-soon]"), sections.dueSoon, "موعد گذشته یا نزدیک ثبت نشده است.");
-    renderList(query("[data-waiting]"), sections.waiting, "کاری در وضعیت انتظار نیست.");
+    renderList(query("[data-urgent]"), sections.urgent, "کار بحرانی یا با اولویت بالا وجود ندارد.", sections);
+    renderList(query("[data-due-soon]"), sections.dueSoon, "موعد گذشته یا نزدیک ثبت نشده است.", sections);
+    renderList(query("[data-waiting]"), sections.waiting, "کاری در وضعیت انتظار نیست.", sections);
     renderFeedback(query("[data-pending-feedback]"), sections.pendingFeedback);
-    setStatus("ready", sections.activeCount ? "فهرست وظایف به‌روز شد." : "هنوز کاری ثبت نشده است.");
+
+    let historyHint = "";
+    if (sections.runHistoryStatus === "configured") {
+      historyHint = " " + new Intl.NumberFormat("fa-IR").format(sections.taskRunRecordsCount) + " اجرای هارنس در دسترس است.";
+    } else if (sections.runHistoryStatus === "not_configured") {
+      historyHint = " مسیر تاریخچهٔ اجرای هارنس تنظیم نشده است.";
+    } else {
+      historyHint = " سرور قدیمی است؛ تاریخچهٔ اجرا در پنل در دسترس نیست.";
+    }
+    setStatus("ready", (sections.activeCount ? "فهرست وظایف به‌روز شد." : "هنوز کاری ثبت نشده است.") + historyHint);
+  }
+
+  async function requestSnapshot(path) {
+    return fetch(path, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      credentials: "same-origin",
+    });
   }
 
   async function refresh() {
@@ -139,15 +212,18 @@ if (root) {
     try {
       let response;
       try {
-        response = await fetch("/api/v2/tasks", {
-          method: "GET",
-          headers: { Accept: "application/json" },
-          cache: "no-store",
-          credentials: "same-origin",
-        });
+        response = await requestSnapshot("/api/v3/tasks");
       } catch {
         setStatus("offline", "ارتباط با سرور محلی برقرار نیست؛ اجرای icarus-tasks را بررسی کن.");
         return;
+      }
+      if (response.status === 404) {
+        try {
+          response = await requestSnapshot("/api/v2/tasks");
+        } catch {
+          setStatus("offline", "ارتباط با سرور محلی برقرار نیست؛ اجرای icarus-tasks را بررسی کن.");
+          return;
+        }
       }
       if (!response.ok) throw new Error("Task API request failed");
       const snapshot = parseTaskSnapshot(await response.json());
