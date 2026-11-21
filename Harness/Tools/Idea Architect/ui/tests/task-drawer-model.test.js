@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { parseTaskSnapshot, selectDrawerSections } from "../../src/idea_architect/static/task-drawer-model.js";
 
@@ -165,6 +166,20 @@ test("returns a useful empty state", () => {
   assert.deepEqual(sections.waiting, []);
   assert.deepEqual(sections.pendingFeedback, []);
   assert.equal(sections.activeCount, 0);
+});
+
+test("Task Drawer browser script parses as an ES module and keeps safe text rendering", () => {
+  const scriptUrl = new URL("../../src/idea_architect/static/task-drawer.js", import.meta.url);
+  const script = readFileSync(scriptUrl, "utf8");
+  const checked = spawnSync(process.execPath, ["--check", "--input-type=module"], {
+    input: script,
+    encoding: "utf8",
+  });
+  assert.equal(checked.status, 0, checked.stderr || checked.stdout);
+  assert.match(script, /requestSnapshot\("\/api\/v3\/tasks"\)/);
+  assert.match(script, /response\.status === 404/);
+  assert.match(script, /requestSnapshot\("\/api\/v2\/tasks"\)/);
+  assert.doesNotMatch(script, /\.innerHTML\s*=/);
 });
 
 test("Task Companion v3 schema documents the same privacy-bounded history fields", () => {
