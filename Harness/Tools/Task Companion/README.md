@@ -188,8 +188,8 @@ Pending suggestions are shown only while their target task remains active. If a 
 برای نمایش رویدادهای مرتبط با هر کار، مسیر ریشهٔ `Local LLM/Train Data/events/` را صریحاً تنظیم کنید:
 
 ```bash
-icarus-tasks --data ~/.local/share/icarus/tasks.json \\
-  --training-data-dir "/path/to/ICARUS/Local LLM/Train Data/tasks" \\
+icarus-tasks --data ~/.local/share/icarus/tasks.json \
+  --training-data-dir "/path/to/ICARUS/Local LLM/Train Data/tasks" \
   --action-journal-dir "/path/to/ICARUS/Local LLM/Train Data/events"
 ```
 

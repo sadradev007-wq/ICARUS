@@ -297,16 +297,20 @@ class ActionHistoryReader:
         finally:
             os.close(root_fd)
 
-        for task_id, events in collected.items():
-            events.sort(key=lambda item: item[0], reverse=True)
-            seen_event_ids: set[str] = set()
-            selected = []
-            for _, event in events:
-                if event["event_id"] in seen_event_ids:
-                    continue
-                seen_event_ids.add(event["event_id"])
-                selected.append(event)
-                if len(selected) >= limit_per_task:
-                    break
-            result[task_id] = selected
+        ordered = sorted(
+            (
+                (timestamp, task_id, event)
+                for task_id, events in collected.items()
+                for timestamp, event in events
+            ),
+            key=lambda item: item[0],
+            reverse=True,
+        )
+        seen_event_ids: set[str] = set()
+        for _, task_id, event in ordered:
+            if event["event_id"] in seen_event_ids:
+                continue
+            seen_event_ids.add(event["event_id"])
+            if len(result[task_id]) < limit_per_task:
+                result[task_id].append(event)
         return result

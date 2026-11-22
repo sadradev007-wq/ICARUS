@@ -169,5 +169,19 @@ class ActionHistoryReaderTests(unittest.TestCase):
             reader.list_for_tasks(["T-valid"], limit_per_task=0)
 
 
+    def test_deduplicates_event_ids_across_task_records(self):
+        first_task = "T-first"
+        second_task = "T-second"
+        older = _event(first_task, "a", created_at="2026-11-22T06:00:00+00:00")
+        newer = _event(second_task, "a", created_at="2026-12-01T06:00:00+00:00")
+        self.write_event(older)
+        december = self.events / "2026" / "12"
+        self.write_event(newer, month=december)
+        result = ActionHistoryReader(self.events).list_for_tasks([first_task, second_task])
+        self.assertEqual(result[first_task], [])
+        self.assertEqual(len(result[second_task]), 1)
+        self.assertEqual(result[second_task][0]["event_id"], older["event_id"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -396,5 +396,14 @@ class TaskDashboardTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, 404)
 
 
+    def test_v4_api_marks_action_history_not_configured_without_guessing(self):
+        task = self.store.add("No Action Journal configured")
+        _, body = self.get("/api/v4/tasks")
+        payload = json.loads(body)
+        self.assertEqual(payload["action_history"]["status"], "not_configured")
+        self.assertEqual(payload["action_history"]["by_task"], [{"task_id": task["id"], "events": []}])
+        self.assertEqual(payload["counts"]["action_journal_events"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
