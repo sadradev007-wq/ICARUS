@@ -65,6 +65,37 @@ function makeV3Snapshot(tasks, runsByTask, status = "configured") {
   };
 }
 
+
+function makeActionEvent(suffix, overrides = {}) {
+  return {
+    event_id: "A-" + suffix.repeat(32),
+    created_at: "2026-11-22T06:00:00+00:00",
+    event_type: "approval_granted",
+    actor: "user",
+    outcome_status: "succeeded",
+    approval_status: "approved",
+    approved_by: "user",
+    run_id: "b".repeat(32),
+    proposal_id: "P-" + "c".repeat(32),
+    ...overrides,
+  };
+}
+
+function makeV4Snapshot(tasks, runsByTask = {}, eventsByTask = {}, actionStatus = "configured") {
+  const base = makeV3Snapshot(tasks, runsByTask);
+  const by_task = tasks.map((task) => ({
+    task_id: task.id,
+    events: eventsByTask[task.id] ?? [],
+  }));
+  const action_journal_events = by_task.reduce((count, item) => count + item.events.length, 0);
+  return {
+    ...base,
+    schema: "icarus.task-api.v4",
+    counts: { ...base.counts, action_journal_events },
+    action_history: { status: actionStatus, by_task },
+  };
+}
+
 test("accepts v2 snapshots and legacy events without run IDs", () => {
   const snapshot = makeSnapshot([makeTask("T-001", "high", "next")],
     [makeEvent("1", "T-legacy", "2026-11-07T04:00:00Z")]);
@@ -158,6 +189,45 @@ test("selects actionable tasks and newest correlated pending runs", () => {
   assert.equal(sections.pendingFeedbackCount, 2);
 });
 
+
+test("accepts v4 snapshots and correlates allowlisted Action Journal events", () => {
+  const task = makeTask("T-action", "high", "next");
+  const event = makeActionEvent("d");
+  const snapshot = makeV4Snapshot([task], {}, { [task.id]: [event] });
+  assert.equal(parseTaskSnapshot(snapshot), snapshot);
+  const sections = selectDrawerSections(snapshot);
+  assert.equal(sections.actionHistoryStatus, "configured");
+  assert.equal(sections.actionJournalEventsCount, 1);
+  assert.equal(sections.actionHistoryByTask.get(task.id)[0].proposal_id, event.proposal_id);
+});
+
+test("rejects private, unknown, duplicate, or miscounted Action Journal metadata", () => {
+  const task = makeTask("T-action-private", "normal", "next");
+  const privateSnapshot = makeV4Snapshot([task], {}, {
+    [task.id]: [{ ...makeActionEvent("e"), summary: "private" }],
+  });
+  assert.throws(() => parseTaskSnapshot(privateSnapshot), /invalid action-event metadata/);
+
+  const duplicate = makeActionEvent("f");
+  const duplicateSnapshot = makeV4Snapshot([task], {}, {
+    [task.id]: [duplicate, duplicate],
+  });
+  assert.throws(() => parseTaskSnapshot(duplicateSnapshot), /duplicate action-event metadata/);
+
+  const mismatch = makeV4Snapshot([task], {}, {});
+  mismatch.counts.action_journal_events = 1;
+  assert.throws(() => parseTaskSnapshot(mismatch), /Action Journal counts do not match/);
+});
+
+test("reports unconfigured Action Journal without inventing events", () => {
+  const task = makeTask("T-action-off", "normal", "next");
+  const snapshot = makeV4Snapshot([task], {}, {}, "not_configured");
+  const sections = selectDrawerSections(snapshot);
+  assert.equal(sections.actionHistoryStatus, "not_configured");
+  assert.equal(sections.actionJournalEventsCount, 0);
+  assert.deepEqual(sections.actionHistoryByTask.get(task.id), []);
+});
+
 test("returns a useful empty state", () => {
   const sections = selectDrawerSections(makeSnapshot(), Date.parse("2026-11-07T08:00:00+03:30"));
   assert.equal(sections.recommended, null);
@@ -176,10 +246,28 @@ test("Task Drawer browser script parses as an ES module and keeps safe text rend
     encoding: "utf8",
   });
   assert.equal(checked.status, 0, checked.stderr || checked.stdout);
+  assert.match(script, /requestSnapshot\("\/api\/v4\/tasks"\)/);
   assert.match(script, /requestSnapshot\("\/api\/v3\/tasks"\)/);
   assert.match(script, /response\.status === 404/);
   assert.match(script, /requestSnapshot\("\/api\/v2\/tasks"\)/);
   assert.doesNotMatch(script, /\.innerHTML\s*=/);
+});
+
+test("Task Companion v4 schema documents privacy-bounded Action Journal metadata", () => {
+  const schemaUrl = new URL("../../../Task Companion/schemas/task-api.v4.schema.json", import.meta.url);
+  const schema = JSON.parse(readFileSync(schemaUrl, "utf8"));
+  assert.equal(schema.properties.schema.const, "icarus.task-api.v4");
+  assert.ok(schema.required.includes("action_history"));
+  assert.ok(schema.properties.counts.required.includes("action_journal_events"));
+  const history = schema.properties.action_history;
+  assert.deepEqual(history.required, ["status", "by_task"]);
+  const eventSchema = history.properties.by_task.items.properties.events.items;
+  assert.equal(eventSchema.additionalProperties, false);
+  assert.deepEqual(
+    Object.keys(eventSchema.properties).sort(),
+    ["event_id", "created_at", "event_type", "actor", "outcome_status",
+      "approval_status", "approved_by", "run_id", "proposal_id"].sort(),
+  );
 });
 
 test("Task Companion v3 schema documents the same privacy-bounded history fields", () => {

@@ -17,6 +17,18 @@ if (root) {
     unavailable: "بازبین در دسترس نبود", invalid_or_unknown: "نامشخص",
     static_diff_reviewed: "بررسی ایستای diff",
   };
+  const actionTypeLabels = {
+    user_request: "درخواست کاربر", assistant_decision: "تصمیم دستیار",
+    tool_started: "شروع ابزار", tool_finished: "پایان ابزار",
+    mutation_proposed: "پیشنهاد تغییر", mutation_applied: "اعمال تغییر",
+    approval_granted: "تأیید کاربر", approval_denied: "رد کاربر",
+    checkpoint_created: "ایجاد نقطهٔ بازگشت", rollback_applied: "بازگردانی",
+    task_changed: "تغییر کار", calendar_changed: "تغییر تقویم",
+    provider_selected: "انتخاب مدل", error: "خطا", response_completed: "پاسخ نهایی",
+  };
+  const actorLabels = { user: "کاربر", assistant: "دستیار", system: "سیستم", external_service: "سرویس بیرونی" };
+  const outcomeLabels = { proposed: "پیشنهادشده", succeeded: "موفق", failed: "ناموفق", denied: "ردشده", cancelled: "لغوشده", skipped: "ردشده" };
+  const approvalLabels = { not_required: "نیازی به تأیید نبود", pending: "در انتظار", approved: "تأییدشده", denied: "ردشده" };
   let refreshing = false;
 
   function setStatus(state, message) {
@@ -95,6 +107,60 @@ if (root) {
     return details;
   }
 
+
+  function actionHistoryDetails(task, sections) {
+    if (sections.actionHistoryStatus !== "configured") return null;
+    const events = sections.actionHistoryByTask.get(task.id) ?? [];
+    const details = document.createElement("details");
+    details.className = "task-drawer__run-history task-drawer__action-history";
+    const summary = document.createElement("summary");
+    summary.textContent = "تاریخچهٔ Action Journal (" + new Intl.NumberFormat("fa-IR").format(events.length) + ")";
+    details.append(summary);
+
+    if (!events.length) {
+      const empty = document.createElement("p");
+      empty.className = "task-drawer__empty";
+      empty.textContent = "رویداد عملیاتی ثبت‌شده‌ای برای این کار وجود ندارد.";
+      details.append(empty);
+      return details;
+    }
+
+    const list = document.createElement("ol");
+    for (const event of events) {
+      const item = document.createElement("li");
+      const heading = document.createElement("strong");
+      heading.textContent = actionTypeLabels[event.event_type] ?? event.event_type;
+      const meta = document.createElement("p");
+      meta.textContent = [
+        formatDue(event.created_at),
+        actorLabels[event.actor] ?? event.actor,
+        "نتیجه: " + (outcomeLabels[event.outcome_status] ?? event.outcome_status),
+        "تأیید: " + (approvalLabels[event.approval_status] ?? event.approval_status),
+      ].join(" · ");
+      const identifiers = document.createElement("p");
+      const eventCode = document.createElement("code");
+      eventCode.dir = "ltr";
+      eventCode.textContent = event.event_id;
+      identifiers.append("رویداد: ", eventCode);
+      if (event.run_id) {
+        const runCode = document.createElement("code");
+        runCode.dir = "ltr";
+        runCode.textContent = event.run_id;
+        identifiers.append(" · اجرا: ", runCode);
+      }
+      if (event.proposal_id) {
+        const proposalCode = document.createElement("code");
+        proposalCode.dir = "ltr";
+        proposalCode.textContent = event.proposal_id;
+        identifiers.append(" · پیشنهاد: ", proposalCode);
+      }
+      item.append(heading, meta, identifiers);
+      list.append(item);
+    }
+    details.append(list);
+    return details;
+  }
+
   function taskCard(task, sections) {
     const article = document.createElement("article");
     article.className = "task-drawer__task";
@@ -112,6 +178,8 @@ if (root) {
     article.append(title, meta);
     const history = runHistoryDetails(task, sections);
     if (history) article.append(history);
+    const actionHistory = actionHistoryDetails(task, sections);
+    if (actionHistory) article.append(actionHistory);
     return article;
   }
 
@@ -192,6 +260,11 @@ if (root) {
     } else {
       historyHint = " سرور قدیمی است؛ تاریخچهٔ اجرا در پنل در دسترس نیست.";
     }
+    if (sections.actionHistoryStatus === "configured") {
+      historyHint += " " + new Intl.NumberFormat("fa-IR").format(sections.actionJournalEventsCount) + " رویداد Action Journal در دسترس است.";
+    } else if (sections.actionHistoryStatus === "not_configured") {
+      historyHint += " مسیر Action Journal تنظیم نشده است.";
+    }
     setStatus("ready", (sections.activeCount ? "فهرست وظایف به‌روز شد." : "هنوز کاری ثبت نشده است.") + historyHint);
   }
 
@@ -212,10 +285,18 @@ if (root) {
     try {
       let response;
       try {
-        response = await requestSnapshot("/api/v3/tasks");
+        response = await requestSnapshot("/api/v4/tasks");
       } catch {
         setStatus("offline", "ارتباط با سرور محلی برقرار نیست؛ اجرای icarus-tasks را بررسی کن.");
         return;
+      }
+      if (response.status === 404) {
+        try {
+          response = await requestSnapshot("/api/v3/tasks");
+        } catch {
+          setStatus("offline", "ارتباط با سرور محلی برقرار نیست؛ اجرای icarus-tasks را بررسی کن.");
+          return;
+        }
       }
       if (response.status === 404) {
         try {

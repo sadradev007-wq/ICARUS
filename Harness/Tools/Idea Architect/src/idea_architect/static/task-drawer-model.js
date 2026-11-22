@@ -1,8 +1,20 @@
 export const TASK_API_SCHEMA = "icarus.task-api.v2";
 export const TASK_API_SCHEMA_V3 = "icarus.task-api.v3";
+export const TASK_API_SCHEMA_V4 = "icarus.task-api.v4";
 
 const RUN_ID_PATTERN = /^[a-f0-9]{32}$/;
 const COMMIT_ID_PATTERN = /^[a-f0-9]{40}$/;
+const ACTION_EVENT_ID_PATTERN = /^A-[a-f0-9]{32}$/;
+const PROPOSAL_ID_PATTERN = /^P-[a-f0-9]{32}$/;
+const VALID_ACTION_TYPES = new Set([
+  "user_request", "assistant_decision", "tool_started", "tool_finished",
+  "mutation_proposed", "mutation_applied", "approval_granted", "approval_denied",
+  "checkpoint_created", "rollback_applied", "task_changed", "calendar_changed",
+  "provider_selected", "error", "response_completed",
+]);
+const VALID_ACTORS = new Set(["user", "assistant", "system", "external_service"]);
+const VALID_OUTCOMES = new Set(["proposed", "succeeded", "failed", "denied", "cancelled", "skipped"]);
+const VALID_APPROVALS = new Set(["not_required", "pending", "approved", "denied"]);
 const VALID_PRIORITIES = new Set(["critical", "high", "normal", "low"]);
 const VALID_STATUSES = new Set(["inbox", "next", "in_progress", "waiting"]);
 const VALID_RUN_STATUSES = new Set(["completed", "step_limit", "error"]);
@@ -105,11 +117,83 @@ function parseRunHistory(history, tasks, counts) {
   return { status: history.status, byTask, recordCount };
 }
 
+
+function parseActionHistory(history, tasks, counts) {
+  if (!isObject(history)
+      || !hasOnlyKeys(history, new Set(["status", "by_task"]))
+      || !["configured", "not_configured"].includes(history.status)
+      || !Array.isArray(history.by_task)
+      || !Number.isInteger(counts.action_journal_events)
+      || counts.action_journal_events < 0) {
+    throw new TypeError("Task Companion API contains invalid Action Journal history");
+  }
+
+  const taskIds = new Set(tasks.map((task) => task.id));
+  const seenTasks = new Set();
+  const byTask = new Map();
+  const seenEventIds = new Set();
+  let eventCount = 0;
+
+  for (const entry of history.by_task) {
+    if (!isObject(entry)
+        || !hasOnlyKeys(entry, new Set(["task_id", "events"]))
+        || typeof entry.task_id !== "string"
+        || !taskIds.has(entry.task_id)
+        || seenTasks.has(entry.task_id)
+        || !Array.isArray(entry.events)
+        || entry.events.length > 10) {
+      throw new TypeError("Task Companion API contains an invalid action-history entry");
+    }
+    seenTasks.add(entry.task_id);
+    const taskEvents = [];
+    for (const event of entry.events) {
+      if (!isObject(event)
+          || !hasOnlyKeys(event, new Set([
+            "event_id", "created_at", "event_type", "actor", "outcome_status",
+            "approval_status", "approved_by", "run_id", "proposal_id",
+          ]))
+          || typeof event.event_id !== "string"
+          || !ACTION_EVENT_ID_PATTERN.test(event.event_id)
+          || typeof event.created_at !== "string"
+          || event.created_at.length > 64
+          || !/(?:Z|[+-]\d{2}:\d{2})$/.test(event.created_at)
+          || !Number.isFinite(Date.parse(event.created_at))
+          || !VALID_ACTION_TYPES.has(event.event_type)
+          || !VALID_ACTORS.has(event.actor)
+          || !VALID_OUTCOMES.has(event.outcome_status)
+          || !VALID_APPROVALS.has(event.approval_status)
+          || !["user", "none"].includes(event.approved_by)
+          || (event.approval_status === "approved" && event.approved_by !== "user")
+          || !(event.run_id === null
+            || (typeof event.run_id === "string" && RUN_ID_PATTERN.test(event.run_id)))
+          || !(event.proposal_id === null
+            || (typeof event.proposal_id === "string" && PROPOSAL_ID_PATTERN.test(event.proposal_id)))) {
+        throw new TypeError("Task Companion API contains invalid action-event metadata");
+      }
+      if (seenEventIds.has(event.event_id)) {
+        throw new TypeError("Task Companion API contains duplicate action-event metadata");
+      }
+      seenEventIds.add(event.event_id);
+      taskEvents.push(event);
+      eventCount += 1;
+    }
+    if (history.status === "not_configured" && taskEvents.length > 0) {
+      throw new TypeError("Unconfigured Action Journal history cannot contain events");
+    }
+    byTask.set(entry.task_id, taskEvents);
+  }
+
+  if (seenTasks.size !== taskIds.size || eventCount !== counts.action_journal_events) {
+    throw new TypeError("Task Companion API Action Journal counts do not match");
+  }
+  return { status: history.status, byTask, eventCount };
+}
+
 export function parseTaskSnapshot(value) {
   if (!isObject(value)) {
     throw new TypeError("Task API response must be an object");
   }
-  if (![TASK_API_SCHEMA, TASK_API_SCHEMA_V3].includes(value.schema)) {
+  if (![TASK_API_SCHEMA, TASK_API_SCHEMA_V3, TASK_API_SCHEMA_V4].includes(value.schema)) {
     throw new TypeError("Unsupported Task Companion API schema");
   }
   if (typeof value.generated_at !== "string"
@@ -141,8 +225,11 @@ export function parseTaskSnapshot(value) {
       throw new TypeError("Task Companion API contains an invalid execution event");
     }
   }
-  if (value.schema === TASK_API_SCHEMA_V3) {
+  if ([TASK_API_SCHEMA_V3, TASK_API_SCHEMA_V4].includes(value.schema)) {
     parseRunHistory(value.task_run_history, value.tasks, value.counts);
+  }
+  if (value.schema === TASK_API_SCHEMA_V4) {
+    parseActionHistory(value.action_history, value.tasks, value.counts);
   }
   return value;
 }
@@ -163,9 +250,12 @@ export function selectDrawerSections(snapshot, now = Date.now(), dueWindowMs = 4
     })
     .sort((left, right) => dueTimestamp(left) - dueTimestamp(right));
 
-  const runHistory = valid.schema === TASK_API_SCHEMA_V3
+  const runHistory = [TASK_API_SCHEMA_V3, TASK_API_SCHEMA_V4].includes(valid.schema)
     ? parseRunHistory(valid.task_run_history, tasks, valid.counts)
     : { status: "unsupported", byTask: new Map(), recordCount: 0 };
+  const actionHistory = valid.schema === TASK_API_SCHEMA_V4
+    ? parseActionHistory(valid.action_history, tasks, valid.counts)
+    : { status: "unsupported", byTask: new Map(), eventCount: 0 };
 
   return {
     recommended: tasks.find((task) => task.status !== "waiting") ?? tasks[0] ?? null,
@@ -181,5 +271,8 @@ export function selectDrawerSections(snapshot, now = Date.now(), dueWindowMs = 4
     runHistoryByTask: runHistory.byTask,
     runHistoryStatus: runHistory.status,
     taskRunRecordsCount: runHistory.recordCount,
+    actionHistoryByTask: actionHistory.byTask,
+    actionHistoryStatus: actionHistory.status,
+    actionJournalEventsCount: actionHistory.eventCount,
   };
 }
