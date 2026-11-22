@@ -18,6 +18,7 @@ from uuid import uuid4
 from .models import JsonModel
 
 from .protocol import write_json
+from .action_history import ActionHistoryReader
 from .run_history import TaskRunHistoryReader
 
 PRIORITY_RANK = {"critical": 0, "high": 1, "normal": 2, "low": 3}
@@ -85,10 +86,16 @@ def _now() -> str:
 class TaskStore:
     """Small local-first task repository, stored independently of project queues."""
 
-    def __init__(self, path: Path, *, training_data_dir: Path | None = None):
+    def __init__(
+        self, path: Path, *, training_data_dir: Path | None = None,
+        action_journal_dir: Path | None = None,
+    ):
         self.path = Path(path)
         self.training_data_dir = (
             Path(training_data_dir).expanduser() if training_data_dir is not None else None
+        )
+        self.action_journal_dir = (
+            Path(action_journal_dir).expanduser() if action_journal_dir is not None else None
         )
         self._lock = threading.RLock()
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -333,6 +340,21 @@ class TaskStore:
     def execution_history(self, task_id: str, *, limit: int = 5) -> list[dict[str, Any]]:
         """Return recent run metadata for one task; no task text or run output is exposed."""
         return self.execution_history_for_tasks([task_id], limit_per_task=limit).get(task_id, [])
+
+    def action_history_for_tasks(
+        self, task_ids: list[str] | tuple[str, ...] | set[str], *, limit_per_task: int = 10
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Return privacy-bounded Action Journal metadata for selected tasks."""
+        identifiers = list(task_ids)
+        if self.action_journal_dir is None:
+            return {task_id: [] for task_id in identifiers}
+        return ActionHistoryReader(self.action_journal_dir).list_for_tasks(
+            identifiers, limit_per_task=limit_per_task
+        )
+
+    def action_history(self, task_id: str, *, limit: int = 10) -> list[dict[str, Any]]:
+        """Return recent action metadata for one task without action content."""
+        return self.action_history_for_tasks([task_id], limit_per_task=limit).get(task_id, [])
 
 
 

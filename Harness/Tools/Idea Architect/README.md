@@ -258,3 +258,8 @@ icarus-idea "ساخت دستیار فایل آفلاین" --system1-model MODEL_
 ### اتصال پنل کشویی به تاریخچهٔ اجرای Harness
 
 پنل کشویی ابتدا `GET /api/v3/tasks` را درخواست می‌کند و در صورت دریافت 404 از سرور قدیمی به `/api/v2/tasks` برمی‌گردد. در v3، هر کارت کار می‌تواند تاریخچهٔ metadata-only همان `task_id` را باز کند؛ فقط وضعیت اجرا، زمان، تعداد گام و نشانگرهای آزمون/بازبینی/CI نمایش داده می‌شوند. داده‌های خام اجرای Harness هرگز به DOM منتقل نمی‌شوند. منطق parser و انتخاب بخش‌ها با `pnpm test` در پوشهٔ `ui/` آزموده می‌شود.
+
+
+## Action Journal history in Task Companion
+
+The read-only task API v4 can optionally project metadata from the Personal Companion Action Journal. Configure the exact `Local LLM/Train Data/events/` root with `--action-journal-dir` or `ICARUS_ACTION_JOURNAL_DIR`; no path is inferred. The reader scans only `YYYY/MM/A-<uuid>.json` records, validates the v1 event envelope, and exposes only event ID, timestamp, event type, actor, outcome/approval state, and optional run/proposal IDs. Action names, summaries, targets, tool names, provider/model data, content hashes, and all raw action content remain private. API v1-v3 contracts are unchanged.

@@ -330,5 +330,80 @@ class TaskDashboardTests(unittest.TestCase):
         self.assertIn('data-feedback-link href="/#execution-feedback"', page)
 
 
+    def test_v4_api_and_page_project_action_journal_metadata_only(self):
+        events = Path(self.temp.name) / "Local LLM" / "Train Data" / "events"
+        month = events / "2026" / "11"
+        month.mkdir(parents=True)
+        self.store.action_journal_dir = events
+        task = self.store.add("Action-backed task")
+        event_id = "A-" + "a" * 32
+        event = {
+            "schema": "icarus.action-event.v1",
+            "event_id": event_id,
+            "created_at": "2026-11-22T06:00:00+00:00",
+            "task_id": task["id"],
+            "run_id": "b" * 32,
+            "proposal_id": "P-" + "c" * 32,
+            "event_type": "approval_granted",
+            "actor": "user",
+            "action": {
+                "name": "private.action",
+                "target_type": "task",
+                "summary": "private action summary",
+                "target": "private/target",
+                "tool_name": "private_tool",
+                "content_sha256": "d" * 64,
+            },
+            "provider": {"route": "system2_local", "model": "private-model"},
+            "outcome": {"status": "succeeded", "summary": "private outcome"},
+            "approval": {"required": True, "status": "approved", "approved_by": "user"},
+            "privacy": {
+                "redacted": True,
+                "raw_prompt_included": False,
+                "file_content_included": False,
+                "tool_arguments_included": False,
+                "secret_material_included": False,
+            },
+        }
+        (month / f"{event_id}.json").write_text(json.dumps(event), encoding="utf-8")
+
+        status, body = self.get("/api/v4/tasks")
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        self.assertEqual(payload["schema"], "icarus.task-api.v4")
+        self.assertEqual(payload["counts"]["action_journal_events"], 1)
+        self.assertEqual(payload["action_history"]["status"], "configured")
+        projected = payload["action_history"]["by_task"][0]["events"][0]
+        self.assertEqual(projected["event_id"], event_id)
+        self.assertEqual(projected["run_id"], "b" * 32)
+        self.assertEqual(projected["proposal_id"], "P-" + "c" * 32)
+        self.assertEqual(projected["approval_status"], "approved")
+        for private in ("private action summary", "private/target", "private_tool",
+                        "private-model", "private outcome", "content_sha256"):
+            self.assertNotIn(private, body)
+
+        _, page = self.get("/")
+        self.assertIn(event_id, page)
+        self.assertIn("تاریخچهٔ Action Journal", page)
+        self.assertNotIn("private action summary", page)
+        self.assertNotIn("private-model", page)
+
+        _, v3_body = self.get("/api/v3/tasks")
+        self.assertNotIn("action_history", json.loads(v3_body))
+        request = urllib.request.Request(self.base + "/api/v4/tasks", data=b"", method="POST")
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(request)
+        self.assertEqual(caught.exception.code, 404)
+
+
+    def test_v4_api_marks_action_history_not_configured_without_guessing(self):
+        task = self.store.add("No Action Journal configured")
+        _, body = self.get("/api/v4/tasks")
+        payload = json.loads(body)
+        self.assertEqual(payload["action_history"]["status"], "not_configured")
+        self.assertEqual(payload["action_history"]["by_task"], [{"task_id": task["id"], "events": []}])
+        self.assertEqual(payload["counts"]["action_journal_events"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
