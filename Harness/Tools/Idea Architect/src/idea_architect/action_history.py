@@ -62,6 +62,7 @@ def _project_event(
     task_id = payload.get("task_id")
     run_id = payload.get("run_id")
     proposal_id = payload.get("proposal_id")
+    conversation_id = payload.get("conversation_id")
     if (
         payload.get("schema") != "icarus.action-event.v1"
         or not isinstance(event_id, str)
@@ -70,10 +71,11 @@ def _project_event(
         or not isinstance(task_id, str)
         or not 1 <= len(task_id) <= 128
         or task_id not in requested_task_ids
-        or (run_id is not None and (
+        or ("conversation_id" in payload and not _text(conversation_id, 128, required=True))
+        or ("run_id" in payload and (
             not isinstance(run_id, str) or _RUN_ID.fullmatch(run_id) is None
         ))
-        or (proposal_id is not None and (
+        or ("proposal_id" in payload and (
             not isinstance(proposal_id, str) or _PROPOSAL_ID.fullmatch(proposal_id) is None
         ))
         or payload.get("event_type") not in _EVENT_TYPES
@@ -117,7 +119,6 @@ def _project_event(
     if provider is not None and (
         not isinstance(provider, dict)
         or set(provider) - {"route", "model"}
-        or not provider
         or ("route" in provider and provider["route"] not in _ROUTES)
         or ("model" in provider and not _text(provider["model"], 120, required=True))
     ):

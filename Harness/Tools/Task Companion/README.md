@@ -185,12 +185,12 @@ Pending suggestions are shown only while their target task remains active. If a 
 
 ## Action Journal history (API v4)
 
-برای نمایش رویدادهای مرتبط با هر کار، مسیر ریشهٔ \`Local LLM/Train Data/events/\` را صریحاً تنظیم کنید:
+برای نمایش رویدادهای مرتبط با هر کار، مسیر ریشهٔ `Local LLM/Train Data/events/` را صریحاً تنظیم کنید:
 
-\`\`\`bash
+```bash
 icarus-tasks --data ~/.local/share/icarus/tasks.json \\
   --training-data-dir "/path/to/ICARUS/Local LLM/Train Data/tasks" \\
   --action-journal-dir "/path/to/ICARUS/Local LLM/Train Data/events"
-\`\`\`
+```
 
-یا از متغیر \`ICARUS_ACTION_JOURNAL_DIR\` استفاده کنید. هیچ مسیری حدس زده نمی‌شود. \`GET /api/v4/tasks\` علاوه بر تاریخچهٔ اجرای v3، رویدادهای Action Journal را فقط با شناسهٔ رویداد، زمان، نوع رویداد، عامل، نتیجه، وضعیت تأیید و شناسه‌های اختیاری \`run_id\` و \`proposal_id\` نمایش می‌دهد. نام عملیات، خلاصه، هدف، نام ابزار، provider/model، هش محتوا و دادهٔ خام منتشر نمی‌شوند. APIهای v1 تا v3 بدون تغییر باقی می‌مانند.
+یا از متغیر `ICARUS_ACTION_JOURNAL_DIR` استفاده کنید. هیچ مسیری حدس زده نمی‌شود. `GET /api/v4/tasks` علاوه بر تاریخچهٔ اجرای v3، رویدادهای Action Journal را فقط با شناسهٔ رویداد، زمان، نوع رویداد، عامل، نتیجه، وضعیت تأیید و شناسه‌های اختیاری `run_id` و `proposal_id` نمایش می‌دهد. نام عملیات، خلاصه، هدف، نام ابزار، provider/model، هش محتوا و دادهٔ خام منتشر نمی‌شوند. APIهای v1 تا v3 بدون تغییر باقی می‌مانند.
