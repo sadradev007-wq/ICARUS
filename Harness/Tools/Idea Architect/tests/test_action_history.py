@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from idea_architect.action_history import ActionHistoryReader
 from idea_architect.task_companion import TaskStore
+
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(_REPO_ROOT / "Harness" / "Tools" / "Personal Companion"))
+from icarus_personal_companion.action_journal import ActionJournal
 
 
 def _event(task_id, suffix, *, created_at="2026-11-22T06:00:00+00:00", run_id=None):
@@ -181,6 +187,42 @@ class ActionHistoryReaderTests(unittest.TestCase):
         self.assertEqual(result[first_task], [])
         self.assertEqual(len(result[second_task]), 1)
         self.assertEqual(result[second_task][0]["event_id"], older["event_id"])
+
+
+    def test_reads_an_event_written_by_the_real_personal_companion_journal(self):
+        task_id = "T-cross-package"
+        run_id = "a" * 32
+        proposal_id = "P-" + "b" * 32
+        journal = ActionJournal(self.root)
+        journal.record(
+            "approval_granted",
+            actor="user",
+            action_name="task.complete",
+            target_type="task",
+            summary="private writer summary",
+            outcome="succeeded",
+            approval_required=True,
+            approval_status="approved",
+            approved_by="user",
+            target="private/task/path",
+            tool_name="private_tool",
+            task_id=task_id,
+            run_id=run_id,
+            proposal_id=proposal_id,
+            provider_route="system2_local",
+            model="private-model",
+            now=datetime(2026, 11, 22, 6, 0, tzinfo=timezone.utc),
+        )
+        events_dir = self.root / "Local LLM" / "Train Data" / "events"
+        result = ActionHistoryReader(events_dir).list_for_tasks([task_id])
+        self.assertEqual(len(result[task_id]), 1)
+        event = result[task_id][0]
+        self.assertEqual(event["run_id"], run_id)
+        self.assertEqual(event["proposal_id"], proposal_id)
+        self.assertEqual(event["approval_status"], "approved")
+        self.assertNotIn("private writer summary", json.dumps(event))
+        self.assertNotIn("private/task/path", json.dumps(event))
+        self.assertNotIn("private-model", json.dumps(event))
 
 
 if __name__ == "__main__":
