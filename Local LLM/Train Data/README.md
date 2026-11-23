@@ -16,7 +16,7 @@ Never store secrets, credentials, raw environment variables, raw file contents, 
 
 ## Task Companion history projection
 
-Task Companion may be configured with this directory as an optional read-only source. Its versioned `/api/v3/tasks` response correlates records by exact `task_id` and exposes only `record_id`, `run_id`, timestamp, run status, step count, and bounded test/review/CI indicators. It does not expose task text, summaries, tool names, file paths, file contents, tool arguments, raw output, credentials, or environment values. The reader rejects symlinked path components, symlink files, non-regular files, malformed records, and records larger than 1 MiB. It never mutates a task record or TaskStore state. The Coding Harness validator remains the canonical full-record contract; this is a separate read-only UI projection.
+Task Companion may be configured with this directory as an optional read-only source. Its versioned `/api/v5/tasks` response retains the v3 run-history projection and adds a unified timeline with Action Journal metadata when that second source is explicitly configured. Timeline records are correlated by exact `task_id`, ordered newest first, and limited to five run records plus ten action events per task. Shared `run_id` / `proposal_id` values are correlation hints only; ordering does not claim causality. It does not expose task text, summaries, tool names, file paths, file contents, tool arguments, raw output, credentials, or environment values. The reader rejects symlinked path components, symlink files, non-regular files, malformed records, and records larger than 1 MiB. It never mutates a task record or TaskStore state. The Coding Harness validator remains the canonical full-record contract; this is a separate read-only UI projection.
 
 ## Curation
 
@@ -39,3 +39,8 @@ Personal Companion AI proposal and decision events share a server-issued `propos
 The Coding Harness validates each newly generated payload before opening the dataset directory or writing a file. Its standard-library validator rejects unknown fields, invalid status/review values, malformed correlation IDs, duplicate tool names, and any declared privacy flag that permits sensitive payloads. New 1.1.0 records use the explicit `redacted` policy and exclude raw prompts, file contents, tool arguments, and raw tool output. One historical 1.0.0 record uses a compact legacy policy that records raw-prompt, file-content, tool-argument, and secret exclusions but has no explicit raw-tool-output flag; it remains readable for audit and must still pass human curation. The Coding Harness CI validates every checked-in JSON file in `tasks/` so historical records cannot silently drift away from the supported contract.
 
 A valid record is still only an operational history item. It is not automatically approved as a training example; the separate human curation process above remains mandatory.
+
+
+## Unified Task Companion timeline
+
+API v5 combines the safe run projection from tasks/ and the safe action projection from events/YYYY/MM/ into a read-only chronological view. It does not merge the underlying files, promote Action Journal telemetry into training examples, infer causal relationships, or change task/approval state. API v1-v4 remain available for compatibility.

@@ -29,6 +29,7 @@ if (root) {
   const actorLabels = { user: "کاربر", assistant: "دستیار", system: "سیستم", external_service: "سرویس بیرونی" };
   const outcomeLabels = { proposed: "پیشنهادشده", succeeded: "موفق", failed: "ناموفق", denied: "ردشده", cancelled: "لغوشده", skipped: "ردشده" };
   const approvalLabels = { not_required: "نیازی به تأیید نبود", pending: "در انتظار", approved: "تأییدشده", denied: "ردشده" };
+  const timelineSourceLabels = { coding_harness: "Coding Harness", action_journal: "Action Journal" };
   let refreshing = false;
 
   function setStatus(state, message) {
@@ -161,6 +162,65 @@ if (root) {
     return details;
   }
 
+  function executionTimelineDetails(task, sections) {
+    if (!["configured", "partial"].includes(sections.executionTimelineStatus)) return null;
+    const entries = sections.executionTimelineByTask.get(task.id) ?? [];
+    const details = document.createElement("details");
+    details.className = "task-drawer__run-history task-drawer__execution-timeline";
+    const summary = document.createElement("summary");
+    summary.textContent = "تاریخچهٔ یکپارچهٔ اجرا (" + new Intl.NumberFormat("fa-IR").format(entries.length) + ")";
+    details.append(summary);
+    if (!entries.length) {
+      const empty = document.createElement("p");
+      empty.className = "task-drawer__empty";
+      empty.textContent = "برای این کار هنوز رویداد اجرایی ثبت نشده است.";
+      details.append(empty);
+      return details;
+    }
+    const list = document.createElement("ol");
+    for (const entry of entries) {
+      const item = document.createElement("li");
+      const heading = document.createElement("strong");
+      heading.textContent = entry.source === "coding_harness"
+        ? (runStatusLabels[entry.status] ?? entry.status)
+        : (actionTypeLabels[entry.event_type] ?? entry.event_type);
+      const meta = document.createElement("p");
+      const parts = [formatDue(entry.created_at), timelineSourceLabels[entry.source] ?? entry.source];
+      if (entry.source === "coding_harness") {
+        parts.push(new Intl.NumberFormat("fa-IR").format(entry.steps) + " گام");
+        parts.push(entry.tests_reported ? "آزمون گزارش شد" : "آزمون گزارش نشده");
+        parts.push("بازبینی: " + (reviewStatusLabels[entry.review_status] ?? entry.review_status));
+        if (entry.ci_status) parts.push("CI: " + entry.ci_status);
+      } else {
+        parts.push(actorLabels[entry.actor] ?? entry.actor);
+        parts.push("نتیجه: " + (outcomeLabels[entry.status] ?? entry.status));
+        parts.push("تأیید: " + (approvalLabels[entry.approval_status] ?? entry.approval_status));
+      }
+      meta.textContent = parts.join(" · ");
+      const identifiers = document.createElement("p");
+      const sourceCode = document.createElement("code");
+      sourceCode.dir = "ltr";
+      sourceCode.textContent = entry.source_id;
+      identifiers.append("شناسهٔ منبع: ", sourceCode);
+      if (entry.run_id) {
+        const runCode = document.createElement("code");
+        runCode.dir = "ltr";
+        runCode.textContent = entry.run_id;
+        identifiers.append(" · اجرا: ", runCode);
+      }
+      if (entry.proposal_id) {
+        const proposalCode = document.createElement("code");
+        proposalCode.dir = "ltr";
+        proposalCode.textContent = entry.proposal_id;
+        identifiers.append(" · پیشنهاد: ", proposalCode);
+      }
+      item.append(heading, meta, identifiers);
+      list.append(item);
+    }
+    details.append(list);
+    return details;
+  }
+
   function taskCard(task, sections) {
     const article = document.createElement("article");
     article.className = "task-drawer__task";
@@ -176,10 +236,15 @@ if (root) {
     if (task.due_at) parts.push("موعد: " + formatDue(task.due_at));
     meta.textContent = parts.join(" · ");
     article.append(title, meta);
-    const history = runHistoryDetails(task, sections);
-    if (history) article.append(history);
-    const actionHistory = actionHistoryDetails(task, sections);
-    if (actionHistory) article.append(actionHistory);
+    if (sections.executionTimelineStatus !== "unsupported") {
+      const timeline = executionTimelineDetails(task, sections);
+      if (timeline) article.append(timeline);
+    } else {
+      const history = runHistoryDetails(task, sections);
+      if (history) article.append(history);
+      const actionHistory = actionHistoryDetails(task, sections);
+      if (actionHistory) article.append(actionHistory);
+    }
     return article;
   }
 
@@ -253,17 +318,25 @@ if (root) {
     renderFeedback(query("[data-pending-feedback]"), sections.pendingFeedback);
 
     let historyHint = "";
-    if (sections.runHistoryStatus === "configured") {
-      historyHint = " " + new Intl.NumberFormat("fa-IR").format(sections.taskRunRecordsCount) + " اجرای هارنس در دسترس است.";
-    } else if (sections.runHistoryStatus === "not_configured") {
-      historyHint = " مسیر تاریخچهٔ اجرای هارنس تنظیم نشده است.";
+    if (sections.executionTimelineStatus === "configured") {
+      historyHint = " " + new Intl.NumberFormat("fa-IR").format(sections.executionTimelineEntriesCount) + " رخداد در تاریخچهٔ یکپارچه موجود است.";
+    } else if (sections.executionTimelineStatus === "partial") {
+      historyHint = " فقط بخشی از منابع تاریخچهٔ یکپارچه تنظیم شده است.";
+    } else if (sections.executionTimelineStatus === "not_configured") {
+      historyHint = " مسیرهای تاریخچهٔ اجرای Harness و Action Journal تنظیم نشده‌اند.";
     } else {
-      historyHint = " سرور قدیمی است؛ تاریخچهٔ اجرا در پنل در دسترس نیست.";
-    }
-    if (sections.actionHistoryStatus === "configured") {
-      historyHint += " " + new Intl.NumberFormat("fa-IR").format(sections.actionJournalEventsCount) + " رویداد Action Journal در دسترس است.";
-    } else if (sections.actionHistoryStatus === "not_configured") {
-      historyHint += " مسیر Action Journal تنظیم نشده است.";
+      if (sections.runHistoryStatus === "configured") {
+        historyHint = " " + new Intl.NumberFormat("fa-IR").format(sections.taskRunRecordsCount) + " اجرای هارنس در دسترس است.";
+      } else if (sections.runHistoryStatus === "not_configured") {
+        historyHint = " مسیر تاریخچهٔ اجرای هارنس تنظیم نشده است.";
+      } else {
+        historyHint = " سرور قدیمی است؛ تاریخچهٔ اجرا در پنل در دسترس نیست.";
+      }
+      if (sections.actionHistoryStatus === "configured") {
+        historyHint += " " + new Intl.NumberFormat("fa-IR").format(sections.actionJournalEventsCount) + " رویداد Action Journal در دسترس است.";
+      } else if (sections.actionHistoryStatus === "not_configured") {
+        historyHint += " مسیر Action Journal تنظیم نشده است.";
+      }
     }
     setStatus("ready", (sections.activeCount ? "فهرست وظایف به‌روز شد." : "هنوز کاری ثبت نشده است.") + historyHint);
   }
@@ -285,10 +358,18 @@ if (root) {
     try {
       let response;
       try {
-        response = await requestSnapshot("/api/v4/tasks");
+        response = await requestSnapshot("/api/v5/tasks");
       } catch {
         setStatus("offline", "ارتباط با سرور محلی برقرار نیست؛ اجرای icarus-tasks را بررسی کن.");
         return;
+      }
+      if (response.status === 404) {
+        try {
+          response = await requestSnapshot("/api/v4/tasks");
+        } catch {
+          setStatus("offline", "ارتباط با سرور محلی برقرار نیست؛ اجرای icarus-tasks را بررسی کن.");
+          return;
+        }
       }
       if (response.status === 404) {
         try {
