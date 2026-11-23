@@ -51,9 +51,50 @@ def _valid_run_id(value: Any) -> bool:
     )
 
 
+def _build_execution_timeline(
+    runs: list[dict[str, Any]], action_events: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Merge safe run/action projections without implying causal ordering."""
+    entries: list[dict[str, Any]] = []
+    for run in runs:
+        verification = run["verification"]
+        entries.append({
+            "source": "coding_harness", "source_id": run["record_id"],
+            "created_at": run["created_at"], "event_type": "task_run",
+            "status": run["status"], "actor": "harness",
+            "run_id": run.get("run_id"), "proposal_id": None,
+            "steps": run["steps"],
+            "tests_reported": verification["tests_reported"],
+            "review_status": verification["review_status"],
+            "ci_status": verification.get("ci_status"),
+            "approval_status": None, "approved_by": None,
+        })
+    for event in action_events:
+        entries.append({
+            "source": "action_journal", "source_id": event["event_id"],
+            "created_at": event["created_at"], "event_type": event["event_type"],
+            "status": event["outcome_status"], "actor": event["actor"],
+            "run_id": event.get("run_id"), "proposal_id": event.get("proposal_id"),
+            "steps": None, "tests_reported": None, "review_status": None,
+            "ci_status": None, "approval_status": event["approval_status"],
+            "approved_by": event["approved_by"],
+        })
+
+    def sort_key(entry: dict[str, Any]) -> tuple[datetime, int, str]:
+        timestamp = datetime.fromisoformat(entry["created_at"].replace("Z", "+00:00"))
+        if timestamp.tzinfo is None:
+            raise ValueError("timeline timestamps must include a timezone")
+        source_order = 1 if entry["source"] == "action_journal" else 0
+        return timestamp.astimezone(timezone.utc), source_order, entry["source_id"]
+
+    # Newest first; ties are deterministic. This is a display order, not a causal claim.
+    entries.sort(key=sort_key, reverse=True)
+    return entries[:15]
+
+
 def _task_api_payload(store: TaskStore, *, version: int = 1) -> dict[str, Any]:
     """Build a versioned, read-only snapshot for local ICARUS surfaces."""
-    if version not in {1, 2, 3, 4}:
+    if version not in {1, 2, 3, 4, 5}:
         raise ValueError("Unsupported Task Companion API version")
     tasks = store.list_tasks()
     events = store.pending_execution_events()
@@ -105,7 +146,7 @@ def _task_api_payload(store: TaskStore, *, version: int = 1) -> dict[str, Any]:
         payload["counts"]["task_run_records"] = sum(
             len(item["runs"]) for item in by_task
         )
-    if version == 4:
+    if version >= 4:
         action_history = store.action_history_for_tasks(
             [task["id"] for task in public_tasks], limit_per_task=10
         )
@@ -119,6 +160,28 @@ def _task_api_payload(store: TaskStore, *, version: int = 1) -> dict[str, Any]:
         }
         payload["counts"]["action_journal_events"] = sum(
             len(item["events"]) for item in by_task
+        )
+    if version == 5:
+        timeline_by_task = []
+        for task in public_tasks:
+            task_id = task["id"]
+            entries = _build_execution_timeline(
+                history.get(task_id, []), action_history.get(task_id, [])
+            )
+            timeline_by_task.append({"task_id": task_id, "entries": entries})
+        configured_sources = sum((
+            store.training_data_dir is not None,
+            store.action_journal_dir is not None,
+        ))
+        timeline_status = (
+            "configured" if configured_sources == 2 else
+            "partial" if configured_sources == 1 else "not_configured"
+        )
+        payload["execution_timeline"] = {
+            "status": timeline_status, "by_task": timeline_by_task,
+        }
+        payload["counts"]["timeline_entries"] = sum(
+            len(item["entries"]) for item in timeline_by_task
         )
     return payload
 
@@ -395,8 +458,12 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                     self._respond(404, "Not found")
                     return
                 self._respond(200, asset, content_type)
-            elif path in {"/api/v1/tasks", "/api/v2/tasks", "/api/v3/tasks", "/api/v4/tasks"}:
+            elif path in {
+                "/api/v1/tasks", "/api/v2/tasks", "/api/v3/tasks",
+                "/api/v4/tasks", "/api/v5/tasks",
+            }:
                 version = (
+                    5 if path == "/api/v5/tasks" else
                     4 if path == "/api/v4/tasks" else
                     3 if path == "/api/v3/tasks" else
                     2 if path == "/api/v2/tasks" else 1

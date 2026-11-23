@@ -1,6 +1,7 @@
 export const TASK_API_SCHEMA = "icarus.task-api.v2";
 export const TASK_API_SCHEMA_V3 = "icarus.task-api.v3";
 export const TASK_API_SCHEMA_V4 = "icarus.task-api.v4";
+export const TASK_API_SCHEMA_V5 = "icarus.task-api.v5";
 
 const RUN_ID_PATTERN = /^[a-f0-9]{32}$/;
 const COMMIT_ID_PATTERN = /^[a-f0-9]{40}$/;
@@ -189,11 +190,121 @@ function parseActionHistory(history, tasks, counts) {
   return { status: history.status, byTask, eventCount };
 }
 
+
+function parseExecutionTimeline(history, tasks, counts, runHistory, actionHistory) {
+  const expectedStatus = runHistory.status === "configured" && actionHistory.status === "configured"
+    ? "configured"
+    : runHistory.status === "not_configured" && actionHistory.status === "not_configured"
+      ? "not_configured" : "partial";
+  if (!isObject(history)
+      || !hasOnlyKeys(history, new Set(["status", "by_task"]))
+      || !["configured", "partial", "not_configured"].includes(history.status)
+      || history.status !== expectedStatus
+      || !Array.isArray(history.by_task)
+      || !Number.isInteger(counts.timeline_entries)
+      || counts.timeline_entries < 0) {
+    throw new TypeError("Task Companion API contains invalid execution timeline metadata");
+  }
+  const taskIds = new Set(tasks.map((task) => task.id));
+  const seenTasks = new Set();
+  const seenSources = new Set();
+  const byTask = new Map();
+  let entryCount = 0;
+  for (const entry of history.by_task) {
+    if (!isObject(entry)
+        || !hasOnlyKeys(entry, new Set(["task_id", "entries"]))
+        || typeof entry.task_id !== "string"
+        || !taskIds.has(entry.task_id)
+        || seenTasks.has(entry.task_id)
+        || !Array.isArray(entry.entries)
+        || entry.entries.length > 15) {
+      throw new TypeError("Task Companion API contains an invalid execution-timeline task entry");
+    }
+    seenTasks.add(entry.task_id);
+    const expectedRuns = runHistory.byTask.get(entry.task_id) ?? [];
+    const expectedActions = actionHistory.byTask.get(entry.task_id) ?? [];
+    if (entry.entries.length !== expectedRuns.length + expectedActions.length) {
+      throw new TypeError("Task Companion API timeline does not cover both source histories");
+    }
+    const runsById = new Map(expectedRuns.map((run) => [run.record_id, run]));
+    const actionsById = new Map(expectedActions.map((event) => [event.event_id, event]));
+    const seenRuns = new Set();
+    const seenActions = new Set();
+    let previousTimestamp = Number.POSITIVE_INFINITY;
+    for (const item of entry.entries) {
+      const itemKeys = new Set([
+        "source", "source_id", "created_at", "event_type", "status", "actor",
+        "run_id", "proposal_id", "steps", "tests_reported", "review_status",
+        "ci_status", "approval_status", "approved_by",
+      ]);
+      if (!isObject(item)
+          || !hasOnlyKeys(item, itemKeys)
+          || typeof item.source_id !== "string"
+          || typeof item.created_at !== "string"
+          || item.created_at.length > 64
+          || !/(?:Z|[+-]\d{2}:\d{2})$/.test(item.created_at)
+          || !Number.isFinite(Date.parse(item.created_at))) {
+        throw new TypeError("Task Companion API contains malformed timeline metadata");
+      }
+      const timestamp = Date.parse(item.created_at);
+      if (timestamp > previousTimestamp) {
+        throw new TypeError("Task Companion API timeline must be newest-first");
+      }
+      previousTimestamp = timestamp;
+      const compositeId = entry.task_id + ":" + item.source + ":" + item.source_id;
+      if (seenSources.has(compositeId)) {
+        throw new TypeError("Task Companion API contains duplicate timeline sources");
+      }
+      seenSources.add(compositeId);
+
+      if (item.source === "coding_harness") {
+        const run = runsById.get(item.source_id);
+        if (!run || seenRuns.has(item.source_id)
+            || item.event_type !== "task_run" || item.status !== run.status
+            || item.actor !== "harness" || item.created_at !== run.created_at
+            || item.run_id !== run.run_id || item.proposal_id !== null
+            || item.steps !== run.steps
+            || item.tests_reported !== run.verification.tests_reported
+            || item.review_status !== run.verification.review_status
+            || item.ci_status !== (run.verification.ci_status ?? null)
+            || item.approval_status !== null || item.approved_by !== null) {
+          throw new TypeError("Task Companion API timeline does not match Coding Harness history");
+        }
+        seenRuns.add(item.source_id);
+      } else if (item.source === "action_journal") {
+        const event = actionsById.get(item.source_id);
+        if (!event || seenActions.has(item.source_id)
+            || item.event_type !== event.event_type
+            || item.status !== event.outcome_status || item.actor !== event.actor
+            || item.created_at !== event.created_at || item.run_id !== event.run_id
+            || item.proposal_id !== event.proposal_id || item.steps !== null
+            || item.tests_reported !== null || item.review_status !== null
+            || item.ci_status !== null || item.approval_status !== event.approval_status
+            || item.approved_by !== event.approved_by) {
+          throw new TypeError("Task Companion API timeline does not match Action Journal history");
+        }
+        seenActions.add(item.source_id);
+      } else {
+        throw new TypeError("Task Companion API contains an unsupported timeline source");
+      }
+    }
+    if (seenRuns.size !== expectedRuns.length || seenActions.size !== expectedActions.length) {
+      throw new TypeError("Task Companion API timeline is missing source history entries");
+    }
+    byTask.set(entry.task_id, entry.entries);
+    entryCount += entry.entries.length;
+  }
+  if (seenTasks.size !== taskIds.size || entryCount !== counts.timeline_entries) {
+    throw new TypeError("Task Companion API execution-timeline counts do not match");
+  }
+  return { status: history.status, byTask, entryCount };
+}
+
 export function parseTaskSnapshot(value) {
   if (!isObject(value)) {
     throw new TypeError("Task API response must be an object");
   }
-  if (![TASK_API_SCHEMA, TASK_API_SCHEMA_V3, TASK_API_SCHEMA_V4].includes(value.schema)) {
+  if (![TASK_API_SCHEMA, TASK_API_SCHEMA_V3, TASK_API_SCHEMA_V4, TASK_API_SCHEMA_V5].includes(value.schema)) {
     throw new TypeError("Unsupported Task Companion API schema");
   }
   if (typeof value.generated_at !== "string"
@@ -225,11 +336,16 @@ export function parseTaskSnapshot(value) {
       throw new TypeError("Task Companion API contains an invalid execution event");
     }
   }
-  if ([TASK_API_SCHEMA_V3, TASK_API_SCHEMA_V4].includes(value.schema)) {
+  if ([TASK_API_SCHEMA_V3, TASK_API_SCHEMA_V4, TASK_API_SCHEMA_V5].includes(value.schema)) {
     parseRunHistory(value.task_run_history, value.tasks, value.counts);
   }
-  if (value.schema === TASK_API_SCHEMA_V4) {
+  if ([TASK_API_SCHEMA_V4, TASK_API_SCHEMA_V5].includes(value.schema)) {
     parseActionHistory(value.action_history, value.tasks, value.counts);
+  }
+  if (value.schema === TASK_API_SCHEMA_V5) {
+    const runs = parseRunHistory(value.task_run_history, value.tasks, value.counts);
+    const actions = parseActionHistory(value.action_history, value.tasks, value.counts);
+    parseExecutionTimeline(value.execution_timeline, value.tasks, value.counts, runs, actions);
   }
   return value;
 }
@@ -250,12 +366,15 @@ export function selectDrawerSections(snapshot, now = Date.now(), dueWindowMs = 4
     })
     .sort((left, right) => dueTimestamp(left) - dueTimestamp(right));
 
-  const runHistory = [TASK_API_SCHEMA_V3, TASK_API_SCHEMA_V4].includes(valid.schema)
+  const runHistory = [TASK_API_SCHEMA_V3, TASK_API_SCHEMA_V4, TASK_API_SCHEMA_V5].includes(valid.schema)
     ? parseRunHistory(valid.task_run_history, tasks, valid.counts)
     : { status: "unsupported", byTask: new Map(), recordCount: 0 };
-  const actionHistory = valid.schema === TASK_API_SCHEMA_V4
+  const actionHistory = [TASK_API_SCHEMA_V4, TASK_API_SCHEMA_V5].includes(valid.schema)
     ? parseActionHistory(valid.action_history, tasks, valid.counts)
     : { status: "unsupported", byTask: new Map(), eventCount: 0 };
+  const timeline = valid.schema === TASK_API_SCHEMA_V5
+    ? parseExecutionTimeline(valid.execution_timeline, tasks, valid.counts, runHistory, actionHistory)
+    : { status: "unsupported", byTask: new Map(), entryCount: 0 };
 
   return {
     recommended: tasks.find((task) => task.status !== "waiting") ?? tasks[0] ?? null,
@@ -274,5 +393,8 @@ export function selectDrawerSections(snapshot, now = Date.now(), dueWindowMs = 4
     actionHistoryByTask: actionHistory.byTask,
     actionHistoryStatus: actionHistory.status,
     actionJournalEventsCount: actionHistory.eventCount,
+    executionTimelineByTask: timeline.byTask,
+    executionTimelineStatus: timeline.status,
+    executionTimelineEntriesCount: timeline.entryCount,
   };
 }

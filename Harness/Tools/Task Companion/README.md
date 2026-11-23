@@ -194,3 +194,12 @@ icarus-tasks --data ~/.local/share/icarus/tasks.json \
 ```
 
 یا از متغیر `ICARUS_ACTION_JOURNAL_DIR` استفاده کنید. هیچ مسیری حدس زده نمی‌شود. `GET /api/v4/tasks` علاوه بر تاریخچهٔ اجرای v3، رویدادهای Action Journal را فقط با شناسهٔ رویداد، زمان، نوع رویداد، عامل، نتیجه، وضعیت تأیید و شناسه‌های اختیاری `run_id` و `proposal_id` نمایش می‌دهد. نام عملیات، خلاصه، هدف، نام ابزار، provider/model، هش محتوا و دادهٔ خام منتشر نمی‌شوند. APIهای v1 تا v3 بدون تغییر باقی می‌مانند.
+
+
+## Unified execution timeline — API v5
+
+GET /api/v5/tasks adds an execution_timeline projection alongside the unchanged v4 task, Coding Harness run, and Action Journal sections. Each task receives at most 15 entries (up to five run records plus ten action events), ordered newest first. A tie uses a deterministic source/ID order.
+
+Timeline entries identify their source (coding_harness or action_journal) and retain only the metadata already exposed by the two source readers. The run_id and proposal_id fields are correlation hints; a shared ID does not prove that one event caused another. The timeline is a chronological view, not an approval engine or a reconstructed causal graph.
+
+The timeline status is configured when both source directories are explicitly configured, partial when only one is configured, and not_configured when neither is configured. No directory is guessed. API v1-v4 remain unchanged, and the Task Drawer falls back from v5 to v4, v3, then v2 only on HTTP 404.

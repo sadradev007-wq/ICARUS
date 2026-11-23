@@ -81,8 +81,8 @@ function makeActionEvent(suffix, overrides = {}) {
   };
 }
 
-function makeV4Snapshot(tasks, runsByTask = {}, eventsByTask = {}, actionStatus = "configured") {
-  const base = makeV3Snapshot(tasks, runsByTask);
+function makeV4Snapshot(tasks, runsByTask = {}, eventsByTask = {}, actionStatus = "configured", runStatus = "configured") {
+  const base = makeV3Snapshot(tasks, runsByTask, runStatus);
   const by_task = tasks.map((task) => ({
     task_id: task.id,
     events: eventsByTask[task.id] ?? [],
@@ -93,6 +93,48 @@ function makeV4Snapshot(tasks, runsByTask = {}, eventsByTask = {}, actionStatus 
     schema: "icarus.task-api.v4",
     counts: { ...base.counts, action_journal_events },
     action_history: { status: actionStatus, by_task },
+  };
+}
+
+function makeV5Snapshot(tasks, runsByTask = {}, eventsByTask = {}, runStatus = "configured", actionStatus = "configured") {
+  const base = makeV4Snapshot(tasks, runsByTask, eventsByTask, actionStatus, runStatus);
+  const by_task = tasks.map((task) => {
+    const entries = [];
+    for (const run of runsByTask[task.id] ?? []) {
+      entries.push({
+        source: "coding_harness", source_id: run.record_id, created_at: run.created_at,
+        event_type: "task_run", status: run.status, actor: "harness",
+        run_id: run.run_id, proposal_id: null, steps: run.steps,
+        tests_reported: run.verification.tests_reported,
+        review_status: run.verification.review_status,
+        ci_status: run.verification.ci_status ?? null,
+        approval_status: null, approved_by: null,
+      });
+    }
+    for (const event of eventsByTask[task.id] ?? []) {
+      entries.push({
+        source: "action_journal", source_id: event.event_id, created_at: event.created_at,
+        event_type: event.event_type, status: event.outcome_status, actor: event.actor,
+        run_id: event.run_id, proposal_id: event.proposal_id,
+        steps: null, tests_reported: null, review_status: null, ci_status: null,
+        approval_status: event.approval_status, approved_by: event.approved_by,
+      });
+    }
+    entries.sort((left, right) =>
+      Date.parse(right.created_at) - Date.parse(left.created_at)
+      || left.source.localeCompare(right.source)
+      || left.source_id.localeCompare(right.source_id));
+    return { task_id: task.id, entries };
+  });
+  const timeline_entries = by_task.reduce((count, item) => count + item.entries.length, 0);
+  const timelineStatus = runStatus === "configured" && actionStatus === "configured"
+    ? "configured"
+    : runStatus === "not_configured" && actionStatus === "not_configured"
+      ? "not_configured" : "partial";
+  return {
+    ...base, schema: "icarus.task-api.v5",
+    counts: { ...base.counts, timeline_entries },
+    execution_timeline: { status: timelineStatus, by_task },
   };
 }
 
@@ -228,6 +270,70 @@ test("reports unconfigured Action Journal without inventing events", () => {
   assert.deepEqual(sections.actionHistoryByTask.get(task.id), []);
 });
 
+test("accepts v5 unified timeline and correlates entries to both source histories", () => {
+  const task = makeTask("T-unified", "high", "next");
+  const run = makeRun("a".repeat(32), "b".repeat(32), { created_at: "2026-11-22T05:00:00+00:00" });
+  const action = makeActionEvent("c", { created_at: "2026-11-22T06:00:00+00:00", run_id: "b".repeat(32) });
+  const snapshot = makeV5Snapshot([task], { [task.id]: [run] }, { [task.id]: [action] });
+  assert.equal(parseTaskSnapshot(snapshot), snapshot);
+  const sections = selectDrawerSections(snapshot);
+  assert.equal(sections.executionTimelineStatus, "configured");
+  assert.equal(sections.executionTimelineEntriesCount, 2);
+  const timeline = sections.executionTimelineByTask.get(task.id);
+  assert.deepEqual(timeline.map((entry) => entry.source), ["action_journal", "coding_harness"]);
+  assert.equal(timeline[0].run_id, "b".repeat(32));
+  assert.equal(timeline[1].source_id, "a".repeat(32));
+});
+
+test("rejects timeline entries that drift from source histories or counts", () => {
+  const task = makeTask("T-unified-invalid", "normal", "next");
+  const action = makeActionEvent("e");
+  const snapshot = makeV5Snapshot([task], {}, { [task.id]: [action] });
+  snapshot.execution_timeline.by_task[0].entries[0].status = "denied";
+  assert.throws(() => parseTaskSnapshot(snapshot), /does not match Action Journal/);
+  const mismatch = makeV5Snapshot([task], {}, { [task.id]: [action] });
+  mismatch.counts.timeline_entries = 2;
+  assert.throws(() => parseTaskSnapshot(mismatch), /timeline counts do not match/);
+});
+
+test("reports partial and unconfigured unified timeline sources", () => {
+  const task = makeTask("T-unified-state", "normal", "next");
+  const partial = makeV5Snapshot([task], {}, {}, "configured", "not_configured");
+  assert.equal(selectDrawerSections(partial).executionTimelineStatus, "partial");
+  const empty = makeV5Snapshot([task], {}, {}, "not_configured", "not_configured");
+  assert.equal(selectDrawerSections(empty).executionTimelineStatus, "not_configured");
+  assert.deepEqual(selectDrawerSections(empty).executionTimelineByTask.get(task.id), []);
+});
+
+test("Task Drawer browser script prefers v5 and keeps all legacy fallbacks", () => {
+  const scriptUrl = new URL("../../src/idea_architect/static/task-drawer.js", import.meta.url);
+  const script = readFileSync(scriptUrl, "utf8");
+  const checked = spawnSync(process.execPath, ["--check", "--input-type=module"], {
+    input: script, encoding: "utf8",
+  });
+  assert.equal(checked.status, 0, checked.stderr || checked.stdout);
+  assert.match(script, /requestSnapshot\("\/api\/v5\/tasks"\)/);
+  assert.match(script, /requestSnapshot\("\/api\/v4\/tasks"\)/);
+  assert.match(script, /requestSnapshot\("\/api\/v3\/tasks"\)/);
+  assert.match(script, /requestSnapshot\("\/api\/v2\/tasks"\)/);
+  assert.match(script, /executionTimelineDetails/);
+  assert.doesNotMatch(script, /\.innerHTML\s*=/);
+});
+
+test("Task Companion v5 schema defines a strict unified execution timeline", () => {
+  const schemaUrl = new URL("../../../Task Companion/schemas/task-api.v5.schema.json", import.meta.url);
+  const schema = JSON.parse(readFileSync(schemaUrl, "utf8"));
+  assert.equal(schema.properties.schema.const, "icarus.task-api.v5");
+  assert.ok(schema.required.includes("execution_timeline"));
+  assert.ok(schema.properties.counts.required.includes("timeline_entries"));
+  const timeline = schema.properties.execution_timeline;
+  assert.deepEqual(timeline.required, ["status", "by_task"]);
+  const entry = timeline.properties.by_task.items.properties.entries.items;
+  assert.equal(entry.additionalProperties, false);
+  assert.equal(entry.properties.source.enum.length, 2);
+  assert.ok(entry.allOf.length >= 2);
+});
+
 test("returns a useful empty state", () => {
   const sections = selectDrawerSections(makeSnapshot(), Date.parse("2026-11-07T08:00:00+03:30"));
   assert.equal(sections.recommended, null);
@@ -246,10 +352,7 @@ test("Task Drawer browser script parses as an ES module and keeps safe text rend
     encoding: "utf8",
   });
   assert.equal(checked.status, 0, checked.stderr || checked.stdout);
-  assert.match(script, /requestSnapshot\("\/api\/v4\/tasks"\)/);
-  assert.match(script, /requestSnapshot\("\/api\/v3\/tasks"\)/);
   assert.match(script, /response\.status === 404/);
-  assert.match(script, /requestSnapshot\("\/api\/v2\/tasks"\)/);
   assert.doesNotMatch(script, /\.innerHTML\s*=/);
 });
 
