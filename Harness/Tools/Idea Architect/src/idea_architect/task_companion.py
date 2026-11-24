@@ -89,6 +89,7 @@ class TaskStore:
     def __init__(
         self, path: Path, *, training_data_dir: Path | None = None,
         action_journal_dir: Path | None = None,
+        provider_health_report_path: Path | None = None,
     ):
         self.path = Path(path)
         self.training_data_dir = (
@@ -96,6 +97,10 @@ class TaskStore:
         )
         self.action_journal_dir = (
             Path(action_journal_dir).expanduser() if action_journal_dir is not None else None
+        )
+        self.provider_health_report_path = (
+            Path(provider_health_report_path).expanduser()
+            if provider_health_report_path is not None else None
         )
         self._lock = threading.RLock()
         self.path.parent.mkdir(parents=True, exist_ok=True)

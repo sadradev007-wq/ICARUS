@@ -15,6 +15,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from .task_companion import TaskStore
+from .provider_health import ProviderHealthReader
 
 PRIORITY_LABELS = {
     "critical": "بحرانی",
@@ -363,6 +364,11 @@ button:hover{{filter:brightness(1.12)}}.submit{{grid-column:1/-1;justify-self:st
 <div class="task-drawer__header"><div><h2 id="task-drawer-title">همراه وظایف</h2><p>نمای زنده از کارهای ثبت‌شده</p></div>
 <button class="task-drawer__close" type="button" data-drawer-close aria-label="بستن پنل وظایف">×</button></div>
 <p class="task-drawer__status" data-drawer-status data-state="loading" role="status" aria-live="polite">در حال دریافت کارها…</p>
+<section class="task-drawer__section task-drawer__provider-health" aria-labelledby="drawer-provider-health-title">
+<h3 id="drawer-provider-health-title">سلامت Providerها</h3>
+<p data-provider-health-status role="status" aria-live="polite">در حال دریافت گزارش سلامت…</p>
+<div data-provider-health-routes></div>
+</section>
 <div class="task-drawer__stats">
 <div><strong data-active-count>۰</strong><span>کار فعال</span></div>
 <div><strong data-feedback-count>۰</strong><span>پیشنهاد در انتظار</span></div>
@@ -458,10 +464,17 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                     self._respond(404, "Not found")
                     return
                 self._respond(200, asset, content_type)
+            elif path == "/api/v1/provider-health":
+                payload = json.dumps(
+                    ProviderHealthReader(store.provider_health_report_path).snapshot(),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                self._respond(200, payload, "application/json; charset=utf-8")
             elif path in {
                 "/api/v1/tasks", "/api/v2/tasks", "/api/v3/tasks",
                 "/api/v4/tasks", "/api/v5/tasks",
-            }:
+            }
                 version = (
                     5 if path == "/api/v5/tasks" else
                     4 if path == "/api/v4/tasks" else

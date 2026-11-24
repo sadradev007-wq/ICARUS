@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { parseTaskSnapshot, selectDrawerSections } from "../../src/idea_architect/static/task-drawer-model.js";
+import {
+  parseProviderHealthSnapshot,
+  parseTaskSnapshot,
+  selectDrawerSections,
+} from "../../src/idea_architect/static/task-drawer-model.js";
 
 function makeTask(id, priority, status, due_at = null) {
   return { id, title: id, priority, status, due_at };
@@ -388,4 +392,65 @@ test("Task Companion v3 schema documents the same privacy-bounded history fields
     ["created_at", "record_id", "run_id", "status", "steps", "verification"].sort(),
   );
   assert.equal(runSchema.properties.verification.additionalProperties, false);
+});
+
+function makeProviderHealth(schema = "icarus.provider-health.v1") {
+  const v2 = schema === "icarus.provider-health.v2";
+  const routes = {};
+  for (const [name, kind, enabled, status, probe] of [
+    ["system1_local", "local", true, "ok", "passed"],
+    ["system1_api", "api", false, "skipped", "skipped"],
+    ["system2_local", "local", true, "warning", "failed"],
+    ["system2_api", "api", false, "skipped", "skipped"],
+  ]) {
+    routes[name] = {
+      enabled, kind, status,
+      inference_status: v2 ? probe : "not_probed",
+    };
+  }
+  return {
+    schema: "icarus.provider-health-projection.v1",
+    status: "configured",
+    report_schema: schema,
+    report_status: "warning",
+    observed_at: "2026-11-24T04:30:00+00:00",
+    chat_completions_probe: v2 ? "partial" : "not_probed",
+    routes,
+  };
+}
+
+test("accepts a v1 provider health projection without claiming inference", () => {
+  const snapshot = makeProviderHealth();
+  assert.equal(parseProviderHealthSnapshot(snapshot), snapshot);
+  assert.equal(snapshot.chat_completions_probe, "not_probed");
+  assert.equal(snapshot.routes.system1_local.inference_status, "not_probed");
+});
+
+test("accepts v2 probe metadata while exposing no model or endpoint fields", () => {
+  const snapshot = makeProviderHealth("icarus.provider-health.v2");
+  assert.equal(parseProviderHealthSnapshot(snapshot), snapshot);
+  assert.equal(snapshot.chat_completions_probe, "partial");
+  assert.equal(snapshot.routes.system1_local.inference_status, "passed");
+});
+
+test("rejects provider health projections with private or unknown fields", () => {
+  const snapshot = makeProviderHealth();
+  snapshot.routes.system1_local.model = "private-model";
+  assert.throws(() => parseProviderHealthSnapshot(snapshot), /route metadata/);
+  const unknown = makeProviderHealth();
+  unknown.endpoint = "http://127.0.0.1/private";
+  assert.throws(() => parseProviderHealthSnapshot(unknown), /projection is invalid/);
+});
+
+test("rejects unavailable provider projections that carry stale route data", () => {
+  const snapshot = {
+    schema: "icarus.provider-health-projection.v1",
+    status: "unavailable",
+    report_schema: null,
+    report_status: null,
+    observed_at: null,
+    chat_completions_probe: "not_probed",
+    routes: { system1_local: { enabled: true } },
+  };
+  assert.throws(() => parseProviderHealthSnapshot(snapshot), /must not contain report data/);
 });
