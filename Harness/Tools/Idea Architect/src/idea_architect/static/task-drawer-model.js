@@ -24,7 +24,7 @@ export function parseProviderHealthSnapshot(value) {
       || !(value.observed_at === null
         || (typeof value.observed_at === "string"
           && value.observed_at.length <= 64
-          && /(?:Z|[+-]\\d{2}:\\d{2})$/.test(value.observed_at)
+          && /(?:Z|[+-]\d{2}:\d{2})$/.test(value.observed_at)
           && Number.isFinite(Date.parse(value.observed_at))))
       || !["not_probed", "skipped", "passed", "partial", "failed"].includes(value.chat_completions_probe)
       || !isObject(value.routes)

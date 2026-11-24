@@ -474,7 +474,7 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
             elif path in {
                 "/api/v1/tasks", "/api/v2/tasks", "/api/v3/tasks",
                 "/api/v4/tasks", "/api/v5/tasks",
-            }
+            }:
                 version = (
                     5 if path == "/api/v5/tasks" else
                     4 if path == "/api/v4/tasks" else
