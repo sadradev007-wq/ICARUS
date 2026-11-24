@@ -263,3 +263,14 @@ icarus-idea "ساخت دستیار فایل آفلاین" --system1-model MODEL_
 ## Action Journal history in Task Companion
 
 The read-only task API v4 can optionally project metadata from the Personal Companion Action Journal. Configure the exact `Local LLM/Train Data/events/` root with `--action-journal-dir` or `ICARUS_ACTION_JOURNAL_DIR`; no path is inferred. The reader scans only `YYYY/MM/A-<uuid>.json` records, validates the v1 event envelope, and exposes only event ID, timestamp, event type, actor, outcome/approval state, and optional run/proposal IDs. Action names, summaries, targets, tool names, provider/model data, content hashes, and all raw action content remain private. API v1-v3 contracts are unchanged.
+
+
+## Provider health in Task Companion
+
+The Task Drawer can display a saved, privacy-bounded Coding Harness provider report without starting inference. Pass an explicit report file:
+
+~~~bash
+icarus-tasks --provider-health-report ~/.local/share/icarus/provider-health.json
+~~~
+
+or set ICARUS_PROVIDER_HEALTH_REPORT. The report is read-only and served separately at GET /api/v1/provider-health; Task API v1-v5 remain unchanged. The projection shows route enabled/kind/status and whether inference was explicitly probed, but never model names, endpoint URLs, credential sources, diagnostic messages, or generated response text. A v1 report is always labeled not_probed. The reader does not execute the provider doctor, contact model servers, or create task/event/training records.

@@ -3,6 +3,77 @@ export const TASK_API_SCHEMA_V3 = "icarus.task-api.v3";
 export const TASK_API_SCHEMA_V4 = "icarus.task-api.v4";
 export const TASK_API_SCHEMA_V5 = "icarus.task-api.v5";
 
+const PROVIDER_HEALTH_SCHEMA = "icarus.provider-health-projection.v1";
+const PROVIDER_ROUTES = new Set([
+  "system1_local", "system1_api", "system2_local", "system2_api",
+]);
+const PROVIDER_STATUSES = new Set(["ok", "warning", "error", "skipped"]);
+const PROVIDER_PROBE_STATUSES = new Set(["not_probed", "skipped", "passed", "failed"]);
+
+export function parseProviderHealthSnapshot(value) {
+  const keys = new Set([
+    "schema", "status", "report_schema", "report_status", "observed_at",
+    "chat_completions_probe", "routes",
+  ]);
+  if (!isObject(value)
+      || !hasOnlyKeys(value, keys)
+      || value.schema !== PROVIDER_HEALTH_SCHEMA
+      || !["configured", "not_configured", "unavailable", "invalid"].includes(value.status)
+      || ![null, "icarus.provider-health.v1", "icarus.provider-health.v2"].includes(value.report_schema)
+      || ![null, "ok", "warning", "error"].includes(value.report_status)
+      || !(value.observed_at === null
+        || (typeof value.observed_at === "string"
+          && value.observed_at.length <= 64
+          && /(?:Z|[+-]\d{2}:\d{2})$/.test(value.observed_at)
+          && Number.isFinite(Date.parse(value.observed_at))))
+      || !["not_probed", "skipped", "passed", "partial", "failed"].includes(value.chat_completions_probe)
+      || !isObject(value.routes)
+      || Object.keys(value.routes).some((name) => !PROVIDER_ROUTES.has(name))) {
+    throw new TypeError("Provider health projection is invalid");
+  }
+  if (value.status !== "configured") {
+    if (Object.keys(value.routes).length
+        || value.report_schema !== null
+        || value.report_status !== null
+        || value.observed_at !== null
+        || value.chat_completions_probe !== "not_probed") {
+      throw new TypeError("Unavailable provider health projection must not contain report data");
+    }
+    return value;
+  }
+  if (!value.report_schema || !value.report_status || !value.observed_at) {
+    throw new TypeError("Configured provider health projection is incomplete");
+  }
+  for (const [name, route] of Object.entries(value.routes)) {
+    if (!isObject(route)
+        || !hasOnlyKeys(route, new Set(["enabled", "kind", "status", "inference_status"]))
+        || typeof route.enabled !== "boolean"
+        || !["local", "api"].includes(route.kind)
+        || !PROVIDER_STATUSES.has(route.status)
+        || !PROVIDER_PROBE_STATUSES.has(route.inference_status)) {
+      throw new TypeError("Provider health projection contains invalid route metadata: " + name);
+    }
+    if (value.report_schema === "icarus.provider-health.v1"
+        && route.inference_status !== "not_probed") {
+      throw new TypeError("Provider-health.v1 cannot claim an inference probe");
+    }
+    if (value.report_schema === "icarus.provider-health.v2"
+        && route.inference_status === "not_probed") {
+      throw new TypeError("Provider-health.v2 must report each route probe outcome");
+    }
+  }
+  if (value.report_schema === "icarus.provider-health.v1"
+      && value.chat_completions_probe !== "not_probed") {
+    throw new TypeError("Provider-health.v1 cannot claim an inference probe");
+  }
+  if (value.report_schema === "icarus.provider-health.v2"
+      && value.chat_completions_probe === "not_probed") {
+    throw new TypeError("Provider-health.v2 must report its explicit probe outcome");
+  }
+  return value;
+}
+
+
 const RUN_ID_PATTERN = /^[a-f0-9]{32}$/;
 const COMMIT_ID_PATTERN = /^[a-f0-9]{40}$/;
 const ACTION_EVENT_ID_PATTERN = /^A-[a-f0-9]{32}$/;

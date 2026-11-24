@@ -259,3 +259,19 @@ body.task-drawer-open {
   overflow-wrap: anywhere;
   font-size: .68rem;
 }
+
+.task-drawer__provider-health-list {
+  display: grid;
+  gap: 7px;
+  margin: 8px 0 0;
+  padding: 0 18px 0 0;
+}
+.task-drawer__provider-health-list li {
+  display: grid;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+.task-drawer__provider-health-list span {
+  color: var(--drawer-muted, #9ba4bb);
+  font-size: .82rem;
+}

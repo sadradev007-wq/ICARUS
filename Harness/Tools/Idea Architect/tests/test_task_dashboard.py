@@ -495,5 +495,59 @@ class TaskDashboardTests(unittest.TestCase):
         self.assertEqual(empty["counts"]["timeline_entries"], 0)
 
 
+
+    def test_provider_health_endpoint_is_optional_and_redacts_report_details(self):
+        status, body = self.get("/api/v1/provider-health")
+        self.assertEqual(status, 200)
+        unconfigured = json.loads(body)
+        self.assertEqual(unconfigured["schema"], "icarus.provider-health-projection.v1")
+        self.assertEqual(unconfigured["status"], "not_configured")
+        self.assertEqual(unconfigured["routes"], {})
+
+        report_path = Path(self.temp.name) / "provider-health.json"
+        route = {
+            "enabled": True, "kind": "local", "model": "private-model-name",
+            "status": "warning", "endpoint": "http://127.0.0.1:11434/private-path",
+            "credential_source": "local_default",
+            "checks": [{
+                "name": "models", "status": "warning",
+                "message": "private provider diagnostic message",
+            }],
+        }
+        routes = {
+            "system1_local": route,
+            "system1_api": {**route, "enabled": False, "kind": "api", "status": "skipped"},
+            "system2_local": {**route, "status": "ok"},
+            "system2_api": {**route, "enabled": False, "kind": "api", "status": "skipped"},
+        }
+        report_path.write_text(json.dumps({
+            "schema": "icarus.provider-health.v1", "status": "warning",
+            "checks": [{
+                "name": "configuration", "status": "ok",
+                "message": "private top-level diagnostic message",
+            }],
+            "routes": routes, "chat_completions_probe": "skipped",
+        }), encoding="utf-8")
+        self.store.provider_health_report_path = report_path
+
+        with urllib.request.urlopen(self.base + "/api/v1/provider-health") as response:
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.headers.get("Cache-Control"), "no-store")
+            self.assertEqual(response.headers.get("X-Content-Type-Options"), "nosniff")
+            payload = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(payload["status"], "configured")
+        self.assertEqual(payload["report_schema"], "icarus.provider-health.v1")
+        self.assertEqual(payload["chat_completions_probe"], "not_probed")
+        self.assertEqual(payload["routes"]["system1_local"], {
+            "enabled": True, "kind": "local", "status": "warning",
+            "inference_status": "not_probed",
+        })
+        for private in (
+            "private-model-name", "127.0.0.1:11434", "private-path",
+            "private provider diagnostic message", "private top-level diagnostic message",
+            "credential_source",
+        ):
+            self.assertNotIn(private, json.dumps(payload))
+
 if __name__ == "__main__":
     unittest.main()

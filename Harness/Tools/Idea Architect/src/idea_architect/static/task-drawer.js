@@ -1,4 +1,8 @@
-import { parseTaskSnapshot, selectDrawerSections } from "./task-drawer-model.js";
+import {
+  parseProviderHealthSnapshot,
+  parseTaskSnapshot,
+  selectDrawerSections,
+} from "./task-drawer-model.js";
 
 const root = document.querySelector("[data-task-drawer]");
 if (root) {
@@ -295,6 +299,81 @@ if (root) {
     for (const event of events) container.append(feedbackCard(event));
   }
 
+
+  function renderProviderHealth(snapshot) {
+    const statusNode = query("[data-provider-health-status]");
+    const routesNode = query("[data-provider-health-routes]");
+    routesNode.replaceChildren();
+    const overallLabels = {
+      configured: "گزارش سلامت دریافت شد",
+      not_configured: "مسیر گزارش Provider Health تنظیم نشده است.",
+      unavailable: "گزارش سلامت در دسترس نیست.",
+      invalid: "گزارش سلامت نامعتبر است و نمایش داده نشد.",
+    };
+    const statusLabels = {
+      ok: "سالم", warning: "هشدار", error: "خطا", skipped: "غیرفعال",
+    };
+    const probeLabels = {
+      not_probed: "Inference آزمایش نشده",
+      skipped: "آزمایش رد شده یا اجرا نشده",
+      passed: "Inference پاسخ معتبر داده",
+      failed: "آزمایش Inference ناموفق",
+    };
+    const routeLabels = {
+      system1_local: "System 1 · محلی",
+      system1_api: "System 1 · API",
+      system2_local: "System 2 · محلی",
+      system2_api: "System 2 · API",
+    };
+    if (snapshot.status !== "configured") {
+      statusNode.textContent = overallLabels[snapshot.status];
+      return;
+    }
+    const observed = formatDue(snapshot.observed_at);
+    statusNode.textContent = overallLabels.configured + " · " +
+      (statusLabels[snapshot.report_status] ?? snapshot.report_status) +
+      " · " + probeLabels[snapshot.chat_completions_probe] +
+      " · " + observed;
+    const list = document.createElement("ul");
+    list.className = "task-drawer__provider-health-list";
+    for (const [name, route] of Object.entries(snapshot.routes)) {
+      const item = document.createElement("li");
+      const title = document.createElement("strong");
+      title.textContent = routeLabels[name] ?? name;
+      const detail = document.createElement("span");
+      detail.textContent = [
+        route.enabled ? "فعال" : "غیرفعال",
+        statusLabels[route.status] ?? route.status,
+        probeLabels[route.inference_status] ?? route.inference_status,
+      ].join(" · ");
+      item.append(title, detail);
+      list.append(item);
+    }
+    routesNode.append(list);
+  }
+
+  async function refreshProviderHealth() {
+    const unavailable = {
+      schema: "icarus.provider-health-projection.v1",
+      status: "unavailable",
+      report_schema: null,
+      report_status: null,
+      observed_at: null,
+      chat_completions_probe: "not_probed",
+      routes: {},
+    };
+    try {
+      const response = await requestSnapshot("/api/v1/provider-health");
+      if (!response.ok) {
+        renderProviderHealth(unavailable);
+        return;
+      }
+      renderProviderHealth(parseProviderHealthSnapshot(await response.json()));
+    } catch {
+      renderProviderHealth(unavailable);
+    }
+  }
+
   function render(snapshot) {
     const sections = selectDrawerSections(snapshot);
     query("[data-active-count]").textContent = new Intl.NumberFormat("fa-IR").format(sections.activeCount);
@@ -390,6 +469,7 @@ if (root) {
       if (!response.ok) throw new Error("Task API request failed");
       const snapshot = parseTaskSnapshot(await response.json());
       render(snapshot);
+      await refreshProviderHealth();
     } catch {
       setStatus("error", "دریافت فهرست ناموفق بود؛ برای تلاش دوباره از دکمهٔ به‌روزرسانی استفاده کن.");
     } finally {

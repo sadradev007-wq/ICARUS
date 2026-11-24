@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/provider-health-projection.v1.schema.json",
+  "title": "ICARUS Task Companion privacy-bounded provider health projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "status", "report_schema", "report_status",
+    "observed_at", "chat_completions_probe", "routes"
+  ],
+  "properties": {
+    "schema": { "const": "icarus.provider-health-projection.v1" },
+    "status": { "enum": ["configured", "not_configured", "unavailable", "invalid"] },
+    "report_schema": {
+      "type": ["string", "null"],
+      "enum": ["icarus.provider-health.v1", "icarus.provider-health.v2", null]
+    },
+    "report_status": {
+      "type": ["string", "null"],
+      "enum": ["ok", "warning", "error", null]
+    },
+    "observed_at": { "type": ["string", "null"], "format": "date-time" },
+    "chat_completions_probe": {
+      "enum": ["not_probed", "skipped", "passed", "partial", "failed"]
+    },
+    "routes": {
+      "type": "object",
+      "properties": {
+        "system1_local": { "$ref": "#/$defs/route" },
+        "system1_api": { "$ref": "#/$defs/route" },
+        "system2_local": { "$ref": "#/$defs/route" },
+        "system2_api": { "$ref": "#/$defs/route" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "kind", "status", "inference_status"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "kind": { "enum": ["local", "api"] },
+        "status": { "enum": ["ok", "warning", "error", "skipped"] },
+        "inference_status": {
+          "enum": ["not_probed", "skipped", "passed", "failed"]
+        }
+      }
+    }
+  }
+}

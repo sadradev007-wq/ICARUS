@@ -203,3 +203,17 @@ GET /api/v5/tasks adds an execution_timeline projection alongside the unchanged 
 Timeline entries identify their source (coding_harness or action_journal) and retain only the metadata already exposed by the two source readers. The run_id and proposal_id fields are correlation hints; a shared ID does not prove that one event caused another. The timeline is a chronological view, not an approval engine or a reconstructed causal graph.
 
 The timeline status is configured when both source directories are explicitly configured, partial when only one is configured, and not_configured when neither is configured. No directory is guessed. API v1-v4 remain unchanged, and the Task Drawer falls back from v5 to v4, v3, then v2 only on HTTP 404.
+
+
+## Provider health projection
+
+Task Companion can optionally display a saved Coding Harness provider-doctor report. Configure the report path explicitly; the reader never runs a doctor command or contacts a model endpoint:
+
+~~~bash
+icarus-harness doctor --providers-config "Harness/Tools/Personal Companion/config/providers.local.json" > ~/.local/share/icarus/provider-health.json
+icarus-tasks --provider-health-report ~/.local/share/icarus/provider-health.json
+~~~
+
+The CLI also accepts ICARUS_PROVIDER_HEALTH_REPORT. The separate read-only endpoint is GET /api/v1/provider-health; it does not change the task API v1-v5 contracts. The projection exposes only each route's enabled flag, kind, health status, and inference-probe status. It deliberately omits model names, endpoints, credential sources, diagnostic messages, and response text. The reader accepts the current icarus.provider-health.v1 report and the proposed v2 contract from PR #19. A v1 report always appears as not_probed; model-list availability is not proof of inference. v2 probe status is shown only when explicitly present in the saved report.
+
+The report is a diagnostic artifact, not a task-run record or training example. It is never copied into Local LLM/Train Data/tasks/ or the Action Journal. The reader rejects malformed, oversized, symlinked, and non-regular report files and fails closed.
