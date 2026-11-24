@@ -122,7 +122,12 @@ class ProviderHealthReader:
 
     def _read_report(self) -> tuple[bytes, str]:
         assert self.report_path is not None
-        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_CLOEXEC", 0)
+        flags = (
+            os.O_RDONLY
+            | getattr(os, "O_BINARY", 0)
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NONBLOCK", 0)
+        )
         no_follow = getattr(os, "O_NOFOLLOW", 0)
         if no_follow:
             flags |= no_follow

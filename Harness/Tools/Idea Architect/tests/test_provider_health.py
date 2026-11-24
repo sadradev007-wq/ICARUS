@@ -82,12 +82,19 @@ class ProviderHealthReaderTests(unittest.TestCase):
         payload["chat_completions_probe"] = "passed"
         self.write(payload)
         self.assertEqual(ProviderHealthReader(self.report).snapshot()["status"], "invalid")
+        payload = make_report("icarus.provider-health.v2")
+        del payload["routes"]["system1_local"]["inference_probe"]
+        self.write(payload)
+        self.assertEqual(ProviderHealthReader(self.report).snapshot()["status"], "invalid")
 
     def test_oversized_and_non_json_reports_fail_closed(self):
         self.report.write_bytes(b"{" + b" " * (256 * 1024))
         self.assertEqual(ProviderHealthReader(self.report).snapshot()["status"], "invalid")
         self.report.write_text("{broken", encoding="utf-8")
         self.assertEqual(ProviderHealthReader(self.report).snapshot()["status"], "invalid")
+
+    def test_non_regular_report_path_fails_closed(self):
+        self.assertEqual(ProviderHealthReader(self.root).snapshot()["status"], "invalid")
 
     @unittest.skipUnless(hasattr(os, "O_NOFOLLOW"), "requires O_NOFOLLOW support")
     def test_symlinked_report_is_not_followed(self):
