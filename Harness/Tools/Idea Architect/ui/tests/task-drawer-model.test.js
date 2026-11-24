@@ -320,6 +320,8 @@ test("Task Drawer browser script prefers v5 and keeps all legacy fallbacks", () 
   assert.match(script, /requestSnapshot\("\/api\/v4\/tasks"\)/);
   assert.match(script, /requestSnapshot\("\/api\/v3\/tasks"\)/);
   assert.match(script, /requestSnapshot\("\/api\/v2\/tasks"\)/);
+  assert.match(script, /requestSnapshot\("\/api\/v1\/provider-health"\)/);
+  assert.match(script, /parseProviderHealthSnapshot/);
   assert.match(script, /executionTimelineDetails/);
   assert.doesNotMatch(script, /\.innerHTML\s*=/);
 });
@@ -462,4 +464,19 @@ test("rejects v2 projections that omit an explicit probe outcome", () => {
   const routeSnapshot = makeProviderHealth("icarus.provider-health.v2");
   routeSnapshot.routes.system1_local.inference_status = "not_probed";
   assert.throws(() => parseProviderHealthSnapshot(routeSnapshot), /route probe outcome/);
+});
+
+test("provider health projection schema is strict and excludes provider secrets", () => {
+  const schemaUrl = new URL("../../../Task Companion/schemas/provider-health-projection.v1.schema.json", import.meta.url);
+  const schema = JSON.parse(readFileSync(schemaUrl, "utf8"));
+  assert.equal(schema.properties.schema.const, "icarus.provider-health-projection.v1");
+  assert.equal(schema.additionalProperties, false);
+  const route = schema.$defs.route;
+  assert.equal(route.additionalProperties, false);
+  assert.deepEqual(Object.keys(route.properties).sort(), [
+    "enabled", "inference_status", "kind", "status",
+  ]);
+  assert.equal(route.properties.inference_status.enum.includes("not_probed"), true);
+  assert.equal(Object.hasOwn(schema.properties, "model"), false);
+  assert.equal(Object.hasOwn(schema.properties, "endpoint"), false);
 });
