@@ -454,3 +454,12 @@ test("rejects unavailable provider projections that carry stale route data", () 
   };
   assert.throws(() => parseProviderHealthSnapshot(snapshot), /must not contain report data/);
 });
+
+test("rejects v2 projections that omit an explicit probe outcome", () => {
+  const snapshot = makeProviderHealth("icarus.provider-health.v2");
+  snapshot.chat_completions_probe = "not_probed";
+  assert.throws(() => parseProviderHealthSnapshot(snapshot), /explicit probe outcome/);
+  const routeSnapshot = makeProviderHealth("icarus.provider-health.v2");
+  routeSnapshot.routes.system1_local.inference_status = "not_probed";
+  assert.throws(() => parseProviderHealthSnapshot(routeSnapshot), /route probe outcome/);
+});

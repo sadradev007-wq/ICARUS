@@ -57,10 +57,18 @@ export function parseProviderHealthSnapshot(value) {
         && route.inference_status !== "not_probed") {
       throw new TypeError("Provider-health.v1 cannot claim an inference probe");
     }
+    if (value.report_schema === "icarus.provider-health.v2"
+        && route.inference_status === "not_probed") {
+      throw new TypeError("Provider-health.v2 must report each route probe outcome");
+    }
   }
   if (value.report_schema === "icarus.provider-health.v1"
       && value.chat_completions_probe !== "not_probed") {
     throw new TypeError("Provider-health.v1 cannot claim an inference probe");
+  }
+  if (value.report_schema === "icarus.provider-health.v2"
+      && value.chat_completions_probe === "not_probed") {
+    throw new TypeError("Provider-health.v2 must report its explicit probe outcome");
   }
   return value;
 }
