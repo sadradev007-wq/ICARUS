@@ -244,6 +244,23 @@ class ProviderDoctorTests(unittest.TestCase):
         if os.name == "posix":
             self.assertEqual(stat.S_IMODE(output_path.stat().st_mode), 0o600)
         self.assertEqual(len(self.server.requests), 2)
+        self.assertFalse((self.root / "Local LLM" / "Train Data" / "tasks").exists())
+
+    def test_cli_saves_error_diagnostic_report_before_returning_error_status(self):
+        self.config_path.write_text("{broken", encoding="utf-8")
+        output_path = self.root / "provider-health-error.json"
+        with (
+            patch.object(sys, "argv", [
+                "icarus-harness", "doctor", "--providers-config", str(self.config_path),
+                "--output", str(output_path),
+            ]),
+            contextlib.redirect_stdout(io.StringIO()),
+            self.assertRaises(SystemExit) as caught,
+        ):
+            cli.main()
+        self.assertEqual(caught.exception.code, 2)
+        self.assertEqual(json.loads(output_path.read_text(encoding="utf-8"))["status"], "error")
+        self.assertEqual(self.server.requests, [])
 
     def test_cli_refuses_to_overwrite_provider_configuration_with_report(self):
         original = self.write_config(self.config()).read_text(encoding="utf-8")

@@ -320,7 +320,8 @@ test("Task Drawer browser script prefers v5 and keeps all legacy fallbacks", () 
   assert.match(script, /requestSnapshot\("\/api\/v4\/tasks"\)/);
   assert.match(script, /requestSnapshot\("\/api\/v3\/tasks"\)/);
   assert.match(script, /requestSnapshot\("\/api\/v2\/tasks"\)/);
-  assert.match(script, /requestSnapshot\("\/api\/v2\/provider-health"\)/);\n  assert.match(script, /requestSnapshot\("\/api\/v1\/provider-health"\)/);
+  assert.match(script, /requestSnapshot\("\/api\/v2\/provider-health"\)/);
+  assert.match(script, /requestSnapshot\("\/api\/v1\/provider-health"\)/);
   assert.match(script, /parseProviderHealthSnapshot/);
   assert.match(script, /executionTimelineDetails/);
   assert.doesNotMatch(script, /\.innerHTML\s*=/);

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import stat
 from datetime import datetime, timezone
@@ -217,8 +218,8 @@ class ProviderHealthReader:
             if age < 0:
                 freshness, age_seconds = "unknown", None
             else:
-                age_seconds = int(age)
-                freshness = "fresh" if age_seconds <= _MAX_REPORT_AGE_SECONDS else "stale"
+                age_seconds = math.ceil(age)
+                freshness = "fresh" if age <= _MAX_REPORT_AGE_SECONDS else "stale"
             result.update({
                 "freshness": freshness,
                 "age_seconds": age_seconds,

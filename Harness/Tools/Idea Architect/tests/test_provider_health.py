@@ -92,6 +92,15 @@ class ProviderHealthReaderTests(unittest.TestCase):
         self.assertGreater(stale["age_seconds"], stale["max_age_seconds"])
         self.assertEqual(stale["routes"]["system1_local"]["status"], "ok")
 
+    def test_future_report_timestamp_has_unknown_freshness(self):
+        self.write(make_report())
+        future_timestamp = time.time() + 60
+        os.utime(self.report, (future_timestamp, future_timestamp))
+        snapshot = ProviderHealthReader(self.report).snapshot(version=2)
+        self.assertEqual(snapshot["status"], "configured")
+        self.assertEqual(snapshot["freshness"], "unknown")
+        self.assertIsNone(snapshot["age_seconds"])
+
     def test_v2_empty_and_invalid_versions_have_explicit_freshness(self):
         missing = ProviderHealthReader(self.root / "missing.json").snapshot(version=2)
         self.assertEqual(missing["status"], "unavailable")
