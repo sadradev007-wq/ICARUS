@@ -401,7 +401,7 @@ class ContextEngine:
                 )
                 for path in entries:
                     lexical_value, reasons = lexical_scores[path]
-                    lexical_norm = lexical_value / max_lexical if max_lexical > 0 else 0.0
+                    lexical_norm = min(1.0, lexical_value / 10.0)
                     if path in similarities:
                         similarity = similarities[path]
                         semantic_norm = (similarity + 1.0) / 2.0

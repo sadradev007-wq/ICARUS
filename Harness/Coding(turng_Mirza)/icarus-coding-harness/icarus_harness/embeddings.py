@@ -120,7 +120,7 @@ class OpenAICompatibleEmbeddingProvider:
         for value in inputs:
             if not isinstance(value, str) or not value or len(value) > _MAX_INPUT_CHARS:
                 raise EmbeddingError(
-                    f"Each embedding input must contain 1 to {_MAX_INPUT_CHARS} characters."
+                    f"Embedding input exceeded the {_MAX_INPUT_CHARS}-character limit or was empty."
                 )
             total_chars += len(value)
         if total_chars > _MAX_TOTAL_CHARS:
