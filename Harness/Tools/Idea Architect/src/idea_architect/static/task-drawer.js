@@ -319,6 +319,11 @@ if (root) {
       passed: "Inference پاسخ معتبر داده",
       failed: "آزمایش Inference ناموفق",
     };
+    const freshnessLabels = {
+      fresh: "گزارش تازه",
+      stale: "گزارش قدیمی؛ اجرای دوباره doctor لازم است",
+      unknown: "تازگی گزارش نامشخص است",
+    };
     const routeLabels = {
       system1_local: "System 1 · محلی",
       system1_api: "System 1 · API",
@@ -330,10 +335,15 @@ if (root) {
       return;
     }
     const observed = formatDue(snapshot.observed_at);
+    const freshness = snapshot.schema === "icarus.provider-health-projection.v2"
+      ? " · " + freshnessLabels[snapshot.freshness]
+        + (snapshot.age_seconds === null ? "" : " · " +
+          new Intl.NumberFormat("fa-IR").format(snapshot.age_seconds) + " ثانیه")
+      : "";
     statusNode.textContent = overallLabels.configured + " · " +
       (statusLabels[snapshot.report_status] ?? snapshot.report_status) +
       " · " + probeLabels[snapshot.chat_completions_probe] +
-      " · " + observed;
+      freshness + " · " + observed;
     const list = document.createElement("ul");
     list.className = "task-drawer__provider-health-list";
     for (const [name, route] of Object.entries(snapshot.routes)) {
@@ -363,7 +373,10 @@ if (root) {
       routes: {},
     };
     try {
-      const response = await requestSnapshot("/api/v1/provider-health");
+      let response = await requestSnapshot("/api/v2/provider-health");
+      if (response.status === 404) {
+        response = await requestSnapshot("/api/v1/provider-health");
+      }
       if (!response.ok) {
         renderProviderHealth(unavailable);
         return;

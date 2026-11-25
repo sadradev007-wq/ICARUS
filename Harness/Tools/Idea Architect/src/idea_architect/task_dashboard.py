@@ -464,9 +464,10 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                     self._respond(404, "Not found")
                     return
                 self._respond(200, asset, content_type)
-            elif path == "/api/v1/provider-health":
+            elif path in {"/api/v1/provider-health", "/api/v2/provider-health"}:
+                version = 2 if path == "/api/v2/provider-health" else 1
                 payload = json.dumps(
-                    ProviderHealthReader(store.provider_health_report_path).snapshot(),
+                    ProviderHealthReader(store.provider_health_report_path).snapshot(version=version),
                     ensure_ascii=False,
                     separators=(",", ":"),
                 )

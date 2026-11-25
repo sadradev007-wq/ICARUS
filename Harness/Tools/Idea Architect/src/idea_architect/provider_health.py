@@ -8,7 +8,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-_SCHEMA = "icarus.provider-health-projection.v1"
+_SCHEMA_V1 = "icarus.provider-health-projection.v1"
+_SCHEMA_V2 = "icarus.provider-health-projection.v2"
+_MAX_REPORT_AGE_SECONDS = 24 * 60 * 60
 _REPORT_SCHEMAS = {"icarus.provider-health.v1", "icarus.provider-health.v2"}
 _ROUTES = {"system1_local", "system1_api", "system2_local", "system2_api"}
 _STATUSES = {"ok", "warning", "error", "skipped"}
@@ -16,9 +18,9 @@ _PROBE_STATUSES = {"skipped", "passed", "failed"}
 _MAX_REPORT_BYTES = 256 * 1024
 
 
-def _empty(status: str) -> dict[str, Any]:
-    return {
-        "schema": _SCHEMA,
+def _empty(status: str, *, version: int = 1) -> dict[str, Any]:
+    result = {
+        "schema": _SCHEMA_V1 if version == 1 else _SCHEMA_V2,
         "status": status,
         "report_schema": None,
         "report_status": None,
@@ -26,6 +28,13 @@ def _empty(status: str) -> dict[str, Any]:
         "chat_completions_probe": "not_probed",
         "routes": {},
     }
+    if version == 2:
+        result.update({
+            "freshness": "unknown",
+            "age_seconds": None,
+            "max_age_seconds": _MAX_REPORT_AGE_SECONDS,
+        })
+    return result
 
 
 def _validate_check(value: Any, *, field: str) -> None:
@@ -120,7 +129,7 @@ class ProviderHealthReader:
     def __init__(self, report_path: Path | None):
         self.report_path = Path(report_path).expanduser() if report_path is not None else None
 
-    def _read_report(self) -> tuple[bytes, str]:
+    def _read_report(self) -> tuple[bytes, str, datetime]:
         assert self.report_path is not None
         flags = (
             os.O_RDONLY
@@ -151,30 +160,31 @@ class ProviderHealthReader:
             raw = b"".join(chunks)
             if len(raw) > _MAX_REPORT_BYTES:
                 raise ValueError("provider report exceeds the 256 KiB limit")
-            observed_at = datetime.fromtimestamp(
-                metadata.st_mtime, timezone.utc
-            ).isoformat(timespec="seconds")
-            return raw, observed_at
+            observed_datetime = datetime.fromtimestamp(metadata.st_mtime, timezone.utc)
+            observed_at = observed_datetime.isoformat(timespec="seconds")
+            return raw, observed_at, observed_datetime
         finally:
             os.close(descriptor)
 
-    def snapshot(self) -> dict[str, Any]:
-        """Return only route kind/status and probe state; never expose model or endpoint data."""
+    def snapshot(self, *, version: int = 1) -> dict[str, Any]:
+        """Return a sanitized projection; v2 also reports file freshness."""
+        if type(version) is not int or version not in {1, 2}:
+            raise ValueError("Provider health projection version must be 1 or 2")
         if self.report_path is None:
-            return _empty("not_configured")
+            return _empty("not_configured", version=version)
         try:
-            raw, observed_at = self._read_report()
+            raw, observed_at, observed_datetime = self._read_report()
         except FileNotFoundError:
-            return _empty("unavailable")
+            return _empty("unavailable", version=version)
         except ValueError:
-            return _empty("invalid")
+            return _empty("invalid", version=version)
         except OSError:
-            return _empty("unavailable")
+            return _empty("unavailable", version=version)
         try:
             payload = json.loads(raw.decode("utf-8"))
             report_schema = _validate_report(payload)
         except (UnicodeError, json.JSONDecodeError, ValueError):
-            return _empty("invalid")
+            return _empty("invalid", version=version)
 
         routes: dict[str, dict[str, Any]] = {}
         for name, route in payload["routes"].items():
@@ -189,8 +199,8 @@ class ProviderHealthReader:
                 "status": route["status"],
                 "inference_status": inference_status,
             }
-        return {
-            "schema": _SCHEMA,
+        result = {
+            "schema": _SCHEMA_V1 if version == 1 else _SCHEMA_V2,
             "status": "configured",
             "report_schema": report_schema,
             "report_status": payload["status"],
@@ -202,3 +212,16 @@ class ProviderHealthReader:
             ),
             "routes": routes,
         }
+        if version == 2:
+            age = (datetime.now(timezone.utc) - observed_datetime).total_seconds()
+            if age < 0:
+                freshness, age_seconds = "unknown", None
+            else:
+                age_seconds = int(age)
+                freshness = "fresh" if age_seconds <= _MAX_REPORT_AGE_SECONDS else "stale"
+            result.update({
+                "freshness": freshness,
+                "age_seconds": age_seconds,
+                "max_age_seconds": _MAX_REPORT_AGE_SECONDS,
+            })
+        return result
