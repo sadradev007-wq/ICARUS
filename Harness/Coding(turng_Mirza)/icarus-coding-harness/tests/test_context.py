@@ -106,6 +106,87 @@ class ContextEngineTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ContextEngine(self.workspace).retrieve("   ")
 
+    def test_semantic_reranking_finds_synonymous_content(self):
+        self.write("src/normalizer.py", "def normalize_request(value):\n    return clean(value)\n")
+        self.write("src/logger.py", "def write_log(event):\n    return event\n")
+
+        class SemanticProvider:
+            def embed(_self, inputs):
+                self.assertEqual(len(inputs), 1 + 7)
+                vectors = [[1.0, 0.0]]
+                for document in inputs[1:]:
+                    vectors.append(
+                        [0.99, 0.01] if "src/normalizer.py" in document else [0.0, 1.0]
+                    )
+                return vectors
+
+        result = ContextEngine(
+            self.workspace, embedding_provider=SemanticProvider()
+        ).retrieve("sanitize incoming user payload", max_files=8)
+        self.assertEqual(result["retrieval_mode"], "hybrid")
+        self.assertEqual(result["files"][0]["path"], "src/normalizer.py")
+        self.assertTrue(any(
+            "semantic_cosine" in reason
+            for reason in result["files"][0]["match_reasons"]
+        ))
+
+    def test_embedding_failure_falls_back_to_lexical_retrieval(self):
+        class BrokenProvider:
+            def embed(_self, _inputs):
+                raise RuntimeError("private endpoint detail")
+
+        result = ContextEngine(
+            self.workspace, embedding_provider=BrokenProvider()
+        ).retrieve("parse_input parser")
+        self.assertEqual(result["retrieval_mode"], "lexical_fallback")
+        self.assertEqual(result["files"][0]["path"], "src/app.py")
+        rendered = json.dumps(result)
+        self.assertNotIn("private endpoint detail", rendered)
+        self.assertIn("Semantic retrieval unavailable (RuntimeError)", rendered)
+
+    def test_query_is_redacted_before_embedding_and_output(self):
+        secret = "ghp_123456789012345678901234567890"
+
+        class CapturingProvider:
+            def __init__(_self):
+                _self.inputs = []
+
+            def embed(_self, inputs):
+                _self.inputs = inputs
+                return [[1.0, 0.0] for _ in inputs]
+
+        provider = CapturingProvider()
+        result = ContextEngine(
+            self.workspace, embedding_provider=provider
+        ).retrieve(f"find token={secret}")
+        self.assertNotIn(secret, provider.inputs[0])
+        self.assertNotIn(secret, json.dumps(result))
+
+    def test_semantic_embedding_request_is_bounded_to_48_files(self):
+        for index in range(60):
+            self.write(
+                f"src/module_{index:02d}.py",
+                f"def helper_{index}():\n    return {index}\n",
+            )
+
+        class CountingProvider:
+            def __init__(_self):
+                _self.input_count = 0
+
+            def embed(_self, inputs):
+                _self.input_count = len(inputs)
+                return [[1.0, 0.0] for _ in inputs]
+
+        provider = CountingProvider()
+        result = ContextEngine(
+            self.workspace, embedding_provider=provider
+        ).retrieve("unmatched semantic query", max_files=8)
+        self.assertEqual(result["retrieval_mode"], "hybrid")
+        self.assertEqual(provider.input_count, 49)
+        self.assertTrue(any(
+            "evaluated 48 of" in note for note in result["notes"]
+        ))
+
 
 if __name__ == "__main__":
     unittest.main()

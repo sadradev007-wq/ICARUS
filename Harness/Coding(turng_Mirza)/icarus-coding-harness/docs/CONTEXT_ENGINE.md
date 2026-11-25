@@ -30,7 +30,7 @@ Go and Rust support is intentionally syntactic and partial. Rust inline/nested m
 - Common credential patterns are redacted using the reviewer's existing heuristic filter. This is defense in depth, not a complete secret scanner.
 - No files are written, no commands are run, and no network or package registry is accessed.
 
-The token estimate uses approximately four characters per token. It is a budgeting heuristic, not the configured model's tokenizer. Semantic/embedding retrieval and deeper language-aware analysis remain future work.
+The token estimate uses approximately four characters per token. It is a budgeting heuristic, not the configured model's tokenizer. Persistent semantic indexing and deeper language-aware analysis remain future work.
 
 ## Reference patterns studied
 

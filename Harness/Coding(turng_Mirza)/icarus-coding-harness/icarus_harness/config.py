@@ -14,6 +14,16 @@ class ModelConfig:
     timeout_seconds: int = 120
 
 @dataclass
+class EmbeddingConfig:
+    enabled: bool = False
+    base_url: str = "http://localhost:11434/v1"
+    model: str = "nomic-embed-text"
+    api_key_env: str = "ICARUS_API_KEY"
+    timeout_seconds: int = 30
+    allow_remote: bool = False
+
+
+@dataclass
 class AgentConfig:
     max_steps: int = 12
     max_context_chars: int = 24000
@@ -33,6 +43,7 @@ class HarnessConfig:
     model: ModelConfig = field(default_factory=ModelConfig)
     agent: AgentConfig = field(default_factory=AgentConfig)
     policy: PolicyConfig = field(default_factory=PolicyConfig)
+    embeddings: EmbeddingConfig = field(default_factory=EmbeddingConfig)
 
     @classmethod
     def load(cls, workspace: Path) -> "HarnessConfig":
@@ -41,6 +52,10 @@ class HarnessConfig:
         model = ModelConfig(**{k:v for k,v in raw.get("model", {}).items() if k in ModelConfig.__dataclass_fields__})
         agent = AgentConfig(**{k:v for k,v in raw.get("agent", {}).items() if k in AgentConfig.__dataclass_fields__})
         policy = PolicyConfig(**{k:v for k,v in raw.get("policy", {}).items() if k in PolicyConfig.__dataclass_fields__})
+        embeddings = EmbeddingConfig(**{
+            k:v for k,v in raw.get("embeddings", {}).items()
+            if k in EmbeddingConfig.__dataclass_fields__
+        })
         model.base_url = os.getenv("ICARUS_BASE_URL", model.base_url).rstrip("/")
         model.model = os.getenv("ICARUS_MODEL", model.model)
-        return cls(model, agent, policy)
+        return cls(model, agent, policy, embeddings)
