@@ -54,7 +54,8 @@ It never prints API-key values, follows endpoint redirects, sends Chat Completio
 
 Check the four Personal Companion routes from its local provider configuration:
 
-    icarus-harness doctor --providers-config "Harness/Tools/Personal Companion/config/providers.local.json"
+    icarus-harness doctor --providers-config "Harness/Tools/Personal Companion/config/providers.local.json" \
+      --output ~/.local/share/icarus/provider-health.json
 
 The command validates the complete four-route configuration and its safety invariants, then checks only enabled routes with bounded `GET /models` requests. Disabled routes are reported as skipped and are never contacted. API routes require their configured environment-variable credential; local routes use their configured key variable or the existing ICARUS_API_KEY/local fallback. The aggregate JSON report follows `schemas/provider-health.v1.schema.json`.
 
@@ -91,3 +92,14 @@ The integration test starts a deterministic OpenAI-compatible HTTP fixture on lo
 
 
 If stdin reaches EOF or raises an input error at the optional Task Companion feedback prompt, ICARUS treats that prompt as a decline, does not write an event, and still prints the completed run's JSON result and exit status.
+
+### Saving provider-doctor reports
+
+Both `icarus-harness doctor --workspace .` and the four-route
+`--providers-config` form accept `--output PATH`. The JSON report is still
+printed to stdout and is also saved atomically to the requested path. The
+parent directory must already exist. The destination file is created with
+mode `0600` on POSIX systems; a failed serialization or write leaves an
+existing report untouched. The command refuses to overwrite the input
+provider or workspace configuration. A valid diagnostic report with
+`status: "error"` is still saved before the command exits with code 2.

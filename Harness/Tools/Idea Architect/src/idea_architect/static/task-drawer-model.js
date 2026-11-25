@@ -3,7 +3,9 @@ export const TASK_API_SCHEMA_V3 = "icarus.task-api.v3";
 export const TASK_API_SCHEMA_V4 = "icarus.task-api.v4";
 export const TASK_API_SCHEMA_V5 = "icarus.task-api.v5";
 
-const PROVIDER_HEALTH_SCHEMA = "icarus.provider-health-projection.v1";
+const PROVIDER_HEALTH_SCHEMA_V1 = "icarus.provider-health-projection.v1";
+const PROVIDER_HEALTH_SCHEMA_V2 = "icarus.provider-health-projection.v2";
+const PROVIDER_MAX_AGE_SECONDS = 24 * 60 * 60;
 const PROVIDER_ROUTES = new Set([
   "system1_local", "system1_api", "system2_local", "system2_api",
 ]);
@@ -11,13 +13,15 @@ const PROVIDER_STATUSES = new Set(["ok", "warning", "error", "skipped"]);
 const PROVIDER_PROBE_STATUSES = new Set(["not_probed", "skipped", "passed", "failed"]);
 
 export function parseProviderHealthSnapshot(value) {
+  const isV2 = isObject(value) && value.schema === PROVIDER_HEALTH_SCHEMA_V2;
   const keys = new Set([
     "schema", "status", "report_schema", "report_status", "observed_at",
     "chat_completions_probe", "routes",
+    ...(isV2 ? ["freshness", "age_seconds", "max_age_seconds"] : []),
   ]);
   if (!isObject(value)
       || !hasOnlyKeys(value, keys)
-      || value.schema !== PROVIDER_HEALTH_SCHEMA
+      || ![PROVIDER_HEALTH_SCHEMA_V1, PROVIDER_HEALTH_SCHEMA_V2].includes(value.schema)
       || !["configured", "not_configured", "unavailable", "invalid"].includes(value.status)
       || ![null, "icarus.provider-health.v1", "icarus.provider-health.v2"].includes(value.report_schema)
       || ![null, "ok", "warning", "error"].includes(value.report_status)
@@ -31,18 +35,34 @@ export function parseProviderHealthSnapshot(value) {
       || Object.keys(value.routes).some((name) => !PROVIDER_ROUTES.has(name))) {
     throw new TypeError("Provider health projection is invalid");
   }
+  if (isV2 && (
+    !["fresh", "stale", "unknown"].includes(value.freshness)
+    || !(value.age_seconds === null
+      || (Number.isInteger(value.age_seconds) && value.age_seconds >= 0))
+    || value.max_age_seconds !== PROVIDER_MAX_AGE_SECONDS
+  )) {
+    throw new TypeError("Provider health freshness metadata is invalid");
+  }
   if (value.status !== "configured") {
     if (Object.keys(value.routes).length
         || value.report_schema !== null
         || value.report_status !== null
         || value.observed_at !== null
-        || value.chat_completions_probe !== "not_probed") {
+        || value.chat_completions_probe !== "not_probed"
+        || (isV2 && (value.freshness !== "unknown" || value.age_seconds !== null))) {
       throw new TypeError("Unavailable provider health projection must not contain report data");
     }
     return value;
   }
   if (!value.report_schema || !value.report_status || !value.observed_at) {
     throw new TypeError("Configured provider health projection is incomplete");
+  }
+  if (isV2 && (
+    (value.freshness === "fresh" && (value.age_seconds === null || value.age_seconds > value.max_age_seconds))
+    || (value.freshness === "stale" && (value.age_seconds === null || value.age_seconds <= value.max_age_seconds))
+    || (value.freshness === "unknown" && value.age_seconds !== null)
+  )) {
+    throw new TypeError("Provider health freshness metadata is inconsistent");
   }
   for (const [name, route] of Object.entries(value.routes)) {
     if (!isObject(route)
@@ -72,7 +92,6 @@ export function parseProviderHealthSnapshot(value) {
   }
   return value;
 }
-
 
 const RUN_ID_PATTERN = /^[a-f0-9]{32}$/;
 const COMMIT_ID_PATTERN = /^[a-f0-9]{40}$/;

@@ -217,3 +217,20 @@ icarus-tasks --provider-health-report ~/.local/share/icarus/provider-health.json
 The CLI also accepts ICARUS_PROVIDER_HEALTH_REPORT. The separate read-only endpoint is GET /api/v1/provider-health; it does not change the task API v1-v5 contracts. The projection exposes only each route's enabled flag, kind, health status, and inference-probe status. It deliberately omits model names, endpoints, credential sources, diagnostic messages, and response text. The reader accepts the current icarus.provider-health.v1 report and the proposed v2 contract from PR #19. A v1 report always appears as not_probed; model-list availability is not proof of inference. v2 probe status is shown only when explicitly present in the saved report.
 
 The report is a diagnostic artifact, not a task-run record or training example. It is never copied into Local LLM/Train Data/tasks/ or the Action Journal. The reader rejects malformed, oversized, symlinked, and non-regular report files and fails closed.
+
+
+
+## Provider health projection v2 and report freshness
+
+The optional `GET /api/v2/provider-health` endpoint preserves the v1
+privacy-bounded route projection and adds `freshness`, `age_seconds`, and
+`max_age_seconds`. Freshness is based only on the saved report file's
+modification time: reports up to 24 hours old are `fresh`; older reports
+are `stale`; missing, invalid, or future-dated reports use `unknown` or
+the existing unavailable/invalid status. A stale report remains visible
+with its original route statuses, but the UI clearly indicates that the
+doctor should be run again.
+
+The Task Drawer requests projection v2 first and falls back to v1 only on
+HTTP 404. The v1 endpoint and schema remain unchanged. Task Companion never
+runs the doctor, contacts a provider, or refreshes the report itself.

@@ -320,6 +320,7 @@ test("Task Drawer browser script prefers v5 and keeps all legacy fallbacks", () 
   assert.match(script, /requestSnapshot\("\/api\/v4\/tasks"\)/);
   assert.match(script, /requestSnapshot\("\/api\/v3\/tasks"\)/);
   assert.match(script, /requestSnapshot\("\/api\/v2\/tasks"\)/);
+  assert.match(script, /requestSnapshot\("\/api\/v2\/provider-health"\)/);
   assert.match(script, /requestSnapshot\("\/api\/v1\/provider-health"\)/);
   assert.match(script, /parseProviderHealthSnapshot/);
   assert.match(script, /executionTimelineDetails/);
@@ -421,11 +422,43 @@ function makeProviderHealth(schema = "icarus.provider-health.v1") {
   };
 }
 
+function makeProviderHealthV2(overrides = {}) {
+  return {
+    ...makeProviderHealth(),
+    schema: "icarus.provider-health-projection.v2",
+    freshness: "fresh",
+    age_seconds: 30,
+    max_age_seconds: 86400,
+    ...overrides,
+  };
+}
+
 test("accepts a v1 provider health projection without claiming inference", () => {
   const snapshot = makeProviderHealth();
   assert.equal(parseProviderHealthSnapshot(snapshot), snapshot);
   assert.equal(snapshot.chat_completions_probe, "not_probed");
   assert.equal(snapshot.routes.system1_local.inference_status, "not_probed");
+});
+
+test("accepts fresh, stale, and unknown v2 provider projection freshness", () => {
+  const fresh = makeProviderHealthV2();
+  assert.equal(parseProviderHealthSnapshot(fresh), fresh);
+  const stale = makeProviderHealthV2({ freshness: "stale", age_seconds: 86401 });
+  assert.equal(parseProviderHealthSnapshot(stale), stale);
+  const unknown = makeProviderHealthV2({ freshness: "unknown", age_seconds: null });
+  assert.equal(parseProviderHealthSnapshot(unknown), unknown);
+});
+
+test("rejects inconsistent v2 freshness and preserves strict v1 shape", () => {
+  const stale = makeProviderHealthV2({ freshness: "stale", age_seconds: 30 });
+  assert.throws(() => parseProviderHealthSnapshot(stale), /freshness metadata is inconsistent/);
+  const unknown = makeProviderHealthV2({ freshness: "unknown", age_seconds: 1 });
+  assert.throws(() => parseProviderHealthSnapshot(unknown), /freshness metadata is inconsistent/);
+  const invalidMaxAge = makeProviderHealthV2({ max_age_seconds: 10 });
+  assert.throws(() => parseProviderHealthSnapshot(invalidMaxAge), /freshness metadata is invalid/);
+  const v1WithFreshness = makeProviderHealth();
+  v1WithFreshness.freshness = "fresh";
+  assert.throws(() => parseProviderHealthSnapshot(v1WithFreshness), /projection is invalid/);
 });
 
 test("accepts v2 probe metadata while exposing no model or endpoint fields", () => {
@@ -479,4 +512,17 @@ test("provider health projection schema is strict and excludes provider secrets"
   assert.equal(route.properties.inference_status.enum.includes("not_probed"), true);
   assert.equal(Object.hasOwn(schema.properties, "model"), false);
   assert.equal(Object.hasOwn(schema.properties, "endpoint"), false);
+});
+
+test("provider health projection v2 schema exposes only bounded freshness metadata", () => {
+  const schemaUrl = new URL("../../../Task Companion/schemas/provider-health-projection.v2.schema.json", import.meta.url);
+  const schema = JSON.parse(readFileSync(schemaUrl, "utf8"));
+  assert.equal(schema.properties.schema.const, "icarus.provider-health-projection.v2");
+  assert.equal(schema.additionalProperties, false);
+  assert.equal(schema.properties.max_age_seconds.const, 86400);
+  assert.deepEqual(schema.properties.freshness.enum, ["fresh", "stale", "unknown"]);
+  assert.equal(schema.$defs.route.additionalProperties, false);
+  assert.deepEqual(Object.keys(schema.$defs.route.properties).sort(), [
+    "enabled", "inference_status", "kind", "status",
+  ]);
 });

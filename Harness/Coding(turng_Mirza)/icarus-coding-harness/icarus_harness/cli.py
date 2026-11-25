@@ -6,6 +6,7 @@ from . import __version__
 from .config import HarnessConfig
 from .doctor import run_doctor
 from .provider_doctor import run_provider_doctor
+from .report_output import write_json_report
 from .git import diff, status
 from .runtime import AgentRuntime
 from .task_bridge import load_task_prompt, write_execution_event
@@ -36,6 +37,7 @@ def main() -> None:
         help="Check one model endpoint or all configured Personal Companion provider routes without inference",
     )
     doctor.add_argument("--workspace", default=".")
+    doctor.add_argument("--output", help="Atomically save the JSON report to this path (file mode 0600)")
     doctor.add_argument(
         "--providers-config",
         help="Read-only diagnostics for a Personal Companion providers.local.json file",
@@ -51,10 +53,23 @@ def main() -> None:
             parser.error("run requires a task prompt or --task-store with --task-id")
     try:
         if args.action == "doctor":
+            if args.output:
+                output_path = Path(args.output).expanduser()
+                input_config_path = (
+                    Path(args.providers_config).expanduser()
+                    if args.providers_config
+                    else Path(args.workspace).expanduser().resolve() / ".icarus" / "config.json"
+                )
+                if output_path.resolve() == input_config_path.resolve():
+                    raise ValueError("doctor report output must not overwrite its input configuration")
+
             if args.providers_config:
                 report = run_provider_doctor(Path(args.providers_config))
             else:
                 report = run_doctor(HarnessConfig.load(Path(args.workspace).resolve()).model)
+
+            if args.output:
+                write_json_report(Path(args.output), report)
             print(json.dumps(report, ensure_ascii=False, indent=2))
             if report["status"] == "error":
                 sys.exit(2)

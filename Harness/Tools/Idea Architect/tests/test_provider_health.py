@@ -1,6 +1,7 @@
 import json
 import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -72,6 +73,41 @@ class ProviderHealthReaderTests(unittest.TestCase):
         self.assertEqual(snapshot["routes"]["system1_local"]["inference_status"], "passed")
         self.assertEqual(snapshot["routes"]["system1_api"]["inference_status"], "skipped")
         self.assertNotIn("private inference message", json.dumps(snapshot))
+
+    def test_v2_projection_reports_freshness_and_age_without_changing_v1(self):
+        self.write(make_report())
+        v1 = ProviderHealthReader(self.report).snapshot()
+        self.assertEqual(v1["schema"], "icarus.provider-health-projection.v1")
+        self.assertNotIn("freshness", v1)
+        fresh = ProviderHealthReader(self.report).snapshot(version=2)
+        self.assertEqual(fresh["schema"], "icarus.provider-health-projection.v2")
+        self.assertEqual(fresh["freshness"], "fresh")
+        self.assertIsInstance(fresh["age_seconds"], int)
+        self.assertEqual(fresh["max_age_seconds"], 86400)
+        old_timestamp = time.time() - 86400 - 1
+        os.utime(self.report, (old_timestamp, old_timestamp))
+        stale = ProviderHealthReader(self.report).snapshot(version=2)
+        self.assertEqual(stale["status"], "configured")
+        self.assertEqual(stale["freshness"], "stale")
+        self.assertGreater(stale["age_seconds"], stale["max_age_seconds"])
+        self.assertEqual(stale["routes"]["system1_local"]["status"], "ok")
+
+    def test_future_report_timestamp_has_unknown_freshness(self):
+        self.write(make_report())
+        future_timestamp = time.time() + 60
+        os.utime(self.report, (future_timestamp, future_timestamp))
+        snapshot = ProviderHealthReader(self.report).snapshot(version=2)
+        self.assertEqual(snapshot["status"], "configured")
+        self.assertEqual(snapshot["freshness"], "unknown")
+        self.assertIsNone(snapshot["age_seconds"])
+
+    def test_v2_empty_and_invalid_versions_have_explicit_freshness(self):
+        missing = ProviderHealthReader(self.root / "missing.json").snapshot(version=2)
+        self.assertEqual(missing["status"], "unavailable")
+        self.assertEqual(missing["freshness"], "unknown")
+        self.assertIsNone(missing["age_seconds"])
+        with self.assertRaises(ValueError):
+            ProviderHealthReader(self.report).snapshot(version=3)
 
     def test_unknown_fields_and_invalid_v1_inference_claim_are_rejected(self):
         payload = make_report()

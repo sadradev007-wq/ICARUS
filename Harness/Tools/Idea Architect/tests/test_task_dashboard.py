@@ -1,4 +1,6 @@
 import json
+import os
+import time
 import threading
 import unittest
 import urllib.error
@@ -504,6 +506,13 @@ class TaskDashboardTests(unittest.TestCase):
         self.assertEqual(unconfigured["status"], "not_configured")
         self.assertEqual(unconfigured["routes"], {})
 
+        v2_status, v2_body = self.get("/api/v2/provider-health")
+        self.assertEqual(v2_status, 200)
+        v2_unconfigured = json.loads(v2_body)
+        self.assertEqual(v2_unconfigured["schema"], "icarus.provider-health-projection.v2")
+        self.assertEqual(v2_unconfigured["freshness"], "unknown")
+        self.assertIsNone(v2_unconfigured["age_seconds"])
+
         report_path = Path(self.temp.name) / "provider-health.json"
         route = {
             "enabled": True, "kind": "local", "model": "private-model-name",
@@ -548,6 +557,25 @@ class TaskDashboardTests(unittest.TestCase):
             "credential_source",
         ):
             self.assertNotIn(private, json.dumps(payload))
+
+        fresh_status, fresh_body = self.get("/api/v2/provider-health")
+        self.assertEqual(fresh_status, 200)
+        fresh = json.loads(fresh_body)
+        self.assertEqual(fresh["schema"], "icarus.provider-health-projection.v2")
+        self.assertEqual(fresh["status"], "configured")
+        self.assertEqual(fresh["freshness"], "fresh")
+        self.assertIsInstance(fresh["age_seconds"], int)
+        self.assertEqual(fresh["max_age_seconds"], 86400)
+        self.assertNotIn("private-model-name", fresh_body)
+
+        old_timestamp = time.time() - 86400 - 1
+        os.utime(report_path, (old_timestamp, old_timestamp))
+        stale_status, stale_body = self.get("/api/v2/provider-health")
+        self.assertEqual(stale_status, 200)
+        stale = json.loads(stale_body)
+        self.assertEqual(stale["status"], "configured")
+        self.assertEqual(stale["freshness"], "stale")
+        self.assertGreater(stale["age_seconds"], stale["max_age_seconds"])
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,7 +6,8 @@ The Coding Harness can inspect the Personal Companion provider configuration wit
 
 Run from the repository root after installing the Coding Harness package:
 
-    icarus-harness doctor --providers-config "Harness/Tools/Personal Companion/config/providers.local.json"
+    icarus-harness doctor --providers-config "Harness/Tools/Personal Companion/config/providers.local.json" \
+      --output ~/.local/share/icarus/provider-health.json
 
 The local configuration is created by copying providers.example.json and remains ignored by Git. API keys must be supplied through the environment variables named by each API route's api_key_env field.
 
@@ -25,3 +26,15 @@ The aggregate report is icarus.provider-health.v1 and is described by schemas/pr
 ## Explicit limitations
 
 This is a read-only connectivity and model-list diagnostic. It does not send Chat Completions requests, prove inference compatibility, change provider configuration, instantiate AgentRuntime, write Task Companion feedback, or create Local LLM task records. The Coding Harness agent kill switch remains closed. A separately approved smoke test against an installed local model server is still required before claiming real inference works.
+
+## Saved report handoff
+
+Use `--output PATH` to save the JSON report without shell redirection. The
+parent directory must already exist. The file is written atomically with
+mode `0600` on POSIX systems; a failed write leaves the previous report
+unchanged. A diagnostic result whose status is `error` is still a valid
+report and is saved before the CLI exits with code 2.
+
+Task Companion reads the saved file only. Its projection v2 reports
+`fresh`, `stale`, or `unknown` based on the file modification time, with
+a 24-hour freshness window. Projection v1 remains available unchanged.

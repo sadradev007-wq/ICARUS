@@ -40,8 +40,16 @@ The Coding Harness can inspect the Personal Companion `providers.local.json` fil
 A provider-doctor report can be saved separately and displayed in Task Companion:
 
 ~~~bash
-icarus-harness doctor --providers-config "Harness/Tools/Personal Companion/config/providers.local.json" > ~/.local/share/icarus/provider-health.json
+icarus-harness doctor --providers-config "Harness/Tools/Personal Companion/config/providers.local.json" \
+  --output ~/.local/share/icarus/provider-health.json
 icarus-tasks --provider-health-report ~/.local/share/icarus/provider-health.json
 ~~~
 
 The report file is operational diagnostics, not a Coding Harness task record. It must not be placed in Train Data/tasks/ or treated as a training example. Task Companion reads only a sanitized route-status projection and never sends a new network request. Provider-health.v1 confirms configuration/model-list connectivity only; it does not prove inference. The reader also understands the v2 inference-probe shape proposed in PR #19, but that option is available only when that separate change is integrated.
+
+
+The `--output` option writes the diagnostic JSON atomically with restrictive
+permissions (mode `0600` on POSIX). It does not create a task-run record.
+Task Companion's `/api/v2/provider-health` projection reports whether the
+saved file is fresh (within 24 hours), stale, or has unknown freshness. The
+existing `/api/v1/provider-health` projection remains unchanged.
