@@ -6,6 +6,8 @@ from pathlib import Path
 from icarus_harness.config import EmbeddingConfig, HarnessConfig
 from icarus_harness.tools import ToolRegistry
 from icarus_harness.workspace import Workspace
+from icarus_harness.runtime import AgentRuntime
+from icarus_harness.semantic_index import SemanticVectorCache
 
 
 class _ApprovalPolicy:
@@ -76,6 +78,26 @@ class EmbeddingToolIntegrationTests(unittest.TestCase):
         self.assertEqual(configured.embeddings.model, "nomic-embed-text")
         self.assertFalse(configured.embeddings.allow_remote)
         self.assertTrue(configured.embeddings.cache_enabled)
+
+
+    def test_runtime_wires_cache_only_for_explicit_boolean_opt_in(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config = HarnessConfig()
+            config.embeddings.enabled = True
+            config.embeddings.cache_enabled = True
+            runtime = AgentRuntime(Workspace(root), config, lambda _prompt: True)
+            self.assertIsInstance(runtime.tools.embedding_cache, SemanticVectorCache)
+            self.assertFalse((root / ".icarus" / "context-index.json").exists())
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config = HarnessConfig()
+            config.embeddings.enabled = True
+            config.embeddings.cache_enabled = "true"
+            runtime = AgentRuntime(Workspace(root), config, lambda _prompt: True)
+            self.assertIsNone(runtime.tools.embedding_cache)
+            self.assertFalse((root / ".icarus").exists())
 
 
 if __name__ == "__main__":

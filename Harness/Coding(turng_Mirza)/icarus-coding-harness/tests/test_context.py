@@ -189,6 +189,34 @@ class ContextEngineTests(unittest.TestCase):
         ))
 
 
+    def test_unsafe_cache_path_falls_back_without_writing_outside_workspace(self):
+        outside = self.root.parent / (self.root.name + "-cache-outside")
+        outside.mkdir()
+        try:
+            (self.root / ".icarus").symlink_to(outside, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            outside.rmdir()
+            self.skipTest("Directory symlinks are unavailable")
+
+        class Provider:
+            def embed(_self, inputs):
+                return [[1.0, 0.0] for _ in inputs]
+
+        try:
+            result = ContextEngine(
+                self.workspace,
+                embedding_provider=Provider(),
+                semantic_cache=SemanticVectorCache(self.root, "unsafe-path-test"),
+            ).retrieve("parse_input parser")
+            self.assertEqual(result["retrieval_mode"], "hybrid")
+            self.assertFalse(result["semantic_cache"]["available"])
+            self.assertEqual(result["semantic_cache"]["writes"], 0)
+            self.assertTrue(result["read_only"])
+            self.assertEqual(list(outside.iterdir()), [])
+        finally:
+            (self.root / ".icarus").unlink(missing_ok=True)
+            outside.rmdir()
+
     def test_opt_in_semantic_cache_reuses_vectors_and_invalidates_changed_documents(self):
         class CountingProvider:
             def __init__(_self):
