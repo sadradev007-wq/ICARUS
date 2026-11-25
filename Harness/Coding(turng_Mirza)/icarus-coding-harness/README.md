@@ -95,11 +95,11 @@ If stdin reaches EOF or raises an input error at the optional Task Companion fee
 
 ## Optional semantic context retrieval
 
-Semantic reranking is disabled by default. To enable it, add an \`embeddings\`
-section to \`.icarus/config.json\` and configure a trusted OpenAI-compatible
-\`/embeddings\` endpoint. The example configuration uses a loopback endpoint:
+Semantic reranking is disabled by default. To enable it, add an `embeddings`
+section to `.icarus/config.json` and configure a trusted OpenAI-compatible
+`/embeddings` endpoint. The example configuration uses a loopback endpoint:
 
-\`\`\`json
+```json
 {
   "embeddings": {
     "enabled": true,
@@ -110,7 +110,7 @@ section to \`.icarus/config.json\` and configure a trusted OpenAI-compatible
     "allow_remote": false
   }
 }
-\`\`\`
+```
 
 The endpoint must provide an embeddings model separately from the chat model.
 The harness sends the query and up to 48 redacted file documents per retrieval;
@@ -119,8 +119,8 @@ candidate selection is bounded and may not include every file. Semantic failures
 fall back to lexical retrieval. There is no persistent vector index or cache in
 this increment, so enabled retrieval sends the selected documents on each call.
 
-Remote endpoints are refused unless \`allow_remote\` is explicitly set to
-\`true\`; remote HTTP is always refused, and remote HTTPS requires an API key
+Remote endpoints are refused unless `allow_remote` is explicitly set to
+`true`; remote HTTP is always refused, and remote HTTPS requires an API key
 from the configured environment variable. Configure only an endpoint you trust:
 source text, after heuristic secret redaction, is sent to that endpoint. The
 redactor is not a complete secret scanner. No embedding endpoint is contacted

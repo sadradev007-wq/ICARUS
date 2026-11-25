@@ -79,3 +79,20 @@ The Coding Harness integration test uses a loopback HTTP fixture that implements
 
 
 Pending execution suggestions are exposed only while their target task remains active. The CLI's optional feedback prompt treats EOF or input errors as a decline, preserving the already-completed run result. The drawer's feedback link reloads the dashboard before navigating to the server-rendered feedback section, avoiding a dead fragment target when an event arrives after initial render.
+
+
+## Optional semantic context retrieval
+
+The Context Engine can receive an optional OpenAI-compatible embedding provider
+from configuration. It is disabled by default and is created without network
+activity; a request is sent only when `retrieve_context` is called. The provider
+receives the query and up to 48 heuristically redacted file documents, with
+bounded input/response sizes, strict vector validation, no redirects, and no
+ambient proxy. Remote HTTPS requires explicit `allow_remote` opt-in and a
+credential from the configured environment variable; non-loopback HTTP is
+always rejected. Failed embedding requests fall back to lexical ranking.
+
+The current implementation is per-request semantic reranking, not a durable
+index. It does not persist vectors, and candidate selection is incomplete for
+repositories larger than the 48-document request cap. Source redaction is
+best-effort; operators must trust any configured remote endpoint.
