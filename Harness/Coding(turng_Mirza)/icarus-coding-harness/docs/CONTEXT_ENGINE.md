@@ -30,7 +30,7 @@ Go and Rust support is intentionally syntactic and partial. Rust inline/nested m
 - Common credential patterns are redacted using the reviewer's existing heuristic filter. This is defense in depth, not a complete secret scanner.
 - No files are written, no commands are run, and no network or package registry is accessed.
 
-The token estimate uses approximately four characters per token. It is a budgeting heuristic, not the configured model's tokenizer. Semantic/embedding retrieval and deeper language-aware analysis remain future work.
+The token estimate uses approximately four characters per token. It is a budgeting heuristic, not the configured model's tokenizer. Persistent semantic indexing and deeper language-aware analysis remain future work.
 
 ## Reference patterns studied
 
@@ -41,3 +41,38 @@ The implementation was informed by patterns in the pinned sample repositories:
 - [Goose](https://github.com/aaif-goose/goose/tree/cfb67d72f6129ba3c9f68d4c225d8dfcaba18a87): Rust crate module organization and explicit `mod`/`use` relationships.
 
 These repositories were inspected selectively at the pinned revisions. No third-party source code was copied or vendored, and the 119 sample repositories were not benchmarked.
+
+
+## Optional semantic reranking
+
+Semantic retrieval is an explicit opt-in. Set `embeddings.enabled=true` in
+`.icarus/config.json` and configure an OpenAI-compatible `/embeddings`
+endpoint. The default is disabled and points at a loopback URL for local use;
+the configured embedding model must already be available on that server.
+
+For each retrieval, the engine sends the query and at most 48 file documents.
+Documents are assembled from the workspace-relative path, role, language, and
+heuristically redacted source text, capped at 8,000 characters each. If more
+than 48 files exist, the candidate set combines lexical leaders with a bounded
+source/test/documentation sample. Hybrid scoring combines lexical relevance
+(35%) and cosine similarity (65%). Dependency-neighbour reservation and the
+existing output token budget still apply.
+
+The HTTP client:
+- accepts only HTTP(S) URLs without userinfo, query strings, or fragments;
+- permits plain HTTP only for loopback hosts;
+- requires `allow_remote=true` and an environment-sourced API key for remote HTTPS;
+- disables redirects and ambient HTTP proxies;
+- bounds input count, input characters, response size, timeout, and vector dimensions;
+- never includes API-key values or upstream response bodies in error messages.
+
+Semantic request failures do not fail context retrieval; the result reports
+`retrieval_mode=lexical_fallback` and retains lexical ranking. With the provider
+disabled, `retrieval_mode=lexical`. Successful optional reranking reports
+`retrieval_mode=hybrid`.
+
+This increment is not a persistent vector database: embeddings are recomputed
+for each request, and files outside the bounded candidate set are not searched
+semantically. Secret redaction is heuristic, not a guarantee. A remote provider
+receives source text, so enable it only when the endpoint and data-sharing
+arrangement are trusted.

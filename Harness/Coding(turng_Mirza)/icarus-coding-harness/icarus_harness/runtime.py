@@ -3,6 +3,7 @@ from typing import Callable
 from uuid import uuid4
 from .config import HarnessConfig
 from .llm import OpenAICompatibleModel
+from .embeddings import OpenAICompatibleEmbeddingProvider
 from .memory import ProjectMemory
 from .models import RunResult
 from .policy import PolicyEngine
@@ -34,7 +35,16 @@ class AgentRuntime:
         self.memory = ProjectMemory(workspace)
         self.model = OpenAICompatibleModel(config.model)
         self.reviewer = IndependentReviewer(workspace, self.model.complete)
-        self.tools = ToolRegistry(workspace, PolicyEngine(config.policy, approve), reviewer=self.reviewer)
+        embedding_provider = (
+            OpenAICompatibleEmbeddingProvider(config.embeddings)
+            if config.embeddings.enabled else None
+        )
+        self.tools = ToolRegistry(
+            workspace,
+            PolicyEngine(config.policy, approve),
+            reviewer=self.reviewer,
+            embedding_provider=embedding_provider,
+        )
         self.dataset = TaskDatasetWriter(workspace.root)
 
     def _record_result(

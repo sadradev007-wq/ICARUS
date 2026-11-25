@@ -54,10 +54,12 @@ _DEF_RE = re.compile(
     r"^\s*(?:async\s+)?(?:def|class|function|export\s+(?:default\s+)?(?:class|function))\s+([A-Za-z_$][\w$]*)",
     re.M,
 )
+_SEMANTIC_MAX_CANDIDATES = 48
+_SEMANTIC_DOCUMENT_CHARS = 8_000
 
 
 class ContextEngine:
-    """Read-only, bounded repository mapping and lexical context retrieval."""
+    """Read-only, bounded repository mapping with lexical and optional semantic retrieval."""
 
     def __init__(
         self,
@@ -65,8 +67,10 @@ class ContextEngine:
         max_scan_files: int = 2000,
         max_file_bytes: int = 96_000,
         max_total_bytes: int = 4_000_000,
+        embedding_provider: Any | None = None,
     ):
         self.workspace = workspace
+        self.embedding_provider = embedding_provider
         self.max_scan_files = max(1, min(int(max_scan_files), 5000))
         self.max_file_bytes = max(1024, min(int(max_file_bytes), 256_000))
         self.max_total_bytes = max(self.max_file_bytes, min(int(max_total_bytes), 8_000_000))
@@ -261,6 +265,50 @@ class ContextEngine:
         return score, reasons[:8]
 
     @staticmethod
+    def _cosine_similarity(left: list[float], right: list[float]) -> float:
+        if not left or len(left) != len(right):
+            raise ValueError("Embedding vectors have incompatible dimensions")
+        dot = sum(a * b for a, b in zip(left, right))
+        left_norm = math.sqrt(sum(value * value for value in left))
+        right_norm = math.sqrt(sum(value * value for value in right))
+        if left_norm == 0 or right_norm == 0:
+            return 0.0
+        return max(-1.0, min(1.0, dot / (left_norm * right_norm)))
+
+    @staticmethod
+    def _semantic_candidates(
+        entries: dict[str, dict[str, Any]],
+        lexical_scores: dict[str, tuple[float, list[str]]],
+    ) -> list[str]:
+        paths = sorted(lexical_scores, key=lambda path: (-lexical_scores[path][0], path))
+        if len(paths) <= _SEMANTIC_MAX_CANDIDATES:
+            return paths
+        selected = paths[: _SEMANTIC_MAX_CANDIDATES // 2]
+        selected_set = set(selected)
+        remaining = sorted(
+            (path for path in paths if path not in selected_set),
+            key=lambda path: (
+                0 if entries[path]["kind"] == "source"
+                else 1 if entries[path]["kind"] == "test"
+                else 2 if entries[path]["kind"] == "documentation"
+                else 3,
+                path,
+            ),
+        )
+        return selected + remaining[: _SEMANTIC_MAX_CANDIDATES - len(selected)]
+
+    @staticmethod
+    def _semantic_document(path: str, item: dict[str, Any]) -> str:
+        content = item["text"]
+        if len(content) > _SEMANTIC_DOCUMENT_CHARS:
+            content = content[:6000] + "\n[...middle omitted...]\n" + content[-1900:]
+        header = (
+            f"Path: {path}\nRole: {item['kind']}\n"
+            f"Language: {item['language']}\n\n"
+        )
+        return (header + content)[:_SEMANTIC_DOCUMENT_CHARS]
+
+    @staticmethod
     def _snippet(text: str, terms: list[str], limit: int = 5000) -> str:
         if len(text) <= limit:
             return text
@@ -322,17 +370,68 @@ class ContextEngine:
             raise ValueError("A non-empty retrieval query is required")
         max_tokens = max(512, min(int(max_tokens), 8000))
         max_files = max(1, min(int(max_files), 20))
-        terms = self._terms(query)
+        safe_query = redact_secrets(query)
+        terms = self._terms(safe_query)
         if not terms:
-            terms = [word for word in re.findall(r"[A-Za-z0-9_]{2,}", query.casefold())][:8]
+            terms = [word for word in re.findall(r"[A-Za-z0-9_]{2,}", safe_query.casefold())][:8]
         entries, edges, notes, truncated = self._scan()
-        scores: dict[str, tuple[float, list[str]]] = {
+        lexical_scores: dict[str, tuple[float, list[str]]] = {
             path: self._score(path, item, terms) for path, item in entries.items()
         }
+        scores = dict(lexical_scores)
+        retrieval_mode = "lexical"
+        semantic_applied = False
+
+        if self.embedding_provider is not None and entries:
+            candidates = self._semantic_candidates(entries, lexical_scores)
+            documents = [self._semantic_document(path, entries[path]) for path in candidates]
+            try:
+                vectors = self.embedding_provider.embed(
+                    [safe_query[:_SEMANTIC_DOCUMENT_CHARS], *documents]
+                )
+                if len(vectors) != len(candidates) + 1:
+                    raise ValueError("Embedding provider returned an unexpected vector count")
+                query_vector = vectors[0]
+                similarities = {
+                    path: self._cosine_similarity(query_vector, vector)
+                    for path, vector in zip(candidates, vectors[1:])
+                }
+                max_lexical = max(
+                    (value[0] for value in lexical_scores.values()), default=0.0
+                )
+                for path in entries:
+                    lexical_value, reasons = lexical_scores[path]
+                    lexical_norm = min(1.0, lexical_value / 10.0)
+                    if path in similarities:
+                        similarity = similarities[path]
+                        semantic_norm = (similarity + 1.0) / 2.0
+                        combined = 100.0 * (
+                            0.35 * lexical_norm + 0.65 * semantic_norm
+                        )
+                        merged_reasons = reasons + [f"semantic_cosine:{similarity:.3f}"]
+                        scores[path] = (combined, merged_reasons[:8])
+                    else:
+                        scores[path] = (35.0 * lexical_norm, reasons[:8])
+                retrieval_mode = "hybrid"
+                semantic_applied = True
+                if len(candidates) < len(entries):
+                    notes.append(
+                        f"Semantic retrieval evaluated {len(candidates)} of {len(entries)} files; "
+                        "candidate selection is bounded to lexical leaders and source/test files."
+                    )
+            except Exception as exc:
+                retrieval_mode = "lexical_fallback"
+                notes.append(
+                    f"Semantic retrieval unavailable ({type(exc).__name__}); lexical ranking was retained."
+                )
+
         ranked = sorted(scores, key=lambda path: (-scores[path][0], path))
+        has_matches = semantic_applied or any(
+            value[0] > 0 for value in lexical_scores.values()
+        )
         if not ranked:
             notes.append("No reviewable UTF-8 text files were found in the workspace.")
-        elif not any(scores[path][0] > 0 for path in ranked):
+        elif not has_matches:
             ranked = sorted(
                 ranked,
                 key=lambda path: (
@@ -341,13 +440,12 @@ class ContextEngine:
                     path,
                 ),
             )
-            notes.append("No lexical matches were found; returned a small project overview instead.")
+            notes.append("No lexical or semantic matches were found; returned a small project overview instead.")
 
         adjacency: dict[str, set[str]] = {}
         for edge in edges:
             adjacency.setdefault(edge["source"], set()).add(edge["target"])
             adjacency.setdefault(edge["target"], set()).add(edge["source"])
-        has_matches = any(scores[path][0] > 0 for path in ranked)
         if has_matches:
             reserve = min(4, max_files // 3)
             selected = ranked[:max(1, max_files - reserve)]
@@ -369,9 +467,10 @@ class ContextEngine:
         ][:100]
 
         payload: dict[str, Any] = {
-            "query": query[:500],
+            "query": safe_query[:500],
             "token_budget": max_tokens,
             "estimated_tokens": 0,
+            "retrieval_mode": retrieval_mode,
             "repository_map": self._map_summary(entries, edges) if include_map else None,
             "files": [],
             "dependency_edges": selected_edges,
@@ -380,6 +479,8 @@ class ContextEngine:
                 "Dependency graph is static and partial: Python, relative JavaScript/TypeScript, Go module-local, and basic Rust module/use paths.",
                 "Go/Rust analysis is syntactic and does not resolve external packages, all conditional compilation, generated code, or every language construct.",
                 "Token count is an approximate character-based estimate (about four characters per token).",
+                "Semantic reranking is opt-in, uses only redacted text, and evaluates at most 48 bounded file documents per request.",
+                "Remote embedding endpoints require HTTPS, allow_remote=true, and an environment-sourced credential; configure only a trusted endpoint.",
             ],
             "read_only": True,
         }

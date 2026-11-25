@@ -91,3 +91,37 @@ The integration test starts a deterministic OpenAI-compatible HTTP fixture on lo
 
 
 If stdin reaches EOF or raises an input error at the optional Task Companion feedback prompt, ICARUS treats that prompt as a decline, does not write an event, and still prints the completed run's JSON result and exit status.
+
+
+## Optional semantic context retrieval
+
+Semantic reranking is disabled by default. To enable it, add an `embeddings`
+section to `.icarus/config.json` and configure a trusted OpenAI-compatible
+`/embeddings` endpoint. The example configuration uses a loopback endpoint:
+
+```json
+{
+  "embeddings": {
+    "enabled": true,
+    "base_url": "http://localhost:11434/v1",
+    "model": "nomic-embed-text",
+    "api_key_env": "ICARUS_API_KEY",
+    "timeout_seconds": 30,
+    "allow_remote": false
+  }
+}
+```
+
+The endpoint must provide an embeddings model separately from the chat model.
+The harness sends the query and up to 48 redacted file documents per retrieval;
+each document is capped at 8,000 characters. When the repository is larger,
+candidate selection is bounded and may not include every file. Semantic failures
+fall back to lexical retrieval. There is no persistent vector index or cache in
+this increment, so enabled retrieval sends the selected documents on each call.
+
+Remote endpoints are refused unless `allow_remote` is explicitly set to
+`true`; remote HTTP is always refused, and remote HTTPS requires an API key
+from the configured environment variable. Configure only an endpoint you trust:
+source text, after heuristic secret redaction, is sent to that endpoint. The
+redactor is not a complete secret scanner. No embedding endpoint is contacted
+when semantic retrieval is disabled.

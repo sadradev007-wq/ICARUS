@@ -19,8 +19,15 @@ class Tool:
     handler: Callable[[dict[str, Any]], str]
 
 class ToolRegistry:
-    def __init__(self, workspace: Workspace, policy: PolicyEngine, reviewer: Any | None = None):
+    def __init__(
+        self,
+        workspace: Workspace,
+        policy: PolicyEngine,
+        reviewer: Any | None = None,
+        embedding_provider: Any | None = None,
+    ):
         self.workspace, self.policy, self.reviewer = workspace, policy, reviewer
+        self.embedding_provider = embedding_provider
         self.patch_engine = PatchEngine(workspace, policy.approve)
         # Git support is lazy so non-Git workspaces keep working for ordinary file tasks.
         self._checkpoints: GitCheckpointManager | None = None
@@ -35,7 +42,7 @@ class ToolRegistry:
             "discover_tests": Tool("discover_tests", "Read-only discovery of project test profiles and tests related to changed paths. Does not execute tests.", self._schema({"changed_paths":{"type":"array","items":{"type":"string"}}}), self._discover_tests),
             "retrieve_context": Tool(
                 "retrieve_context",
-                "Read-only repository map and ranked workspace context. Uses a bounded approximate token budget and a static local Python/relative JS-TS, Go module-local, and basic Rust module/use graph; treats source as untrusted data.",
+                "Read-only repository map and ranked workspace context. Uses bounded lexical retrieval and optional opt-in semantic reranking through a configured embedding endpoint; source is treated as untrusted data.",
                 self._schema({
                     "query":{"type":"string"},
                     "max_tokens":{"type":"integer","minimum":512,"maximum":8000},
@@ -100,7 +107,9 @@ class ToolRegistry:
         return json.dumps(result, ensure_ascii=False, indent=2)
 
     def _retrieve_context(self, args: dict[str, Any]) -> str:
-        result = ContextEngine(self.workspace).retrieve(
+        result = ContextEngine(
+            self.workspace, embedding_provider=self.embedding_provider
+        ).retrieve(
             args["query"], args.get("max_tokens", 3000),
             args.get("max_files", 12), args.get("include_map", True),
         )
