@@ -25,9 +25,11 @@ class ToolRegistry:
         policy: PolicyEngine,
         reviewer: Any | None = None,
         embedding_provider: Any | None = None,
+        embedding_cache: Any | None = None,
     ):
         self.workspace, self.policy, self.reviewer = workspace, policy, reviewer
         self.embedding_provider = embedding_provider
+        self.embedding_cache = embedding_cache
         self.patch_engine = PatchEngine(workspace, policy.approve)
         # Git support is lazy so non-Git workspaces keep working for ordinary file tasks.
         self._checkpoints: GitCheckpointManager | None = None
@@ -42,7 +44,7 @@ class ToolRegistry:
             "discover_tests": Tool("discover_tests", "Read-only discovery of project test profiles and tests related to changed paths. Does not execute tests.", self._schema({"changed_paths":{"type":"array","items":{"type":"string"}}}), self._discover_tests),
             "retrieve_context": Tool(
                 "retrieve_context",
-                "Read-only repository map and ranked workspace context. Uses bounded lexical retrieval and optional opt-in semantic reranking through a configured embedding endpoint; source is treated as untrusted data.",
+                "Read-only source map and ranked workspace context. Optional semantic reranking may use a configured embedding endpoint; an explicitly enabled local vector cache stores derived vectors only under workspace .icarus.",
                 self._schema({
                     "query":{"type":"string"},
                     "max_tokens":{"type":"integer","minimum":512,"maximum":8000},
@@ -108,7 +110,8 @@ class ToolRegistry:
 
     def _retrieve_context(self, args: dict[str, Any]) -> str:
         result = ContextEngine(
-            self.workspace, embedding_provider=self.embedding_provider
+            self.workspace, embedding_provider=self.embedding_provider,
+            semantic_cache=self.embedding_cache,
         ).retrieve(
             args["query"], args.get("max_tokens", 3000),
             args.get("max_files", 12), args.get("include_map", True),

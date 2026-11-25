@@ -54,6 +54,7 @@
     "model": "nomic-embed-text",
     "api_key_env": "ICARUS_API_KEY",
     "timeout_seconds": 30,
-    "allow_remote": false
+    "allow_remote": false,
+    "cache_enabled": false
   }
 }

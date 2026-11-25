@@ -10,7 +10,7 @@ CLI -> Task Companion JSON adapter -> AgentRuntime -> OpenAI-compatible model ad
 
 ## Context Engine
 
-The read-only Context Engine inventories bounded workspace text files, classifies them, and ranks relevant snippets under an approximate token budget. Its static dependency graph covers Python imports, relative JavaScript/TypeScript imports, Go imports resolved within local go.mod modules, and basic Rust out-of-line mod declarations plus simple crate/self/super use paths. It does not run compilers, resolve registries, or claim a complete language parser. Source content remains untrusted input and workspace path checks apply before reads.
+The Context Engine inventories bounded workspace text files, classifies them, and ranks relevant snippets under an approximate token budget. Its static dependency graph covers Python imports, relative JavaScript/TypeScript imports, Go imports resolved within local go.mod modules, and basic Rust out-of-line mod declarations plus simple crate/self/super use paths. It does not run compilers, resolve registries, or claim a complete language parser. Optional semantic reranking can reuse redacted-document vectors from a bounded, opt-in local cache under .icarus; query vectors are recomputed, and no source text is persisted. Cache writes use no-follow directory descriptors, a process lock, atomic replacement, and private file permissions. Source content remains untrusted input and workspace path checks apply before reads.
 
 ## Read-only model doctor
 

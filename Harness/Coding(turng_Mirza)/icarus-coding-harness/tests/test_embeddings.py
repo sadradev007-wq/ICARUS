@@ -169,8 +169,28 @@ class EmbeddingProviderTests(unittest.TestCase):
             provider.embed(["query"] * 50)
         self.assertEqual(self.server.requests, [])
 
+    def test_cache_identity_tracks_endpoint_and_model_without_credentials(self):
+        config = self.config()
+        provider = OpenAICompatibleEmbeddingProvider(config)
+        identity = provider.cache_identity()
+        with patch.dict(os.environ, {"ICARUS_EMBED_TEST_KEY": "secret-one"}):
+            self.assertEqual(provider.cache_identity(), identity)
+        with patch.dict(os.environ, {"ICARUS_EMBED_TEST_KEY": "secret-two"}):
+            self.assertEqual(provider.cache_identity(), identity)
+
+        other_model = OpenAICompatibleEmbeddingProvider(
+            self.config(model="different-embedding-model")
+        )
+        self.assertNotEqual(other_model.cache_identity(), identity)
+
+        other_endpoint = OpenAICompatibleEmbeddingProvider(
+            self.config(base_url="http://localhost:9999/v1")
+        )
+        self.assertNotEqual(other_endpoint.cache_identity(), identity)
+
     def test_embedding_config_is_disabled_by_default(self):
         self.assertFalse(HarnessConfig().embeddings.enabled)
+        self.assertFalse(HarnessConfig().embeddings.cache_enabled)
 
 
 if __name__ == "__main__":

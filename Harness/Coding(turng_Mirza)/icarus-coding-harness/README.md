@@ -13,7 +13,7 @@ An original, approval-first coding-agent runtime developed alongside 119 pinned 
 - Unified diff patch proposals with source-version checks and per-hunk approval.
 - Local Git checkpoints stored in private refs; path-scoped rollback with per-path approval.
 - Read-only test and dependency-ecosystem discovery across Python, JavaScript/TypeScript, Rust, Go, Java, .NET, PHP, Ruby, Dart/Flutter, Swift, C/C++, Elixir, Haskell, and R. pnpm is the default JavaScript package manager.
-- Read-only context retrieval with bounded snippets and a static local dependency graph for Python, relative JS/TS imports, Go module-local imports, and basic Rust module/use paths; semantic retrieval remains future work.
+- Bounded source-read-only context retrieval with static Python, relative JS/TS, Go module-local, and basic Rust dependency edges; optional hybrid semantic reranking plus a private incremental vector cache (both disabled by default).
 - Separate, read-only model review of changed files, with a runtime gate requiring a fresh review after mutations.
 - Privacy-bounded JSON task-run capture in the repository's Local LLM/Train Data/tasks/ directory; one record per run.
 - Task Companion launch bridge plus opt-in execution feedback events.
@@ -107,7 +107,8 @@ section to `.icarus/config.json` and configure a trusted OpenAI-compatible
     "model": "nomic-embed-text",
     "api_key_env": "ICARUS_API_KEY",
     "timeout_seconds": 30,
-    "allow_remote": false
+    "allow_remote": false,
+    "cache_enabled": false
   }
 }
 ```
@@ -116,8 +117,15 @@ The endpoint must provide an embeddings model separately from the chat model.
 The harness sends the query and up to 48 redacted file documents per retrieval;
 each document is capped at 8,000 characters. When the repository is larger,
 candidate selection is bounded and may not include every file. Semantic failures
-fall back to lexical retrieval. There is no persistent vector index or cache in
-this increment, so enabled retrieval sends the selected documents on each call.
+fall back to lexical retrieval.
+
+Document-vector persistence is a separate opt-in: set `cache_enabled=true`.
+The local cache under `.icarus/context-index.json` stores only workspace-relative
+paths, hashes of redacted documents, a hash of endpoint/model identity, and
+vectors; it does not store source text, queries, or credentials. It is bounded
+to 512 entries and 8 MiB, uses atomic no-follow writes with mode 0600, and
+re-embeds changed documents. Query embeddings are still computed on each call.
+This is a candidate cache, not a full-repository vector database.
 
 Remote endpoints are refused unless `allow_remote` is explicitly set to
 `true`; remote HTTP is always refused, and remote HTTPS requires an API key

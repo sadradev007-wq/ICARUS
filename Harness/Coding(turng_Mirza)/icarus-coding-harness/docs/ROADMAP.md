@@ -23,8 +23,9 @@
 - [x] Initial repository map and local dependency graph (static Python and relative JavaScript/TypeScript imports)
 - [x] Lexical context retrieval with bounded snippets and approximate token budgeting
 - [x] Static Go module-local import and Rust out-of-line module/use edges
-- [x] Opt-in bounded semantic reranking through a configured OpenAI-compatible embedding endpoint (per-request, no persistent index)
-- [ ] Persistent incremental semantic index and broader language-aware dependency analysis
+- [x] Opt-in bounded semantic reranking through a configured OpenAI-compatible embedding endpoint (query embeddings per request)
+- [x] Opt-in persistent incremental semantic vector cache (bounded local index; no source text persisted)
+- [ ] Broader language-aware dependency analysis
 - Explicit plans and acceptance criteria
 - Bounded diagnosis/repair cycle
 

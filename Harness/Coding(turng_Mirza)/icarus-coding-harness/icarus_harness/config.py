@@ -21,6 +21,7 @@ class EmbeddingConfig:
     api_key_env: str = "ICARUS_API_KEY"
     timeout_seconds: int = 30
     allow_remote: bool = False
+    cache_enabled: bool = False
 
 
 @dataclass

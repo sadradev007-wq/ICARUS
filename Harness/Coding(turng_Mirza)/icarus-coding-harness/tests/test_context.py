@@ -6,6 +6,7 @@ from pathlib import Path
 from icarus_harness.context import ContextEngine
 from icarus_harness.workspace import Workspace
 from icarus_harness.tools import ToolRegistry
+from icarus_harness.semantic_index import SemanticVectorCache
 
 
 class ContextEngineTests(unittest.TestCase):
@@ -186,6 +187,75 @@ class ContextEngineTests(unittest.TestCase):
         self.assertTrue(any(
             "evaluated 48 of" in note for note in result["notes"]
         ))
+
+
+    def test_unsafe_cache_path_falls_back_without_writing_outside_workspace(self):
+        outside = self.root.parent / (self.root.name + "-cache-outside")
+        outside.mkdir()
+        try:
+            (self.root / ".icarus").symlink_to(outside, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            outside.rmdir()
+            self.skipTest("Directory symlinks are unavailable")
+
+        class Provider:
+            def embed(_self, inputs):
+                return [[1.0, 0.0] for _ in inputs]
+
+        try:
+            result = ContextEngine(
+                self.workspace,
+                embedding_provider=Provider(),
+                semantic_cache=SemanticVectorCache(self.root, "unsafe-path-test"),
+            ).retrieve("parse_input parser")
+            self.assertEqual(result["retrieval_mode"], "hybrid")
+            self.assertFalse(result["semantic_cache"]["available"])
+            self.assertEqual(result["semantic_cache"]["writes"], 0)
+            self.assertTrue(result["read_only"])
+            self.assertEqual(list(outside.iterdir()), [])
+        finally:
+            (self.root / ".icarus").unlink(missing_ok=True)
+            outside.rmdir()
+
+    def test_opt_in_semantic_cache_reuses_vectors_and_invalidates_changed_documents(self):
+        class CountingProvider:
+            def __init__(_self):
+                _self.calls = []
+
+            def embed(_self, inputs):
+                _self.calls.append(list(inputs))
+                return [[1.0, 0.0] for _ in inputs]
+
+        provider = CountingProvider()
+        cache = SemanticVectorCache(self.root, "context-test-model-v1")
+        engine = ContextEngine(
+            self.workspace,
+            embedding_provider=provider,
+            semantic_cache=cache,
+        )
+
+        first = engine.retrieve("parse_input parser normalization")
+        self.assertEqual(first["retrieval_mode"], "hybrid")
+        self.assertEqual(first["semantic_cache"]["writes"], 5)
+        self.assertFalse(first["read_only"])
+        self.assertTrue(first["source_read_only"])
+
+        second = engine.retrieve("parse_input parser normalization")
+        self.assertEqual(len(provider.calls[1]), 1)
+        self.assertEqual(second["semantic_cache"]["hits"], 5)
+        self.assertEqual(second["semantic_cache"]["writes"], 0)
+        self.assertTrue(second["read_only"])
+
+        self.write("src/helper.py", "def normalize(value):\n    return value.lower()\n")
+        third = engine.retrieve("parse_input parser normalization")
+        self.assertEqual(len(provider.calls[2]), 2)
+        self.assertEqual(third["semantic_cache"]["hits"], 4)
+        self.assertEqual(third["semantic_cache"]["misses"], 1)
+        self.assertEqual(third["semantic_cache"]["writes"], 1)
+
+        stored = (self.root / ".icarus" / "context-index.json").read_text(encoding="utf-8")
+        self.assertNotIn("return value.lower()", stored)
+        self.assertNotIn("return value.strip()", stored)
 
 
 if __name__ == "__main__":
