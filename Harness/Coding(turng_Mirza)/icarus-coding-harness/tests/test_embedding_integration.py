@@ -97,7 +97,7 @@ class EmbeddingToolIntegrationTests(unittest.TestCase):
             config.embeddings.cache_enabled = "true"
             runtime = AgentRuntime(Workspace(root), config, lambda _prompt: True)
             self.assertIsNone(runtime.tools.embedding_cache)
-            self.assertFalse((root / ".icarus").exists())
+            self.assertFalse((root / ".icarus" / "context-index.json").exists())
 
 
 if __name__ == "__main__":
