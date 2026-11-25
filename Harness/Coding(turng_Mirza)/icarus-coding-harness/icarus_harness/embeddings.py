@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import ipaddress
 import json
 import math
@@ -111,6 +112,18 @@ class OpenAICompatibleEmbeddingProvider:
 
         endpoint = base_url.rstrip("/") + "/embeddings"
         return endpoint, model, api_key, float(timeout)
+
+    def cache_identity(self) -> str:
+        """Stable, credential-free identity for cached vectors from this endpoint/model."""
+        identity = json.dumps(
+            {
+                "base_url": getattr(self.config, "base_url", ""),
+                "model": getattr(self.config, "model", ""),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
     def embed(self, inputs: list[str]) -> list[list[float]]:
         if not isinstance(inputs, list) or not 1 <= len(inputs) <= _MAX_INPUTS:

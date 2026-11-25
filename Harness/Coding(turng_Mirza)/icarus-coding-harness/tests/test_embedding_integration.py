@@ -65,6 +65,7 @@ class EmbeddingToolIntegrationTests(unittest.TestCase):
                         "api_key_env": "ICARUS_API_KEY",
                         "timeout_seconds": 30,
                         "allow_remote": False,
+                        "cache_enabled": True,
                     }
                 }),
                 encoding="utf-8",
@@ -74,6 +75,7 @@ class EmbeddingToolIntegrationTests(unittest.TestCase):
         self.assertTrue(configured.embeddings.enabled)
         self.assertEqual(configured.embeddings.model, "nomic-embed-text")
         self.assertFalse(configured.embeddings.allow_remote)
+        self.assertTrue(configured.embeddings.cache_enabled)
 
 
 if __name__ == "__main__":

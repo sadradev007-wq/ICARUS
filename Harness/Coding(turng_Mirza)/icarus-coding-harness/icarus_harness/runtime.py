@@ -4,6 +4,7 @@ from uuid import uuid4
 from .config import HarnessConfig
 from .llm import OpenAICompatibleModel
 from .embeddings import OpenAICompatibleEmbeddingProvider
+from .semantic_index import SemanticVectorCache
 from .memory import ProjectMemory
 from .models import RunResult
 from .policy import PolicyEngine
@@ -39,11 +40,16 @@ class AgentRuntime:
             OpenAICompatibleEmbeddingProvider(config.embeddings)
             if config.embeddings.enabled else None
         )
+        embedding_cache = (
+            SemanticVectorCache(workspace.root, embedding_provider.cache_identity())
+            if embedding_provider is not None and config.embeddings.cache_enabled is True else None
+        )
         self.tools = ToolRegistry(
             workspace,
             PolicyEngine(config.policy, approve),
             reviewer=self.reviewer,
             embedding_provider=embedding_provider,
+            embedding_cache=embedding_cache,
         )
         self.dataset = TaskDatasetWriter(workspace.root)
 

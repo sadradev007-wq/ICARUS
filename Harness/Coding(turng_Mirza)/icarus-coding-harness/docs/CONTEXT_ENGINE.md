@@ -1,6 +1,6 @@
 # Context Engine
 
-The initial Context Engine increment is a read-only workspace tool exposed as \`retrieve_context\`.
+The Context Engine exposes \`retrieve_context\`. It never mutates source files; an explicitly enabled semantic cache may persist derived vectors in the workspace's private \`.icarus\` metadata directory.
 
 ## What it does
 
@@ -28,15 +28,16 @@ Go and Rust support is intentionally syntactic and partial. Rust inline/nested m
 - Binary, invalid UTF-8, oversized, generated, harness-metadata, and sensitive-looking paths are skipped.
 - Workspace paths are resolved through \`Workspace.resolve\`; symlink targets outside the selected workspace are rejected.
 - Common credential patterns are redacted using the reviewer's existing heuristic filter. This is defense in depth, not a complete secret scanner.
-- No files are written, no commands are run, and no network or package registry is accessed.
+- Source files are never written and no commands or package registries are accessed. With the semantic cache disabled, retrieval writes no files; with it enabled, only the bounded \`.icarus/context-index.json\` cache and its lock file are written.
 
-The token estimate uses approximately four characters per token. It is a budgeting heuristic, not the configured model's tokenizer. Persistent semantic indexing and deeper language-aware analysis remain future work.
+The token estimate uses approximately four characters per token. It is a budgeting heuristic, not the configured model's tokenizer. Broader language-aware analysis remains future work.
 
 ## Reference patterns studied
 
 The implementation was informed by patterns in the pinned sample repositories:
 - [Aider RepoMap](https://github.com/Aider-AI/aider/tree/5dc9490bb35f9729ef2c95d00a19ccd30c26339c): repository-level symbol and relationship maps.
 - [Continue context retrieval](https://github.com/continuedev/continue/tree/5522c6f44ca0ac3528b37244818fbfa39b5af470): retrieval of relevant codebase context and import/static context.
+- Continue's pinned `core/indexing/README.md` documents content-addressed artifact reuse and re-indexing changed files; only that design idea informs this cache. Its Apache-2.0 license was checked; no source code was copied.
 - [AgentMemory](https://github.com/rohitg00/agentmemory/tree/c6c476d2905926727fa5848a134d7a3b38a7fa98): graph-oriented retrieval concepts.
 - [Goose](https://github.com/aaif-goose/goose/tree/cfb67d72f6129ba3c9f68d4c225d8dfcaba18a87): Rust crate module organization and explicit `mod`/`use` relationships.
 
@@ -71,8 +72,24 @@ Semantic request failures do not fail context retrieval; the result reports
 disabled, `retrieval_mode=lexical`. Successful optional reranking reports
 `retrieval_mode=hybrid`.
 
-This increment is not a persistent vector database: embeddings are recomputed
-for each request, and files outside the bounded candidate set are not searched
-semantically. Secret redaction is heuristic, not a guarantee. A remote provider
-receives source text, so enable it only when the endpoint and data-sharing
-arrangement are trusted.
+The query embedding is recomputed for each request. An optional incremental
+document-vector cache can be enabled separately with
+\`embeddings.cache_enabled=true\`; it is disabled by default. The cache stores
+only workspace-relative paths, SHA-256 digests of redacted semantic documents,
+a hash of the configured endpoint/model identity, and numeric vectors. It does
+not persist source text, query text, or credential values. Changed document
+digests are re-embedded; unchanged documents reuse their vectors.
+
+The cache is bounded to 512 entries and 8 MiB. It is written atomically under
+\`.icarus/context-index.json\` with mode 0600, using a pinned no-follow directory
+descriptor and a process lock. Unsupported platforms, unsafe paths, and cache
+errors fail closed for persistence while semantic retrieval continues without
+a cache. Vectors are derived data and should still be treated as sensitive.
+Changing the configured endpoint or model identifier invalidates reuse; a
+model update behind an unchanged endpoint/model alias cannot be detected.
+
+The candidate set remains bounded to 48 files, so this is an incremental cache
+for retrieved candidates rather than a full-repository vector database. Secret
+redaction is heuristic, not a guarantee. A remote provider receives the query
+and cache-miss source documents after heuristic redaction, so enable remote
+embedding only when the endpoint and data-sharing arrangement are trusted.
