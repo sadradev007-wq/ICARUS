@@ -23,13 +23,27 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps({
             "object": "list",
-            "data": [{"id": "qwen2.5:3b", "object": "model"}],
+            "data": self.server.models,
         }).encode("utf-8"))
 
     def do_POST(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length)
+        try:
+            self.server.post_payloads.append(json.loads(raw.decode("utf-8")))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            self.server.post_payloads.append(None)
         self.server.requests.append((self.command, self.path, self.headers.get("Authorization")))
-        self.send_response(405)
+        body = json.dumps({
+            "choices": [{
+                "message": {"role": "assistant", "content": "ICARUS_LOCAL_PROBE_OK"}
+            }]
+        }).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
+        self.wfile.write(body)
 
     def log_message(self, *_args):
         pass
@@ -40,6 +54,8 @@ class ProviderDoctorTests(unittest.TestCase):
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
         self.server.daemon_threads = True
         self.server.requests = []
+        self.server.post_payloads = []
+        self.server.models = [{"id": "qwen2.5:3b", "object": "model"}]
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.temp = tempfile.TemporaryDirectory()
@@ -221,8 +237,104 @@ class ProviderDoctorTests(unittest.TestCase):
 
     def test_diagnostics_do_not_create_local_llm_training_records(self):
         with patch.dict(os.environ, {}, clear=True):
-            run_provider_doctor(self.write_config(self.config()))
+            run_provider_doctor(
+                self.write_config(self.config()),
+                probe_local_inference=True,
+            )
         self.assertFalse((self.root / "Local LLM" / "Train Data" / "tasks").exists())
+        self.assertFalse((self.root / "Local LLM" / "Train Data" / "events").exists())
+
+    def test_cli_accepts_providers_config_without_starting_agent_runtime(self):
+        self.write_config(self.config())
+        with (
+            patch.object(sys, "argv", [
+                "icarus-harness", "doctor", "--providers-config", str(self.config_path)
+            ]),
+            patch("icarus_harness.cli.AgentRuntime") as runtime,
+            contextlib.redirect_stdout(io.StringIO()) as output,
+        ):
+            cli.main()
+
+        runtime.assert_not_called()
+        self.assertEqual(json.loads(output.getvalue())["schema"], "icarus.provider-health.v1")
+        self.assertEqual(len(self.server.requests), 2)
+
+    def test_opt_in_probe_runs_only_for_enabled_local_routes(self):
+        self.server.models = [
+            {"id": "qwen2.5:3b", "object": "model"},
+            {"id": "qwen2.5:7b", "object": "model"},
+        ]
+        with patch.dict(os.environ, {}, clear=True):
+            report = run_provider_doctor(
+                self.write_config(self.config()),
+                probe_local_inference=True,
+            )
+
+        self.assertEqual(report["schema"], "icarus.provider-health.v2")
+        self.assertEqual(report["chat_completions_probe"], "passed")
+        self.assertEqual(report["routes"]["system1_local"]["inference_probe"]["status"], "passed")
+        self.assertEqual(report["routes"]["system2_local"]["inference_probe"]["status"], "passed")
+        self.assertEqual(report["routes"]["system1_api"]["inference_probe"]["status"], "skipped")
+        self.assertEqual(
+            [(method, path) for method, path, _auth in self.server.requests],
+            [
+                ("GET", "/v1/models"),
+                ("POST", "/v1/chat/completions"),
+                ("GET", "/v1/models"),
+                ("POST", "/v1/chat/completions"),
+            ],
+        )
+        self.assertEqual(len(self.server.post_payloads), 2)
+        self.assertTrue(all("tools" not in payload for payload in self.server.post_payloads))
+
+    def test_opt_in_probe_never_sends_inference_to_api_routes(self):
+        payload = self.config()
+        payload["routes"]["system1_local"]["enabled"] = False
+        payload["routes"]["system2_local"]["enabled"] = False
+        payload["routes"]["system1_api"]["enabled"] = True
+        payload["routes"]["system1_api"]["base_url"] = (
+            f"http://127.0.0.1:{self.server.server_port}/v1"
+        )
+        payload["routes"]["system1_api"]["model"] = "qwen2.5:3b"
+        with patch.dict(os.environ, {"ICARUS_SYSTEM1_API_KEY": "api-only-test-key"}, clear=True):
+            report = run_provider_doctor(
+                self.write_config(payload),
+                probe_local_inference=True,
+            )
+
+        self.assertEqual(report["schema"], "icarus.provider-health.v2")
+        self.assertEqual(report["chat_completions_probe"], "skipped")
+        self.assertEqual(report["routes"]["system1_api"]["status"], "ok")
+        self.assertEqual(report["routes"]["system1_api"]["inference_probe"]["status"], "skipped")
+        self.assertEqual(
+            [(method, path) for method, path, _auth in self.server.requests],
+            [("GET", "/v1/models")],
+        )
+        self.assertEqual(self.server.post_payloads, [])
+
+    def test_cli_requires_provider_config_for_inference_probe(self):
+        with (
+            patch.object(sys, "argv", [
+                "icarus-harness", "doctor", "--probe-local-inference"
+            ]),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            with self.assertRaises(SystemExit) as raised:
+                cli.main()
+
+        self.assertEqual(raised.exception.code, 2)
+
+    def test_probe_report_schema_is_versioned(self):
+        schema_path = Path(__file__).resolve().parents[1] / "schemas" / "provider-health.v2.schema.json"
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(schema["properties"]["schema"]["const"], "icarus.provider-health.v2")
+        self.assertEqual(
+            set(schema["properties"]["chat_completions_probe"]["enum"]),
+            {"skipped", "passed", "partial", "failed"},
+        )
+        self.assertIn("inference_probe", schema["$defs"]["route"]["required"])
+
 
     def test_cli_saves_provider_report_to_private_output_file(self):
         self.write_config(self.config())
@@ -246,6 +358,7 @@ class ProviderDoctorTests(unittest.TestCase):
         self.assertEqual(len(self.server.requests), 2)
         self.assertFalse((self.root / "Local LLM" / "Train Data" / "tasks").exists())
 
+
     def test_cli_saves_error_diagnostic_report_before_returning_error_status(self):
         self.config_path.write_text("{broken", encoding="utf-8")
         output_path = self.root / "provider-health-error.json"
@@ -262,6 +375,7 @@ class ProviderDoctorTests(unittest.TestCase):
         self.assertEqual(json.loads(output_path.read_text(encoding="utf-8"))["status"], "error")
         self.assertEqual(self.server.requests, [])
 
+
     def test_cli_refuses_to_overwrite_provider_configuration_with_report(self):
         original = self.write_config(self.config()).read_text(encoding="utf-8")
         with (
@@ -277,21 +391,42 @@ class ProviderDoctorTests(unittest.TestCase):
         self.assertEqual(self.config_path.read_text(encoding="utf-8"), original)
         self.assertEqual(self.server.requests, [])
 
-    def test_cli_accepts_providers_config_without_starting_agent_runtime(self):
-        self.write_config(self.config())
+
+    def test_cli_saves_v2_probe_report_for_task_companion(self):
+        self.server.models = [
+            {"id": "qwen2.5:3b", "object": "model"},
+            {"id": "qwen2.5:7b", "object": "model"},
+        ]
+        output_path = self.root / "reports" / "provider-health-v2.json"
+        output_path.parent.mkdir()
         with (
+            patch.dict(os.environ, {}, clear=True),
             patch.object(sys, "argv", [
-                "icarus-harness", "doctor", "--providers-config", str(self.config_path)
+                "icarus-harness", "doctor", "--providers-config", str(self.config_path),
+                "--probe-local-inference", "--output", str(output_path),
             ]),
             patch("icarus_harness.cli.AgentRuntime") as runtime,
-            contextlib.redirect_stdout(io.StringIO()) as output,
+            contextlib.redirect_stdout(io.StringIO()) as stdout,
         ):
+            self.write_config(self.config())
             cli.main()
 
         runtime.assert_not_called()
-        self.assertEqual(json.loads(output.getvalue())["schema"], "icarus.provider-health.v1")
-        self.assertEqual(len(self.server.requests), 2)
-
+        saved = json.loads(output_path.read_text(encoding="utf-8"))
+        printed = json.loads(stdout.getvalue())
+        self.assertEqual(saved, printed)
+        self.assertEqual(saved["schema"], "icarus.provider-health.v2")
+        self.assertEqual(saved["chat_completions_probe"], "passed")
+        self.assertEqual(saved["routes"]["system1_local"]["inference_probe"]["status"], "passed")
+        self.assertEqual(saved["routes"]["system2_local"]["inference_probe"]["status"], "passed")
+        self.assertEqual(saved["routes"]["system1_api"]["inference_probe"]["status"], "skipped")
+        self.assertEqual(len(self.server.post_payloads), 2)
+        self.assertTrue(all("tools" not in payload for payload in self.server.post_payloads))
+        self.assertNotIn("ICARUS_LOCAL_PROBE_OK", json.dumps(saved))
+        self.assertFalse((self.root / "Local LLM" / "Train Data" / "tasks").exists())
+        self.assertFalse((self.root / "Local LLM" / "Train Data" / "events").exists())
+        if os.name == "posix":
+            self.assertEqual(stat.S_IMODE(output_path.stat().st_mode), 0o600)
 
 if __name__ == "__main__":
     unittest.main()

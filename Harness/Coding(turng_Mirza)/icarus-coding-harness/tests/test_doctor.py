@@ -27,9 +27,20 @@ class _ModelHandler(BaseHTTPRequestHandler):
         self.wfile.write(self.server.body)
 
     def do_POST(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length)
+        try:
+            self.server.post_payloads.append(json.loads(raw.decode("utf-8")))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            self.server.post_payloads.append(None)
         self.server.requests.append((self.command, self.path, self.headers.get("Authorization")))
-        self.send_response(405)
+        self.send_response(self.server.completion_status)
+        if self.server.completion_location:
+            self.send_header("Location", self.server.completion_location)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(self.server.completion_body)))
         self.end_headers()
+        self.wfile.write(self.server.completion_body)
 
     def log_message(self, *_args):
         pass
@@ -47,6 +58,14 @@ class ModelDoctorTests(unittest.TestCase):
             "object": "list",
             "data": [{"id": "qwen2.5-coder:7b", "object": "model"}],
         }).encode()
+        self.server.post_payloads = []
+        self.server.completion_status = 200
+        self.server.completion_location = None
+        self.server.completion_body = json.dumps({
+            "choices": [{
+                "message": {"role": "assistant", "content": "ICARUS_LOCAL_PROBE_OK"}
+            }]
+        }).encode("utf-8")
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
 
@@ -227,6 +246,115 @@ class ModelDoctorTests(unittest.TestCase):
             [(method, path) for method, path, _auth in self.server.requests],
             [("GET", "/v1/models")],
         )
+
+    def test_opt_in_probe_sends_one_bounded_tool_free_completion(self):
+        with patch.dict(os.environ, {}, clear=True):
+            report = run_doctor(self.config(), probe_inference=True)
+
+        self.assertEqual(report["schema"], "icarus.harness-doctor.v2")
+        self.assertEqual(report["status"], "ok")
+        self.assertEqual(report["chat_completions_probe"], "passed")
+        self.assertEqual(
+            [(method, path) for method, path, _auth in self.server.requests],
+            [("GET", "/v1/models"), ("POST", "/v1/chat/completions")],
+        )
+        payload = self.server.post_payloads[0]
+        self.assertEqual(payload["model"], "qwen2.5-coder:7b")
+        self.assertEqual(payload["temperature"], 0)
+        self.assertEqual(payload["max_tokens"], 16)
+        self.assertFalse(payload["stream"])
+        self.assertNotIn("tools", payload)
+        self.assertEqual(payload["messages"][0]["role"], "user")
+        self.assertNotIn("ICARUS_LOCAL_PROBE_OK", json.dumps(report))
+
+    def test_probe_is_skipped_when_configured_model_is_not_listed(self):
+        report = run_doctor(self.config(model="not-installed"), probe_inference=True)
+
+        self.assertEqual(report["status"], "warning")
+        self.assertEqual(report["chat_completions_probe"], "skipped")
+        self.assertEqual(
+            [(method, path) for method, path, _auth in self.server.requests],
+            [("GET", "/v1/models")],
+        )
+
+    def test_probe_rejects_malformed_completion_response(self):
+        self.server.completion_body = b'{"choices": []}'
+
+        report = run_doctor(self.config(), probe_inference=True)
+
+        self.assertEqual(report["status"], "error")
+        self.assertEqual(report["chat_completions_probe"], "failed")
+        self.assertIn("assistant message", json.dumps(report))
+
+    def test_probe_does_not_follow_redirects(self):
+        self.server.completion_status = 302
+        self.server.completion_location = "http://127.0.0.1:1/redirect-target"
+
+        report = run_doctor(self.config(), probe_inference=True)
+
+        self.assertEqual(report["status"], "error")
+        self.assertEqual(report["chat_completions_probe"], "failed")
+        self.assertEqual(
+            [(method, path) for method, path, _auth in self.server.requests],
+            [("GET", "/v1/models"), ("POST", "/v1/chat/completions")],
+        )
+
+    def test_probe_refuses_non_loopback_even_over_https(self):
+        class _Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, _limit):
+                return json.dumps({
+                    "data": [{"id": "qwen2.5-coder:7b"}]
+                }).encode("utf-8")
+
+        class _Opener:
+            def open(self, _request, timeout):
+                self.timeout = timeout
+                return _Response()
+
+        fake_opener = _Opener()
+        with patch("icarus_harness.doctor.build_opener", return_value=fake_opener) as build:
+            report = run_doctor(
+                self.config(base_url="https://models.example.invalid/v1"),
+                probe_inference=True,
+            )
+
+        self.assertEqual(report["chat_completions_probe"], "failed")
+        self.assertIn("loopback", json.dumps(report))
+        self.assertEqual(build.call_count, 1)
+
+    def test_probe_report_uses_the_v2_schema(self):
+        schema_path = Path(__file__).resolve().parents[1] / "schemas" / "harness-doctor.v2.schema.json"
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(schema["properties"]["schema"]["const"], "icarus.harness-doctor.v2")
+        self.assertEqual(
+            set(schema["properties"]["chat_completions_probe"]["enum"]),
+            {"skipped", "passed", "failed"},
+        )
+
+    def test_probe_bounds_response_body_to_one_mib(self):
+        self.server.completion_body = b"x" * (1024 * 1024 + 1)
+
+        report = run_doctor(self.config(), probe_inference=True)
+
+        self.assertEqual(report["status"], "error")
+        self.assertEqual(report["chat_completions_probe"], "failed")
+        self.assertIn("1 MiB", json.dumps(report))
+
+    def test_probe_never_echoes_environment_credential(self):
+        secret = "local-inference-probe-secret"
+        with patch.dict(os.environ, {"ICARUS_DOCTOR_TEST_KEY": secret}):
+            report = run_doctor(self.config(), probe_inference=True)
+
+        self.assertEqual(report["chat_completions_probe"], "passed")
+        self.assertNotIn(secret, json.dumps(report))
+        self.assertTrue(all(auth == f"Bearer {secret}" for _, _, auth in self.server.requests))
 
 
 if __name__ == "__main__":

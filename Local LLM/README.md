@@ -45,7 +45,7 @@ icarus-harness doctor --providers-config "Harness/Tools/Personal Companion/confi
 icarus-tasks --provider-health-report ~/.local/share/icarus/provider-health.json
 ~~~
 
-The report file is operational diagnostics, not a Coding Harness task record. It must not be placed in Train Data/tasks/ or treated as a training example. Task Companion reads only a sanitized route-status projection and never sends a new network request. Provider-health.v1 confirms configuration/model-list connectivity only; it does not prove inference. The reader also understands the v2 inference-probe shape proposed in PR #19, but that option is available only when that separate change is integrated.
+The report file is operational diagnostics, not a Coding Harness task record. It must not be placed in Train Data/tasks/ or treated as a training example. Task Companion reads only a sanitized route-status projection and never sends a new network request. Provider-health.v1 confirms configuration/model-list connectivity only. The explicit `--probe-local-inference` option produces provider-health.v2 after bounded loopback-only inference checks; Task Companion projects only probe status and freshness, not response text.
 
 
 The `--output` option writes the diagnostic JSON atomically with restrictive

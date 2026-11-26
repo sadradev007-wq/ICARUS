@@ -59,7 +59,7 @@ Check the four Personal Companion routes from its local provider configuration:
 
 The command validates the complete four-route configuration and its safety invariants, then checks only enabled routes with bounded `GET /models` requests. Disabled routes are reported as skipped and are never contacted. API routes require their configured environment-variable credential; local routes use their configured key variable or the existing ICARUS_API_KEY/local fallback. The aggregate JSON report follows `schemas/provider-health.v1.schema.json`.
 
-The provider health check does not send Chat Completions requests, instantiate AgentRuntime, change provider settings, create Task Companion events, or write Local LLM task records. It refuses non-loopback plain HTTP and never includes credential values or configured URL paths in the report. A healthy model-list response does not prove inference compatibility.
+The default provider health check does not send Chat Completions requests, instantiate AgentRuntime, change provider settings, create Task Companion events, or write Local LLM task records. It refuses non-loopback plain HTTP and never includes credential values or configured URL paths in the report. A healthy model-list response does not prove inference compatibility.
 
 ## Local LLM task data
 Every completed or step-limited harness run creates a JSON record under Local LLM/Train Data/tasks/. Schema 1.1.0 records contain a stable run_id and, for Task Companion launches, the task_id. The same run_id is copied to the optional execution-feedback event; record_id remains the unique ID for the individual JSON file. Legacy 1.0.0 task summaries remain supported, including their existing bounded CI/review metadata and both privacy-policy variants. New 1.1.0 records contain a redacted task prompt, final summary, status, step count, tool names, and test/review indicators; file contents, tool arguments, raw tool output, raw model messages, and environment variables are excluded. A compact privacy-policy variant exists in one historical 1.0.0 record and does not explicitly carry a raw-tool-output flag, so historical records still require human curation. Capture is enabled by default; set ICARUS_TRAINING_DATA=0 to disable it. The writer validates each payload against the supported record contract before opening the output directory. CI also validates every checked-in task JSON file to catch historical schema drift. Records require human curation before being used as training examples. See Local LLM/README.md.
@@ -103,3 +103,8 @@ mode `0600` on POSIX systems; a failed serialization or write leaves an
 existing report untouched. The command refuses to overwrite the input
 provider or workspace configuration. A valid diagnostic report with
 `status: "error"` is still saved before the command exits with code 2.
+
+
+### Explicit local inference probe
+
+For a four-route report only, `--probe-local-inference` opts in to one bounded, tool-free Chat Completions request for each enabled local route. The model must first appear in `GET /models`, and the Chat Completions host must be loopback (`localhost` or a loopback IP). API and disabled routes are never probed; redirects are not followed and response bodies are capped at 1 MiB. Combine the flag with `--output PATH` to atomically save the v2 report. Task Companion reads the report and exposes only probe status and freshness, never the response text or credentials. This is a diagnostic smoke test, not AgentRuntime activation or a task-run record.

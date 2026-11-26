@@ -39,11 +39,18 @@ def main() -> None:
     doctor.add_argument("--workspace", default=".")
     doctor.add_argument("--output", help="Atomically save the JSON report to this path (file mode 0600)")
     doctor.add_argument(
+        "--probe-local-inference",
+        action="store_true",
+        help="Explicitly send one bounded, tool-free Chat Completions request to each enabled loopback local route",
+    )
+    doctor.add_argument(
         "--providers-config",
         help="Read-only diagnostics for a Personal Companion providers.local.json file",
     )
 
     args = parser.parse_args()
+    if args.action == "doctor" and args.probe_local_inference and not args.providers_config:
+        parser.error("--probe-local-inference requires --providers-config")
     if args.action == "run":
         if args.task_id and (not args.task_store or args.task):
             parser.error("--task-id requires --task-store and cannot be combined with a task prompt")
@@ -64,7 +71,10 @@ def main() -> None:
                     raise ValueError("doctor report output must not overwrite its input configuration")
 
             if args.providers_config:
-                report = run_provider_doctor(Path(args.providers_config))
+                report = run_provider_doctor(
+                    Path(args.providers_config),
+                    probe_local_inference=args.probe_local_inference,
+                )
             else:
                 report = run_doctor(HarnessConfig.load(Path(args.workspace).resolve()).model)
 
