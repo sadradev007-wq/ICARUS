@@ -33,3 +33,5 @@ The Coding Harness command `icarus-harness doctor` checks the configured OpenAI-
 ## Four-route provider health
 
 The Coding Harness can inspect the Personal Companion `providers.local.json` file with `icarus-harness doctor --providers-config PATH`. It checks enabled routes only, skips disabled routes, and emits the versioned `provider-health.v1` report. This diagnostic is not a task run: it does not create files under `Train Data/tasks/` or `events/`, and it does not send inference requests. API keys remain environment-only and are never copied into the report. See the Coding Harness provider health schema and docs for the exact checks.
+
+An explicit `--probe-local-inference` option sends one bounded, tool-free Chat Completions request only to enabled local routes whose model appears in GET /models. The endpoint must be loopback; API routes are never probed. This diagnostic stores neither the generated response nor a task-run record or action event. It verifies transport and response shape only; it is not a harness task and does not enable the quarantined AgentRuntime. See the Coding Harness `provider-health.v2` schema and `docs/PROVIDER_HEALTH.md`.
