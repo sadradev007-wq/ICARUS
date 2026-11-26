@@ -34,7 +34,7 @@ def main() -> None:
     git.add_argument("--workspace", default=".")
     doctor = sub.add_parser(
         "doctor",
-        help="Check one model endpoint or all configured Personal Companion provider routes without inference",
+        help="Check one model endpoint or all configured provider routes; optional inference probe is loopback-only",
     )
     doctor.add_argument("--workspace", default=".")
     doctor.add_argument("--output", help="Atomically save the JSON report to this path (file mode 0600)")
@@ -45,7 +45,7 @@ def main() -> None:
     )
     doctor.add_argument(
         "--providers-config",
-        help="Read-only diagnostics for a Personal Companion providers.local.json file",
+        help="Diagnostics for a Personal Companion providers.local.json file; inference is opt-in",
     )
 
     args = parser.parse_args()
