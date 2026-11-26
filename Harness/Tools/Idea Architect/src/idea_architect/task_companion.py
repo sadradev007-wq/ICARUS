@@ -6,10 +6,12 @@ decomposition and main-application integration are deliberately separate layers.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import errno
 import json
 import logging
 import os
 import re
+import stat
 from pathlib import Path
 import threading
 from typing import Any
@@ -77,6 +79,49 @@ def _valid_pending_event(event: Any, filename: str) -> bool:
     return True
 
 
+def _open_directory_chain(path: Path) -> int:
+    """Open an absolute directory path without following symlink components."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    descriptor = os.open(os.path.sep, flags)
+    try:
+        for component in path.parts[1:]:
+            try:
+                child = os.open(component, flags, dir_fd=descriptor)
+            except OSError as exc:
+                if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
+                    raise ValueError(
+                        "execution-event parent path contains a symlink or non-directory"
+                    ) from exc
+                raise
+            os.close(descriptor)
+            descriptor = child
+        return descriptor
+    except Exception:
+        os.close(descriptor)
+        raise
+
+
+def _read_event_file(directory_fd: int, filename: str) -> dict[str, Any]:
+    """Read one bounded regular event file relative to a pinned directory."""
+    flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0)
+    descriptor = os.open(filename, flags, dir_fd=directory_fd)
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise ValueError("execution event is not a regular file")
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = -1
+            raw = stream.read(_EVENT_FILE_MAX_BYTES + 1)
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if len(raw) > _EVENT_FILE_MAX_BYTES:
+        raise ValueError("execution event exceeds the file-size limit")
+    event = json.loads(raw.decode("utf-8"))
+    if not _valid_pending_event(event, filename):
+        raise ValueError("execution event does not match the v1 contract")
+    return event
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -99,6 +144,55 @@ class TaskStore:
 
     def _write(self, data: dict[str, Any]) -> None:
         write_json(self.path, data)
+
+    def _open_event_directory(self) -> int | None:
+        """Pin the adjacent event directory; return None when it does not exist."""
+        if (
+            os.name != "posix"
+            or not hasattr(os, "O_DIRECTORY")
+            or not hasattr(os, "O_NOFOLLOW")
+            or os.open not in os.supports_dir_fd
+            or os.listdir not in os.supports_fd
+        ):
+            raise RuntimeError(
+                "secure execution-event reads require POSIX directory-descriptor support"
+            )
+
+        resolved_store_path = self.path.expanduser().resolve()
+        event_dir = Path(str(resolved_store_path) + ".events")
+        parent_fd = _open_directory_chain(event_dir.parent)
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        try:
+            try:
+                event_fd = os.open(event_dir.name, flags, dir_fd=parent_fd)
+            except FileNotFoundError:
+                return None
+            except OSError as exc:
+                if exc.errno in {errno.ELOOP, errno.ENOTDIR}:
+                    raise ValueError(
+                        "execution-event directory is a symlink or not a directory"
+                    ) from exc
+                raise
+            try:
+                if not stat.S_ISDIR(os.fstat(event_fd).st_mode):
+                    raise ValueError("execution-event path is not a directory")
+                return event_fd
+            except Exception:
+                os.close(event_fd)
+                raise
+        finally:
+            os.close(parent_fd)
+
+    def _read_stored_event(self, event_id: str) -> dict[str, Any]:
+        if not _EVENT_ID_PATTERN.fullmatch(event_id):
+            raise ValueError("Invalid execution event ID")
+        directory_fd = self._open_event_directory()
+        if directory_fd is None:
+            raise ValueError("Execution event file does not exist")
+        try:
+            return _read_event_file(directory_fd, f"{event_id}.json")
+        finally:
+            os.close(directory_fd)
 
     def add(
         self, title: str, *, description: str = "", priority: str = "normal",
@@ -175,62 +269,72 @@ class TaskStore:
         raise KeyError(task_id)
 
     def pending_execution_events(self) -> list[dict[str, Any]]:
-        """Return valid, unprocessed suggestions without letting one bad file block the inbox."""
-        event_dir = Path(str(self.path) + ".events")
-        if not event_dir.exists():
-            return []
-        if event_dir.is_symlink() or not event_dir.is_dir():
-            _LOGGER.warning("Ignoring execution-event path that is not a real directory")
-            return []
-        with self._lock:
-            data = self._read()
-            applied_values = data.get("applied_execution_events", [])
-            dismissed_values = data.get("dismissed_execution_events", [])
-            handled_values = data.get("handled_execution_runs", [])
-            applied = {
-                value for values in (applied_values, dismissed_values)
-                if isinstance(values, list) for value in values if isinstance(value, str)
-            }
-            handled_runs = (
-                {value for value in handled_values if isinstance(value, str)}
-                if isinstance(handled_values, list) else set()
+        """Return validated suggestions from a pinned, no-follow event directory."""
+        try:
+            event_directory_fd = self._open_event_directory()
+        except (OSError, RuntimeError, ValueError) as exc:
+            _LOGGER.warning(
+                "Ignoring unavailable or unsafe execution-event directory (%s)",
+                type(exc).__name__,
             )
-            active_task_ids = {
-                task.get("id") for task in data["tasks"]
-                if isinstance(task, dict)
-                and isinstance(task.get("id"), str)
-                and task.get("status") in ACTIVE_STATUSES
-            }
-            events = []
-            try:
-                paths = sorted(event_dir.glob("E-*.json"))
-            except OSError as exc:
-                _LOGGER.warning("Unable to list execution-event directory (%s)", type(exc).__name__)
-                return []
-            for path in paths:
-                event_id = path.stem
-                # Handled event IDs are derivable from their filenames; avoid opening old files.
-                if not _EVENT_ID_PATTERN.fullmatch(event_id) or event_id in applied:
-                    continue
+            return []
+        if event_directory_fd is None:
+            return []
+
+        try:
+            with self._lock:
+                data = self._read()
+                applied_values = data.get("applied_execution_events", [])
+                dismissed_values = data.get("dismissed_execution_events", [])
+                handled_values = data.get("handled_execution_runs", [])
+                applied = {
+                    value for values in (applied_values, dismissed_values)
+                    if isinstance(values, list) for value in values if isinstance(value, str)
+                }
+                handled_runs = (
+                    {value for value in handled_values if isinstance(value, str)}
+                    if isinstance(handled_values, list) else set()
+                )
+                active_task_ids = {
+                    task.get("id") for task in data["tasks"]
+                    if isinstance(task, dict)
+                    and isinstance(task.get("id"), str)
+                    and task.get("status") in ACTIVE_STATUSES
+                }
                 try:
-                    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
-                    with os.fdopen(descriptor, "rb") as stream:
-                        raw = stream.read(_EVENT_FILE_MAX_BYTES + 1)
-                    if len(raw) > _EVENT_FILE_MAX_BYTES:
-                        raise ValueError("execution event exceeds the file-size limit")
-                    event = json.loads(raw.decode("utf-8"))
-                    if not _valid_pending_event(event, path.name):
-                        raise ValueError("execution event does not match the v1 contract")
-                    run_id = _event_run_id(event)
-                except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:
+                    filenames = sorted(os.listdir(event_directory_fd))
+                except OSError as exc:
                     _LOGGER.warning(
-                        "Skipping invalid execution event %s (%s)",
-                        path.name, type(exc).__name__,
+                        "Unable to list pinned execution-event directory (%s)",
+                        type(exc).__name__,
                     )
-                    continue
-                if event["task_id"] in active_task_ids and run_id not in handled_runs:
-                    events.append(event)
-            return events
+                    return []
+
+                events = []
+                for filename in filenames:
+                    if not filename.startswith("E-") or not filename.endswith(".json"):
+                        continue
+                    event_id = filename[:-5]
+                    # Handled event IDs are derivable from filenames; avoid opening old files.
+                    if not _EVENT_ID_PATTERN.fullmatch(event_id) or event_id in applied:
+                        continue
+                    try:
+                        event = _read_event_file(event_directory_fd, filename)
+                        run_id = _event_run_id(event)
+                    except (
+                        OSError, UnicodeError, json.JSONDecodeError,
+                        ValueError, RecursionError,
+                    ) as exc:
+                        _LOGGER.warning(
+                            "Skipping invalid execution event %s (%s)",
+                            filename, type(exc).__name__,
+                        )
+                        continue
+                    if event["task_id"] in active_task_ids and run_id not in handled_runs:
+                        events.append(event)
+                return events
+        finally:
+            os.close(event_directory_fd)
 
     def apply_execution_event(self, event: dict[str, Any], *, user_approved: bool = False) -> dict[str, Any]:
         """Apply a feedback suggestion only when the caller has explicit user approval."""
@@ -251,10 +355,10 @@ class TaskStore:
         if not isinstance(event.get("summary"), str) or len(event["summary"]) > 1000:
             raise ValueError("Execution event summary is invalid")
         run_id = _event_run_id(event)
-        event_path = Path(str(self.path) + ".events") / f"{event_id}.json"
-        if not event_path.is_file():
-            raise ValueError("Execution event file does not exist")
-        stored_event = json.loads(event_path.read_text(encoding="utf-8"))
+        try:
+            stored_event = self._read_stored_event(event_id)
+        except (OSError, RuntimeError, UnicodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:
+            raise ValueError("Execution event file does not exist or is invalid") from exc
         if stored_event != event:
             raise ValueError("Execution event does not match its stored record")
         with self._lock:
@@ -286,12 +390,10 @@ class TaskStore:
         """Dismiss a suggestion without changing the related task."""
         if not isinstance(event_id, str) or not re.fullmatch(r"E-[a-f0-9]{32}", event_id):
             raise ValueError("Invalid execution event ID")
-        event_path = Path(str(self.path) + ".events") / f"{event_id}.json"
-        if not event_path.is_file():
-            raise ValueError("Execution event file does not exist")
-        stored_event = json.loads(event_path.read_text(encoding="utf-8"))
-        if stored_event.get("schema") != "icarus.execution-event.v1" or stored_event.get("event_id") != event_id:
-            raise ValueError("Execution event does not match its stored record")
+        try:
+            stored_event = self._read_stored_event(event_id)
+        except (OSError, RuntimeError, UnicodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:
+            raise ValueError("Execution event file does not exist or is invalid") from exc
         run_id = _event_run_id(stored_event)
         with self._lock:
             data = self._read()
