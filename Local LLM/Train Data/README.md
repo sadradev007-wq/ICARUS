@@ -23,3 +23,15 @@ Capture can be disabled by the user. Export and deletion controls are part of th
 ## Proposal and approval correlation
 
 Personal Companion AI proposal and decision events share a server-issued `proposal_id` (`P-` plus 32 lowercase hexadecimal characters). The ID is held in a short-lived in-memory approval registry for 15 minutes and is consumed by the first approval or rejection. The action-event schema permits this optional field so the Local LLM activity journal can join the original proposal to the user decision without storing the task text, raw prompt, or model messages. This action journal is separate from the Coding Harness one-record-per-run dataset; legacy Coding Harness agents remain quarantined.
+
+
+## Task record contracts
+
+`schemas/task-run.schema.json` describes both supported record generations:
+
+- `1.0.0` is retained for historical task summaries created before the runtime emitted stable `run_id` values. It accepts the two privacy-policy shapes already present in the repository and bounded audit metadata such as changed paths, CI workflow summaries, and static diff review.
+- `1.1.0` is written by `TaskDatasetWriter` and requires a 32-character lowercase hexadecimal `run_id`. Task Companion launches also include `task_id`.
+
+The Coding Harness validates each newly generated payload before opening the dataset directory or writing a file. Its standard-library validator rejects unknown fields, invalid status/review values, malformed correlation IDs, duplicate tool names, and any declared privacy flag that permits sensitive payloads. New 1.1.0 records use the explicit `redacted` policy and exclude raw prompts, file contents, tool arguments, and raw tool output. One historical 1.0.0 record uses a compact legacy policy that records raw-prompt, file-content, tool-argument, and secret exclusions but has no explicit raw-tool-output flag; it remains readable for audit and must still pass human curation. The Coding Harness CI validates every checked-in JSON file in `tasks/` so historical records cannot silently drift away from the supported contract.
+
+A valid record is still only an operational history item. It is not automatically approved as a training example; the separate human curation process above remains mandatory.

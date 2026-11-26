@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from icarus_harness.models import RunResult
-from icarus_harness.training_data import TaskDatasetWriter, redact_text
+from icarus_harness.training_data import TaskDatasetWriter, redact_text, validate_task_record
 
 
 class TaskDatasetWriterTests(unittest.TestCase):
@@ -25,8 +25,23 @@ class TaskDatasetWriterTests(unittest.TestCase):
             self.assertNotIn("private source text", path.read_text(encoding="utf-8"))
             self.assertFalse(payload["data_policy"]["file_contents_included"])
             self.assertEqual(payload["schema_version"], "1.1.0")
+            validate_task_record(payload)
             self.assertRegex(payload["run_id"], r"^[a-f0-9]{32}$")
             self.assertNotIn("task_id", payload)
+
+
+    def test_validates_payload_before_creating_dataset_directories(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            writer = TaskDatasetWriter(root)
+            result = RunResult("completed", "safe summary", 1, [])
+            with patch(
+                "icarus_harness.training_data.validate_task_record",
+                side_effect=ValueError("invalid record"),
+            ):
+                with self.assertRaisesRegex(ValueError, "invalid record"):
+                    writer.record("task", result)
+            self.assertFalse((root / "Local LLM").exists())
 
     def test_writes_task_and_run_correlation_ids(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -48,6 +63,97 @@ class TaskDatasetWriterTests(unittest.TestCase):
                 writer.record("Task", result, run_id="not-a-uuid")
             with self.assertRaisesRegex(ValueError, "task_id"):
                 writer.record("Task", result, task_id="")
+
+
+    def test_rejects_malformed_task_record_types_without_type_errors(self):
+        record = {
+            "schema_version": "1.1.0",
+            "record_id": "record-1",
+            "run_id": "a" * 32,
+            "created_at": "2026-11-19T08:00:00+03:30",
+            "task": "validate task records",
+            "status": "completed",
+            "steps": 1,
+            "tools_called": [],
+            "verification": {"tests_reported": False, "review_status": "required"},
+            "data_policy": {
+                "redacted": True,
+                "file_contents_included": False,
+                "tool_arguments_included": False,
+                "raw_tool_output_included": False,
+            },
+        }
+        validate_task_record(record)
+        for field, value in (("schema_version", []), ("status", []), ("steps", True)):
+            malformed = dict(record)
+            malformed[field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                validate_task_record(malformed)
+
+    def test_rejects_non_string_ci_status_without_type_error(self):
+        record = {
+            "schema_version": "1.0.0",
+            "record_id": "record-ci",
+            "created_at": "2026-11-19T08:00:00+03:30",
+            "task": "invalid CI metadata",
+            "status": "completed",
+            "steps": 1,
+            "tools_called": [],
+            "verification": {
+                "tests_reported": True,
+                "review_status": "static_diff_reviewed",
+                "ci_status": [],
+            },
+            "data_policy": {
+                "raw_prompts_included": False,
+                "file_contents_included": False,
+                "tool_arguments_included": False,
+                "secrets_included": False,
+            },
+        }
+        with self.assertRaisesRegex(ValueError, "ci_status"):
+            validate_task_record(record)
+
+    def test_rejects_unsafe_or_unknown_privacy_policy(self):
+        record = {
+            "schema_version": "1.1.0",
+            "record_id": "record-2",
+            "run_id": "b" * 32,
+            "created_at": "2026-11-19T08:00:00+03:30",
+            "task": "validate privacy policy",
+            "status": "completed",
+            "steps": 1,
+            "tools_called": [],
+            "verification": {"tests_reported": False, "review_status": "required"},
+            "data_policy": {
+                "redacted": True,
+                "file_contents_included": True,
+                "tool_arguments_included": False,
+                "raw_tool_output_included": False,
+            },
+        }
+        with self.assertRaisesRegex(ValueError, "data_policy"):
+            validate_task_record(record)
+
+    def test_requires_run_id_for_schema_1_1(self):
+        record = {
+            "schema_version": "1.1.0",
+            "record_id": "record-3",
+            "created_at": "2026-11-19T08:00:00+03:30",
+            "task": "missing run id",
+            "status": "completed",
+            "steps": 0,
+            "tools_called": [],
+            "verification": {"tests_reported": False, "review_status": "required"},
+            "data_policy": {
+                "redacted": True,
+                "file_contents_included": False,
+                "tool_arguments_included": False,
+                "raw_tool_output_included": False,
+            },
+        }
+        with self.assertRaisesRegex(ValueError, "run_id"):
+            validate_task_record(record)
 
     def test_redacts_common_credentials(self):
         self.assertNotIn("super-secret", redact_text('api_key="super-secret"', 100))

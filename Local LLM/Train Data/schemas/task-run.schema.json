@@ -1,48 +1,275 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://icarus.local/schemas/task-run.schema.json",
-  "title": "ICARUS Harness Task Run",
+  "title": "ICARUS Harness Task and Run Record",
   "type": "object",
-  "required": ["schema_version", "record_id", "created_at", "task", "status", "steps", "tools_called", "verification", "data_policy"],
+  "required": [
+    "schema_version",
+    "record_id",
+    "created_at",
+    "task",
+    "status",
+    "steps",
+    "tools_called",
+    "verification",
+    "data_policy"
+  ],
   "properties": {
-    "schema_version": { "type": "string", "enum": ["1.0.0", "1.1.0"] },
-    "record_id": { "type": "string", "minLength": 1 },
-    "run_id": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
-    "task_id": { "type": "string", "minLength": 1, "maxLength": 128 },
-    "created_at": { "type": "string", "format": "date-time" },
-    "task": { "type": "string", "maxLength": 8000 },
-    "status": { "type": "string", "enum": ["completed", "step_limit", "error"] },
-    "summary": { "type": "string", "maxLength": 4000 },
-    "steps": { "type": "integer", "minimum": 0 },
-    "tools_called": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "schema_version": {
+      "type": "string",
+      "enum": [
+        "1.0.0",
+        "1.1.0"
+      ]
+    },
+    "record_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "task": {
+      "type": "string",
+      "maxLength": 8000
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "step_limit",
+        "error"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "steps": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tools_called": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "changed_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "verification": {
       "type": "object",
-      "required": ["tests_reported", "review_status"],
+      "required": [
+        "tests_reported",
+        "review_status"
+      ],
       "properties": {
-        "tests_reported": { "type": "boolean" },
-        "review_status": { "type": "string", "enum": ["completed", "no_changes", "required", "unavailable", "invalid_or_unknown"] }
+        "tests_reported": {
+          "type": "boolean"
+        },
+        "review_status": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "no_changes",
+            "required",
+            "unavailable",
+            "invalid_or_unknown",
+            "static_diff_reviewed"
+          ]
+        },
+        "ci_status": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "passed_for_idea_architect"
+          ]
+        },
+        "tested_commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "workflow_runs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "id",
+              "conclusion"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "python_versions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "tests_per_version": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "ui_tests": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "pnpm_check": {
+                "type": "string",
+                "minLength": 1
+              },
+              "conclusion": {
+                "type": "string",
+                "minLength": 1
+              },
+              "compile": {
+                "type": "string",
+                "minLength": 1
+              },
+              "pnpm_version": {
+                "type": "string",
+                "minLength": 1
+              },
+              "tests": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "limitations": {
+          "type": "string"
+        },
+        "initial_attempt": {
+          "type": "object",
+          "required": [
+            "commit",
+            "conclusion",
+            "reason"
+          ],
+          "properties": {
+            "commit": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            "conclusion": {
+              "type": "string",
+              "enum": [
+                "success",
+                "failure"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     },
     "data_policy": {
-      "type": "object",
-      "required": ["redacted", "file_contents_included", "tool_arguments_included", "raw_tool_output_included"],
-      "properties": {
-        "redacted": { "type": "boolean" },
-        "file_contents_included": { "type": "boolean", "const": false },
-        "tool_arguments_included": { "type": "boolean", "const": false },
-        "raw_tool_output_included": { "type": "boolean", "const": false }
-      },
-      "additionalProperties": false
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "redacted",
+            "file_contents_included",
+            "tool_arguments_included",
+            "raw_tool_output_included"
+          ],
+          "properties": {
+            "redacted": {
+              "type": "boolean",
+              "const": true
+            },
+            "file_contents_included": {
+              "type": "boolean",
+              "const": false
+            },
+            "tool_arguments_included": {
+              "type": "boolean",
+              "const": false
+            },
+            "raw_tool_output_included": {
+              "type": "boolean",
+              "const": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "raw_prompts_included",
+            "file_contents_included",
+            "tool_arguments_included",
+            "secrets_included"
+          ],
+          "properties": {
+            "raw_prompts_included": {
+              "type": "boolean",
+              "const": false
+            },
+            "file_contents_included": {
+              "type": "boolean",
+              "const": false
+            },
+            "tool_arguments_included": {
+              "type": "boolean",
+              "const": false
+            },
+            "secrets_included": {
+              "type": "boolean",
+              "const": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "allOf": [
     {
       "if": {
-        "properties": { "schema_version": { "const": "1.1.0" } },
-        "required": ["schema_version"]
+        "properties": {
+          "schema_version": {
+            "const": "1.1.0"
+          }
+        },
+        "required": [
+          "schema_version"
+        ]
       },
-      "then": { "required": ["run_id"] }
+      "then": {
+        "required": [
+          "run_id"
+        ]
+      }
     }
   ],
   "additionalProperties": false
