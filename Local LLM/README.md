@@ -32,7 +32,7 @@ The Coding Harness command `icarus-harness doctor` checks the configured OpenAI-
 
 ## Four-route provider health
 
-The Coding Harness can inspect the Personal Companion `providers.local.json` file with `icarus-harness doctor --providers-config PATH`. It checks enabled routes only, skips disabled routes, and emits the versioned `provider-health.v1` report. This diagnostic is not a task run: it does not create files under `Train Data/tasks/` or `events/`, and it does not send inference requests. API keys remain environment-only and are never copied into the report. See the Coding Harness provider health schema and docs for the exact checks.
+The Coding Harness can inspect the Personal Companion `providers.local.json` file with `icarus-harness doctor --providers-config PATH`. The default check inspects enabled routes, skips disabled routes, and emits `provider-health.v1` without sending inference requests. The explicit `--probe-local-inference` option emits `provider-health.v2` and sends one bounded Chat Completions probe only to enabled local routes on loopback hosts. Neither mode creates files under `Train Data/tasks/` or `events/`; these are diagnostics, not task runs. API keys remain environment-only and are never copied into the report. See the Coding Harness provider health schema and docs for the exact checks.
 
 
 ## Provider health report handoff
@@ -45,7 +45,7 @@ icarus-harness doctor --providers-config "Harness/Tools/Personal Companion/confi
 icarus-tasks --provider-health-report ~/.local/share/icarus/provider-health.json
 ~~~
 
-The report file is operational diagnostics, not a Coding Harness task record. It must not be placed in Train Data/tasks/ or treated as a training example. Task Companion reads only a sanitized route-status projection and never sends a new network request. Provider-health.v1 confirms configuration/model-list connectivity only; it does not prove inference. The reader also understands the v2 inference-probe shape proposed in PR #19, but that option is available only when that separate change is integrated.
+The report file is operational diagnostics, not a Coding Harness task record. It must not be placed in Train Data/tasks/ or treated as a training example. Task Companion reads only a sanitized route-status projection and never sends a new network request. Provider-health.v1 confirms configuration/model-list connectivity only. The explicit `--probe-local-inference` option produces provider-health.v2 after bounded loopback-only inference checks; Task Companion projects only probe status and freshness, not response text.
 
 
 The `--output` option writes the diagnostic JSON atomically with restrictive

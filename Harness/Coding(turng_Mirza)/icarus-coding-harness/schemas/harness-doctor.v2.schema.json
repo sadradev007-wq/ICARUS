@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/harness-doctor.v2.schema.json",
+  "title": "ICARUS Harness model endpoint diagnostic with optional local inference probe",
+  "type": "object",
+  "required": [
+    "schema",
+    "status",
+    "checks",
+    "chat_completions_probe"
+  ],
+  "properties": {
+    "schema": {
+      "const": "icarus.harness-doctor.v2"
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "warning",
+        "error"
+      ]
+    },
+    "chat_completions_probe": {
+      "enum": [
+        "skipped",
+        "passed",
+        "failed"
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/check"
+      }
+    },
+    "model": {
+      "type": "string"
+    },
+    "endpoint": {
+      "type": "string"
+    },
+    "credential_source": {
+      "enum": [
+        "environment",
+        "local_default"
+      ]
+    }
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "required": [
+        "name",
+        "status",
+        "message"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "warning",
+            "error",
+            "skipped"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

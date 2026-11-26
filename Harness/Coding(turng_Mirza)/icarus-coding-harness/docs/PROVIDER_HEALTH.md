@@ -1,6 +1,6 @@
 # Four-route provider health
 
-The Coding Harness can inspect the Personal Companion provider configuration without enabling any agent runtime.
+The Coding Harness can inspect the Personal Companion provider configuration without enabling any agent runtime. Inference is disabled by default and requires the explicit opt-in flag below.
 
 ## Command
 
@@ -38,3 +38,26 @@ report and is saved before the CLI exits with code 2.
 Task Companion reads the saved file only. Its projection v2 reports
 `fresh`, `stale`, or `unknown` based on the file modification time, with
 a 24-hour freshness window. Projection v1 remains available unchanged.
+
+
+## Explicit local inference probe
+
+The operator may explicitly request a bounded inference smoke test:
+
+    icarus-harness doctor --providers-config "Harness/Tools/Personal Companion/config/providers.local.json" \
+      --probe-local-inference --output ~/.local/share/icarus/provider-health.json
+
+This switches the saved report to `icarus.provider-health.v2`:
+
+- Only enabled routes with `kind: local` are eligible for inference.
+- The configured model must first appear in the bounded `GET /models` response.
+- The Chat Completions host must be `localhost` or a loopback IP, including when HTTPS is used.
+- Exactly one `POST /chat/completions` is sent per eligible route.
+- The request contains one fixed, non-sensitive user message, no tools, temperature 0, max_tokens 16, and stream false.
+- Redirects are not followed; response bodies are capped at 1 MiB.
+- API routes, disabled routes, and local routes whose model is not listed are marked skipped.
+- The assistant response text is not copied into the report or any data store.
+
+The Task Companion reader accepts the v2 report and projects only the probe status. It does not expose the model response, model name, endpoint, credentials, or diagnostic messages. Its projection v2 also reports report-file freshness. The probe remains a diagnostic, not a Coding Harness task run.
+
+This option verifies only that a compatible endpoint returned a non-empty assistant message. It does not exercise tool calling, Task Companion execution, the Coding Harness agent loop, or real task execution. The AgentRuntime kill switch remains closed.

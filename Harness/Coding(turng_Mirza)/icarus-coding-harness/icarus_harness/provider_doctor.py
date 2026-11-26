@@ -1,4 +1,4 @@
-"""Read-only health checks for all Personal Companion provider routes."""
+"""Health checks for Personal Companion routes with optional local inference probes."""
 from __future__ import annotations
 
 import json
@@ -38,9 +38,9 @@ def _check(name: str, status: str, message: str) -> dict[str, str]:
     return {"name": name, "status": status, "message": message}
 
 
-def _error(message: str) -> dict[str, Any]:
+def _error(message: str, *, probe_local_inference: bool = False) -> dict[str, Any]:
     return {
-        "schema": _SCHEMA,
+        "schema": "icarus.provider-health.v2" if probe_local_inference else _SCHEMA,
         "status": "error",
         "checks": [_check("configuration", "error", message)],
         "routes": {},
@@ -128,26 +128,29 @@ def _validate_config(payload: Any) -> str | None:
     return None
 
 
-def run_provider_doctor(config_path: Path) -> dict[str, Any]:
-    """Check every enabled provider with GET /models; never run inference or write data."""
+def run_provider_doctor(
+    config_path: Path, *, probe_local_inference: bool = False
+) -> dict[str, Any]:
+    """Check enabled providers; inference is a separate, explicit loopback-only opt-in."""
     path = Path(config_path).expanduser()
     try:
         if not path.is_file():
-            return _error("Provider configuration is missing or is not a regular file.")
+            return _error("Provider configuration is missing or is not a regular file.", probe_local_inference=probe_local_inference)
         with path.open("rb") as handle:
             raw = handle.read(_MAX_CONFIG_BYTES + 1)
         if len(raw) > _MAX_CONFIG_BYTES:
-            return _error("Provider configuration exceeds the 64 KiB limit.")
+            return _error("Provider configuration exceeds the 64 KiB limit.", probe_local_inference=probe_local_inference)
         payload = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError):
-        return _error("Provider configuration could not be read as valid UTF-8 JSON.")
+        return _error("Provider configuration could not be read as valid UTF-8 JSON.", probe_local_inference=probe_local_inference)
 
     problem = _validate_config(payload)
     if problem:
-        return _error(problem)
+        return _error(problem, probe_local_inference=probe_local_inference)
 
     checks = [_check("configuration", "ok", "All four provider routes and safety invariants are valid.")]
     routes: dict[str, dict[str, Any]] = {}
+    local_probe_statuses: list[str] = []
     configured = payload["routes"]
     default_route = payload["default_route"]
     if not configured[default_route]["enabled"]:
@@ -177,6 +180,11 @@ def run_provider_doctor(config_path: Path) -> dict[str, Any]:
                 "status": "skipped",
                 "checks": [_check("route", "skipped", "Provider route is disabled; no request was sent.")],
             })
+            if probe_local_inference:
+                item["inference_probe"] = {
+                    "status": "skipped",
+                    "message": "Provider route is disabled; no inference request was sent.",
+                }
             routes[name] = item
             continue
 
@@ -192,21 +200,50 @@ def run_provider_doctor(config_path: Path) -> dict[str, Any]:
                         "The API route's configured environment variable is missing or invalid; no request was sent.",
                     )],
                 })
+                if probe_local_inference:
+                    item["inference_probe"] = {
+                        "status": "skipped",
+                        "message": "API credentials are unavailable; no inference request was sent.",
+                    }
                 routes[name] = item
                 continue
 
+        probe_this_route = probe_local_inference and route["kind"] == "local"
         report = run_doctor(ModelConfig(
             base_url=route["base_url"],
             model=route["model"],
             api_key_env=key_env,
             timeout_seconds=route["timeout_seconds"],
-        ))
+        ), probe_inference=probe_this_route)
         item["status"] = report["status"]
         item["checks"] = report["checks"]
         if "endpoint" in report:
             item["endpoint"] = report["endpoint"]
         if "credential_source" in report:
             item["credential_source"] = report["credential_source"]
+        if probe_local_inference:
+            if probe_this_route:
+                probe_status = report.get("chat_completions_probe", "skipped")
+                probe_check = next(
+                    (check for check in report["checks"] if check["name"] == "chat_completions"),
+                    None,
+                )
+                probe_message = (
+                    probe_check["message"] if probe_check
+                    else "Inference probe was not attempted."
+                )
+                local_probe_statuses.append(probe_status)
+                item["inference_probe"] = {
+                    "status": probe_status,
+                    "message": probe_message,
+                }
+                if probe_status == "failed":
+                    item["status"] = "error"
+            else:
+                item["inference_probe"] = {
+                    "status": "skipped",
+                    "message": "Inference probing is restricted to enabled local routes.",
+                }
         routes[name] = item
 
     enabled_statuses = [item["status"] for item in routes.values() if item["enabled"]]
@@ -224,10 +261,21 @@ def run_provider_doctor(config_path: Path) -> dict[str, Any]:
     if not enabled_statuses:
         checks.append(_check("routes", "warning", "No provider routes are enabled; no network requests were sent."))
 
+    if not probe_local_inference or not local_probe_statuses or all(
+        status == "skipped" for status in local_probe_statuses
+    ):
+        aggregate_probe = "skipped"
+    elif "failed" in local_probe_statuses:
+        aggregate_probe = "failed"
+    elif all(status == "passed" for status in local_probe_statuses):
+        aggregate_probe = "passed"
+    else:
+        aggregate_probe = "partial"
+
     return {
-        "schema": _SCHEMA,
+        "schema": "icarus.provider-health.v2" if probe_local_inference else _SCHEMA,
         "status": overall,
         "checks": checks,
         "routes": routes,
-        "chat_completions_probe": "skipped",
+        "chat_completions_probe": aggregate_probe,
     }
