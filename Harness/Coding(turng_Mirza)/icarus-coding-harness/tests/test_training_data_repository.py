@@ -76,5 +76,12 @@ class RepositoryTaskRecordContractTests(unittest.TestCase):
         )
 
 
+
+    def test_embedding_health_diagnostics_are_not_task_run_records(self):
+        readme = (self.root / "Local LLM" / "Train Data" / "README.md").read_text(encoding="utf-8")
+        self.assertIn("Operational diagnostics are not task-run records", readme)
+        self.assertIn("does not run", readme)
+        self.assertIn("TaskDatasetWriter", readme)
+        self.assertIn("Do not", readme)
 if __name__ == "__main__":
     unittest.main()
