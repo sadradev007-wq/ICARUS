@@ -577,10 +577,8 @@ class TaskDashboardTests(unittest.TestCase):
         self.assertEqual(stale["freshness"], "stale")
         self.assertGreater(stale["age_seconds"], stale["max_age_seconds"])
 
-if __name__ == "__main__":
-    unittest.main()
 
-def test_semantic_health_endpoint_is_optional_and_redacts_provider_details(self):
+    def test_semantic_health_endpoint_is_optional_and_redacts_provider_details(self):
         status, body = self.get("/api/v1/semantic-health")
         self.assertEqual(status, 200)
         unconfigured = json.loads(body)
@@ -618,3 +616,5 @@ def test_semantic_health_endpoint_is_optional_and_redacts_provider_details(self)
         stale = json.loads(stale_body)
         self.assertEqual(stale["freshness"], "stale")
         self.assertGreater(stale["age_seconds"], stale["max_age_seconds"])
+if __name__ == "__main__":
+    unittest.main()
