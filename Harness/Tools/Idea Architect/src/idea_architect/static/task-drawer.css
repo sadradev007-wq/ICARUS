@@ -275,3 +275,11 @@ body.task-drawer-open {
   color: var(--drawer-muted, #9ba4bb);
   font-size: .82rem;
 }
+
+.task-drawer__semantic-health {
+  border-top: 1px solid #343d52;
+  padding-top: 10px;
+}
+.task-drawer__semantic-health .task-drawer__provider-health-list {
+  margin-top: 4px;
+}

@@ -1,5 +1,6 @@
 import {
   parseProviderHealthSnapshot,
+  parseSemanticHealthSnapshot,
   parseTaskSnapshot,
   selectDrawerSections,
 } from "./task-drawer-model.js";
@@ -387,6 +388,92 @@ if (root) {
     }
   }
 
+  function renderSemanticHealth(snapshot) {
+    const statusNode = query("[data-semantic-health-status]");
+    const detailsNode = query("[data-semantic-health-details]");
+    detailsNode.replaceChildren();
+    const overallLabels = {
+      configured: "گزارش سلامت Embedding دریافت شد",
+      not_configured: "مسیر گزارش Embedding تنظیم نشده است.",
+      unavailable: "گزارش سلامت Embedding در دسترس نیست.",
+      invalid: "گزارش سلامت Embedding نامعتبر است و نمایش داده نشد.",
+    };
+    const statusLabels = {
+      ok: "آزمون موفق",
+      warning: "Embedding غیرفعال است",
+      error: "آزمون ناموفق",
+    };
+    const probeLabels = {
+      not_probed: "آزمون انجام نشده",
+      passed: "تولید Vector موفق",
+      skipped: "آزمون اجرا نشده",
+      failed: "تولید Vector ناموفق",
+    };
+    const freshnessLabels = {
+      fresh: "گزارش تازه",
+      stale: "گزارش قدیمی؛ اجرای دوباره doctor لازم است",
+      unknown: "تازگی گزارش نامشخص است",
+    };
+    if (snapshot.status !== "configured") {
+      statusNode.textContent = overallLabels[snapshot.status];
+      return;
+    }
+    statusNode.textContent = overallLabels.configured + " · " +
+      statusLabels[snapshot.report_status] + " · " +
+      probeLabels[snapshot.probe_status] + " · " +
+      freshnessLabels[snapshot.freshness] + " · " +
+      formatDue(snapshot.observed_at);
+    const list = document.createElement("ul");
+    list.className = "task-drawer__provider-health-list";
+    const details = [];
+    if (snapshot.vector_dimensions !== null) {
+      details.push("ابعاد Vector: " +
+        new Intl.NumberFormat("fa-IR").format(snapshot.vector_dimensions));
+    }
+    details.push(snapshot.cache_enabled
+      ? "کش بردار پیکربندی شده؛ سلامت ذخیره‌سازی در این بررسی آزمایش نشده است."
+      : "کش بردار غیرفعال است.");
+    if (snapshot.age_seconds !== null) {
+      details.push("سن گزارش: " +
+        new Intl.NumberFormat("fa-IR").format(snapshot.age_seconds) + " ثانیه");
+    }
+    for (const value of details) {
+      const item = document.createElement("li");
+      const detail = document.createElement("span");
+      detail.textContent = value;
+      item.append(detail);
+      list.append(item);
+    }
+    detailsNode.append(list);
+  }
+
+  async function refreshSemanticHealth() {
+    const unavailable = {
+      schema: "icarus.semantic-health-projection.v1",
+      status: "unavailable",
+      report_schema: null,
+      report_status: null,
+      probe_status: "not_probed",
+      vector_dimensions: null,
+      cache_enabled: null,
+      cache_status: null,
+      observed_at: null,
+      freshness: "unknown",
+      age_seconds: null,
+      max_age_seconds: 86400,
+    };
+    try {
+      const response = await requestSnapshot("/api/v1/semantic-health");
+      if (!response.ok) {
+        renderSemanticHealth(unavailable);
+        return;
+      }
+      renderSemanticHealth(parseSemanticHealthSnapshot(await response.json()));
+    } catch {
+      renderSemanticHealth(unavailable);
+    }
+  }
+
   function render(snapshot) {
     const sections = selectDrawerSections(snapshot);
     query("[data-active-count]").textContent = new Intl.NumberFormat("fa-IR").format(sections.activeCount);
@@ -483,6 +570,7 @@ if (root) {
       const snapshot = parseTaskSnapshot(await response.json());
       render(snapshot);
       await refreshProviderHealth();
+      await refreshSemanticHealth();
     } catch {
       setStatus("error", "دریافت فهرست ناموفق بود؛ برای تلاش دوباره از دکمهٔ به‌روزرسانی استفاده کن.");
     } finally {

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/semantic-health-projection.v1.schema.json",
+  "title": "ICARUS Task Companion privacy-bounded semantic embedding health projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "status", "report_schema", "report_status", "probe_status",
+    "vector_dimensions", "cache_enabled", "cache_status", "observed_at",
+    "freshness", "age_seconds", "max_age_seconds"
+  ],
+  "properties": {
+    "schema": { "const": "icarus.semantic-health-projection.v1" },
+    "status": { "enum": ["configured", "not_configured", "unavailable", "invalid"] },
+    "report_schema": { "type": ["string", "null"], "enum": ["icarus.embedding-health.v1", null] },
+    "report_status": { "type": ["string", "null"], "enum": ["ok", "warning", "error", null] },
+    "probe_status": { "enum": ["not_probed", "passed", "skipped", "failed"] },
+    "vector_dimensions": { "type": ["integer", "null"], "minimum": 1, "maximum": 8192 },
+    "cache_enabled": { "type": ["boolean", "null"] },
+    "cache_status": { "type": ["string", "null"], "enum": ["disabled", "not_checked", null] },
+    "observed_at": { "type": ["string", "null"], "format": "date-time" },
+    "freshness": { "enum": ["fresh", "stale", "unknown"] },
+    "age_seconds": { "type": ["integer", "null"], "minimum": 0 },
+    "max_age_seconds": { "const": 86400 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "configured" } } },
+      "then": {
+        "properties": {
+          "report_schema": { "const": "icarus.embedding-health.v1" },
+          "report_status": { "enum": ["ok", "warning", "error"] },
+          "cache_enabled": { "type": "boolean" },
+          "cache_status": { "enum": ["disabled", "not_checked"] },
+          "observed_at": { "type": "string" }
+        }
+      },
+      "else": {
+        "properties": {
+          "report_schema": { "type": "null" },
+          "report_status": { "type": "null" },
+          "probe_status": { "const": "not_probed" },
+          "vector_dimensions": { "type": "null" },
+          "cache_enabled": { "type": "null" },
+          "cache_status": { "type": "null" },
+          "observed_at": { "type": "null" },
+          "freshness": { "const": "unknown" },
+          "age_seconds": { "type": "null" }
+        }
+      }
+    }
+  ]
+}

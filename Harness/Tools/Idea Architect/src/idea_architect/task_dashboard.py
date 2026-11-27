@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .task_companion import TaskStore
 from .provider_health import ProviderHealthReader
+from .semantic_health import SemanticHealthReader
 
 PRIORITY_LABELS = {
     "critical": "بحرانی",
@@ -369,6 +370,11 @@ button:hover{{filter:brightness(1.12)}}.submit{{grid-column:1/-1;justify-self:st
 <p data-provider-health-status role="status" aria-live="polite">در حال دریافت گزارش سلامت…</p>
 <div data-provider-health-routes></div>
 </section>
+<section class="task-drawer__section task-drawer__semantic-health" aria-labelledby="drawer-semantic-health-title">
+<h3 id="drawer-semantic-health-title">سلامت Embedding و حافظهٔ معنایی</h3>
+<p data-semantic-health-status role="status" aria-live="polite">در حال دریافت گزارش Embedding…</p>
+<div data-semantic-health-details></div>
+</section>
 <div class="task-drawer__stats">
 <div><strong data-active-count>۰</strong><span>کار فعال</span></div>
 <div><strong data-feedback-count>۰</strong><span>پیشنهاد در انتظار</span></div>
@@ -468,6 +474,13 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                 version = 2 if path == "/api/v2/provider-health" else 1
                 payload = json.dumps(
                     ProviderHealthReader(store.provider_health_report_path).snapshot(version=version),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                self._respond(200, payload, "application/json; charset=utf-8")
+            elif path == "/api/v1/semantic-health":
+                payload = json.dumps(
+                    SemanticHealthReader(store.semantic_health_report_path).snapshot(),
                     ensure_ascii=False,
                     separators=(",", ":"),
                 )

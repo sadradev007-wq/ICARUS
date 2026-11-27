@@ -5,6 +5,7 @@ from pathlib import Path
 from . import __version__
 from .config import HarnessConfig
 from .doctor import run_doctor
+from .embedding_doctor import run_embedding_doctor
 from .provider_doctor import run_provider_doctor
 from .report_output import write_json_report
 from .git import diff, status
@@ -44,6 +45,11 @@ def main() -> None:
         help="Explicitly send one bounded, tool-free Chat Completions request to each enabled loopback local route",
     )
     doctor.add_argument(
+        "--probe-embeddings",
+        action="store_true",
+        help="Explicitly probe the configured semantic embedding endpoint with one fixed synthetic input",
+    )
+    doctor.add_argument(
         "--providers-config",
         help="Diagnostics for a Personal Companion providers.local.json file; inference is opt-in",
     )
@@ -51,6 +57,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.action == "doctor" and args.probe_local_inference and not args.providers_config:
         parser.error("--probe-local-inference requires --providers-config")
+    if args.action == "doctor" and args.probe_embeddings and args.providers_config:
+        parser.error("--probe-embeddings cannot be combined with --providers-config")
     if args.action == "run":
         if args.task_id and (not args.task_store or args.task):
             parser.error("--task-id requires --task-store and cannot be combined with a task prompt")
@@ -70,7 +78,11 @@ def main() -> None:
                 if output_path.resolve() == input_config_path.resolve():
                     raise ValueError("doctor report output must not overwrite its input configuration")
 
-            if args.providers_config:
+            if args.probe_embeddings:
+                report = run_embedding_doctor(
+                    HarnessConfig.load(Path(args.workspace).resolve()).embeddings
+                )
+            elif args.providers_config:
                 report = run_provider_doctor(
                     Path(args.providers_config),
                     probe_local_inference=args.probe_local_inference,

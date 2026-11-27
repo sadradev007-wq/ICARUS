@@ -53,3 +53,27 @@ permissions (mode `0600` on POSIX). It does not create a task-run record.
 Task Companion's `/api/v2/provider-health` projection reports whether the
 saved file is fresh (within 24 hours), stale, or has unknown freshness. The
 existing `/api/v1/provider-health` projection remains unchanged.
+
+## Semantic embedding health handoff
+
+The Coding Harness can explicitly test its separately configured semantic
+embedding endpoint and save a privacy-bounded report:
+
+~~~bash
+icarus-harness doctor --workspace /path/to/ICARUS --probe-embeddings \
+  --output ~/.local/share/icarus/embedding-health.json
+icarus-tasks --semantic-health-report ~/.local/share/icarus/embedding-health.json
+~~~
+
+Task Companion reads the report only through GET /api/v1/semantic-health.
+It shows the probe outcome, vector dimension count, report freshness, and
+whether the semantic cache is configured. cache_status=not_checked is
+intentional: the doctor does not read or write .icarus/context-index.json.
+The report never contains embedding inputs, vectors, model names, endpoints,
+credentials, or response bodies.
+
+Embedding health reports are operational diagnostics, not harness task-run
+records. They must not be copied into Train Data/tasks/ or treated as
+training examples. The probe sends one fixed synthetic token only when the
+operator explicitly enables --probe-embeddings; a disabled configuration
+does not contact an endpoint.

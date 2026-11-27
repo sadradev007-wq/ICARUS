@@ -44,3 +44,19 @@ A valid record is still only an operational history item. It is not automaticall
 ## Unified Task Companion timeline
 
 API v5 combines the safe run projection from tasks/ and the safe action projection from events/YYYY/MM/ into a read-only chronological view. It does not merge the underlying files, promote Action Journal telemetry into training examples, infer causal relationships, or change task/approval state. API v1-v4 remain available for compatibility.
+
+## Operational diagnostics are not task-run records
+
+Provider-health and semantic-embedding health reports are operational
+diagnostics, not Coding Harness task records and not training examples.
+Running icarus-harness doctor (including --probe-embeddings) does not run
+AgentRuntime, does not call TaskDatasetWriter, and must not create a file
+under tasks/. It also does not create Action Journal events.
+
+The tasks/ directory remains one privacy-bounded JSON file per actual
+completed Coding Harness run. New records are written only by the runtime's
+TaskDatasetWriter, validated against the versioned task-run contract, and
+remain subject to separate human curation before any training use. Do not
+hand-copy provider reports, vectors, model responses, or synthetic health
+probes into this dataset.
+

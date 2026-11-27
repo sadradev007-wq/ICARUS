@@ -577,5 +577,44 @@ class TaskDashboardTests(unittest.TestCase):
         self.assertEqual(stale["freshness"], "stale")
         self.assertGreater(stale["age_seconds"], stale["max_age_seconds"])
 
+
+    def test_semantic_health_endpoint_is_optional_and_redacts_provider_details(self):
+        status, body = self.get("/api/v1/semantic-health")
+        self.assertEqual(status, 200)
+        unconfigured = json.loads(body)
+        self.assertEqual(unconfigured["schema"], "icarus.semantic-health-projection.v1")
+        self.assertEqual(unconfigured["status"], "not_configured")
+        self.assertEqual(unconfigured["freshness"], "unknown")
+
+        report_path = Path(self.temp.name) / "embedding-health.json"
+        report_path.write_text(json.dumps({
+            "schema": "icarus.embedding-health.v1",
+            "status": "ok",
+            "probe_status": "passed",
+            "vector_dimensions": 768,
+            "cache_enabled": True,
+            "cache_status": "not_checked",
+        }), encoding="utf-8")
+        self.store.semantic_health_report_path = report_path
+
+        status, body = self.get("/api/v1/semantic-health")
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        self.assertEqual(payload["status"], "configured")
+        self.assertEqual(payload["report_status"], "ok")
+        self.assertEqual(payload["probe_status"], "passed")
+        self.assertEqual(payload["vector_dimensions"], 768)
+        self.assertEqual(payload["cache_status"], "not_checked")
+        self.assertEqual(payload["freshness"], "fresh")
+        for private in ("model-name", "127.0.0.1", "api_key", "embedding vector", "query text"):
+            self.assertNotIn(private, body)
+
+        old_timestamp = time.time() - 86401
+        os.utime(report_path, (old_timestamp, old_timestamp))
+        status, stale_body = self.get("/api/v1/semantic-health")
+        self.assertEqual(status, 200)
+        stale = json.loads(stale_body)
+        self.assertEqual(stale["freshness"], "stale")
+        self.assertGreater(stale["age_seconds"], stale["max_age_seconds"])
 if __name__ == "__main__":
     unittest.main()

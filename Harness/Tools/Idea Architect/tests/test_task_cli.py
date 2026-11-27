@@ -39,5 +39,33 @@ class TaskCliTests(unittest.TestCase):
             self.assertEqual(store.provider_health_report_path, report)
 
 
+
+    def test_semantic_health_report_argument_is_passed_to_task_store(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "embedding-health.json"
+            with (
+                patch.object(sys, "argv", [
+                    "icarus-tasks", "--data", str(root / "tasks.json"),
+                    "--semantic-health-report", str(report),
+                ]),
+                patch("idea_architect.task_cli.serve_task_companion") as serve,
+            ):
+                main()
+            store = serve.call_args.args[0]
+            self.assertEqual(store.semantic_health_report_path, report)
+
+    def test_semantic_health_report_environment_default_is_supported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = root / "embedding-health.json"
+            with (
+                patch.dict(os.environ, {"ICARUS_SEMANTIC_HEALTH_REPORT": str(report)}),
+                patch.object(sys, "argv", ["icarus-tasks", "--data", str(root / "tasks.json")]),
+                patch("idea_architect.task_cli.serve_task_companion") as serve,
+            ):
+                main()
+            store = serve.call_args.args[0]
+            self.assertEqual(store.semantic_health_report_path, report)
 if __name__ == "__main__":
     unittest.main()
