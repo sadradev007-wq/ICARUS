@@ -61,3 +61,32 @@ This switches the saved report to `icarus.provider-health.v2`:
 The Task Companion reader accepts the v2 report and projects only the probe status. It does not expose the model response, model name, endpoint, credentials, or diagnostic messages. Its projection v2 also reports report-file freshness. The probe remains a diagnostic, not a Coding Harness task run.
 
 This option verifies only that a compatible endpoint returned a non-empty assistant message. It does not exercise tool calling, Task Companion execution, the Coding Harness agent loop, or real task execution. The AgentRuntime kill switch remains closed.
+
+## Semantic embedding health
+
+The semantic embedding provider is configured separately in the workspace's
+.icarus/config.json under embeddings. Its health probe is opt-in:
+
+    icarus-harness doctor --workspace /path/to/ICARUS --probe-embeddings \
+      --output ~/.local/share/icarus/embedding-health.json
+
+When enabled, the command sends exactly one fixed synthetic input
+(ICARUS_EMBEDDING_PROBE) to the configured OpenAI-compatible /embeddings
+endpoint. The existing provider enforces HTTPS for remote endpoints,
+allow_remote=true, an environment-sourced credential, bounded input and
+response sizes, finite vectors, and no redirects. A disabled embedding
+configuration is reported as skipped without network access.
+
+The icarus.embedding-health.v1 report contains only the outcome, vector
+dimension count, and whether the semantic cache is configured. It never stores
+the input, returned vector, model name, endpoint, credential, or response body.
+The probe does not read or write .icarus/context-index.json; cache status is
+reported as not_checked when configured. It does not create task-run JSON,
+Action Journal events, or training examples.
+
+Task Companion can read this report through an explicit
+--semantic-health-report path or ICARUS_SEMANTIC_HEALTH_REPORT. Its separate
+GET /api/v1/semantic-health endpoint exposes only the allowlisted outcome,
+vector dimension count, cache configuration marker, and 24-hour report
+freshness. It does not run the doctor, contact the embedding endpoint, or
+inspect the semantic cache.

@@ -108,3 +108,23 @@ provider or workspace configuration. A valid diagnostic report with
 ### Explicit local inference probe
 
 For a four-route report only, `--probe-local-inference` opts in to one bounded, tool-free Chat Completions request for each enabled local route. The model must first appear in `GET /models`, and the Chat Completions host must be loopback (`localhost` or a loopback IP). API and disabled routes are never probed; redirects are not followed and response bodies are capped at 1 MiB. Combine the flag with `--output PATH` to atomically save the v2 report. Task Companion reads the report and exposes only probe status and freshness, never the response text or credentials. This is a diagnostic smoke test, not AgentRuntime activation or a task-run record.
+
+## Semantic embedding diagnostics
+
+The optional semantic embedding provider is configured in .icarus/config.json
+and remains disabled by default. To explicitly test it:
+
+    icarus-harness doctor --workspace . --probe-embeddings \
+      --output ~/.local/share/icarus/embedding-health.json
+
+If enabled, this sends one fixed synthetic input to the configured
+OpenAI-compatible /embeddings endpoint. Remote HTTPS is permitted only when
+allow_remote=true and the configured environment credential is present.
+The report stores the probe outcome and vector dimension count only; it does
+not store the input, vector, endpoint, model name, credentials, or response.
+The semantic cache is not read or written by this diagnostic and is reported
+as configured-but-not-checked when enabled.
+
+This is a diagnostic, not an AgentRuntime task. It does not create a JSON file
+under Local LLM/Train Data/tasks/ or an Action Journal event. The agent
+runtime kill switch remains closed.

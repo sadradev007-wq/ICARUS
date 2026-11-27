@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/embedding-health.v1.schema.json",
+  "title": "ICARUS Coding Harness semantic embedding health report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "status", "probe_status", "vector_dimensions", "cache_enabled", "cache_status"],
+  "properties": {
+    "schema": { "const": "icarus.embedding-health.v1" },
+    "status": { "enum": ["ok", "warning", "error"] },
+    "probe_status": { "enum": ["passed", "skipped", "failed"] },
+    "vector_dimensions": { "type": ["integer", "null"], "minimum": 1, "maximum": 8192 },
+    "cache_enabled": { "type": "boolean" },
+    "cache_status": { "enum": ["disabled", "not_checked"] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "probe_status": { "const": "passed" } } },
+      "then": { "properties": { "status": { "const": "ok" }, "vector_dimensions": { "type": "integer", "minimum": 1, "maximum": 8192 } } }
+    },
+    {
+      "if": { "properties": { "probe_status": { "const": "skipped" } } },
+      "then": { "properties": { "status": { "const": "warning" }, "vector_dimensions": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "probe_status": { "const": "failed" } } },
+      "then": { "properties": { "status": { "const": "error" }, "vector_dimensions": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "cache_enabled": { "const": true } } },
+      "then": { "properties": { "cache_status": { "const": "not_checked" } } },
+      "else": { "properties": { "cache_status": { "const": "disabled" } } }
+    }
+  ]
+}

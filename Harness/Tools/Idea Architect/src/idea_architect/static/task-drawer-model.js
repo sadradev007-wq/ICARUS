@@ -6,6 +6,8 @@ export const TASK_API_SCHEMA_V5 = "icarus.task-api.v5";
 const PROVIDER_HEALTH_SCHEMA_V1 = "icarus.provider-health-projection.v1";
 const PROVIDER_HEALTH_SCHEMA_V2 = "icarus.provider-health-projection.v2";
 const PROVIDER_MAX_AGE_SECONDS = 24 * 60 * 60;
+const SEMANTIC_HEALTH_SCHEMA = "icarus.semantic-health-projection.v1";
+const SEMANTIC_MAX_AGE_SECONDS = 24 * 60 * 60;
 const PROVIDER_ROUTES = new Set([
   "system1_local", "system1_api", "system2_local", "system2_api",
 ]);
@@ -89,6 +91,75 @@ export function parseProviderHealthSnapshot(value) {
   if (value.report_schema === "icarus.provider-health.v2"
       && value.chat_completions_probe === "not_probed") {
     throw new TypeError("Provider-health.v2 must report its explicit probe outcome");
+  }
+  return value;
+}
+
+export function parseSemanticHealthSnapshot(value) {
+  const keys = new Set([
+    "schema", "status", "report_schema", "report_status", "probe_status",
+    "vector_dimensions", "cache_enabled", "cache_status", "observed_at",
+    "freshness", "age_seconds", "max_age_seconds",
+  ]);
+  if (!isObject(value)
+      || !hasOnlyKeys(value, keys)
+      || value.schema !== SEMANTIC_HEALTH_SCHEMA
+      || !["configured", "not_configured", "unavailable", "invalid"].includes(value.status)
+      || ![null, "icarus.embedding-health.v1"].includes(value.report_schema)
+      || ![null, "ok", "warning", "error"].includes(value.report_status)
+      || !["not_probed", "passed", "skipped", "failed"].includes(value.probe_status)
+      || !(value.vector_dimensions === null
+        || (Number.isInteger(value.vector_dimensions)
+          && value.vector_dimensions >= 1 && value.vector_dimensions <= 8192))
+      || !(value.cache_enabled === null || typeof value.cache_enabled === "boolean")
+      || ![null, "disabled", "not_checked"].includes(value.cache_status)
+      || !(value.observed_at === null
+        || (typeof value.observed_at === "string"
+          && value.observed_at.length <= 64
+          && /(?:Z|[+-]\d{2}:\d{2})$/.test(value.observed_at)
+          && Number.isFinite(Date.parse(value.observed_at))))
+      || !["fresh", "stale", "unknown"].includes(value.freshness)
+      || !(value.age_seconds === null
+        || (Number.isInteger(value.age_seconds) && value.age_seconds >= 0))
+      || value.max_age_seconds !== SEMANTIC_MAX_AGE_SECONDS) {
+    throw new TypeError("Semantic health projection is invalid");
+  }
+
+  if (value.status !== "configured") {
+    if (value.report_schema !== null || value.report_status !== null
+        || value.probe_status !== "not_probed"
+        || value.vector_dimensions !== null || value.cache_enabled !== null
+        || value.cache_status !== null || value.observed_at !== null
+        || value.freshness !== "unknown" || value.age_seconds !== null) {
+      throw new TypeError("Unavailable semantic health projection must not contain report data");
+    }
+    return value;
+  }
+
+  if (value.report_schema !== "icarus.embedding-health.v1"
+      || !value.report_status || !value.observed_at
+      || value.cache_enabled === null || value.cache_status === null
+      || value.probe_status === "not_probed") {
+    throw new TypeError("Configured semantic health projection is incomplete");
+  }
+  if ((value.probe_status === "passed"
+        && (value.report_status !== "ok" || value.vector_dimensions === null))
+      || (value.probe_status === "skipped"
+        && (value.report_status !== "warning" || value.vector_dimensions !== null))
+      || (value.probe_status === "failed"
+        && (value.report_status !== "error" || value.vector_dimensions !== null))) {
+    throw new TypeError("Semantic health probe outcome is inconsistent");
+  }
+  if ((value.cache_enabled && value.cache_status !== "not_checked")
+      || (!value.cache_enabled && value.cache_status !== "disabled")) {
+    throw new TypeError("Semantic cache status is inconsistent");
+  }
+  if ((value.freshness === "fresh"
+        && (value.age_seconds === null || value.age_seconds > value.max_age_seconds))
+      || (value.freshness === "stale"
+        && (value.age_seconds === null || value.age_seconds <= value.max_age_seconds))
+      || (value.freshness === "unknown" && value.age_seconds !== null)) {
+    throw new TypeError("Semantic health freshness metadata is inconsistent");
   }
   return value;
 }

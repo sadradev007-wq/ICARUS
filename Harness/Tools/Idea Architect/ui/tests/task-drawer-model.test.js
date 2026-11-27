@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import {
   parseProviderHealthSnapshot,
+  parseSemanticHealthSnapshot,
   parseTaskSnapshot,
   selectDrawerSections,
 } from "../../src/idea_architect/static/task-drawer-model.js";
@@ -525,4 +526,108 @@ test("provider health projection v2 schema exposes only bounded freshness metada
   assert.deepEqual(Object.keys(schema.$defs.route.properties).sort(), [
     "enabled", "inference_status", "kind", "status",
   ]);
+});
+
+function makeSemanticHealth(overrides = {}) {
+  return {
+    schema: "icarus.semantic-health-projection.v1",
+    status: "configured",
+    report_schema: "icarus.embedding-health.v1",
+    report_status: "ok",
+    probe_status: "passed",
+    vector_dimensions: 768,
+    cache_enabled: true,
+    cache_status: "not_checked",
+    observed_at: "2026-11-27T04:30:00Z",
+    freshness: "fresh",
+    age_seconds: 30,
+    max_age_seconds: 86400,
+    ...overrides,
+  };
+}
+
+test("accepts semantic embedding health and exposes only dimensions/cache metadata", () => {
+  const snapshot = makeSemanticHealth();
+  assert.equal(parseSemanticHealthSnapshot(snapshot), snapshot);
+  assert.equal(snapshot.vector_dimensions, 768);
+  assert.equal(snapshot.cache_status, "not_checked");
+  assert.equal(Object.hasOwn(snapshot, "model"), false);
+  assert.equal(Object.hasOwn(snapshot, "endpoint"), false);
+});
+
+test("accepts disabled and failed embedding reports without claiming vector dimensions", () => {
+  const disabled = makeSemanticHealth({
+    report_status: "warning",
+    probe_status: "skipped",
+    vector_dimensions: null,
+    cache_enabled: false,
+    cache_status: "disabled",
+  });
+  assert.equal(parseSemanticHealthSnapshot(disabled), disabled);
+  const failed = makeSemanticHealth({
+    report_status: "error",
+    probe_status: "failed",
+    vector_dimensions: null,
+  });
+  assert.equal(parseSemanticHealthSnapshot(failed), failed);
+});
+
+test("accepts stale and unknown semantic report freshness", () => {
+  assert.equal(parseSemanticHealthSnapshot(makeSemanticHealth({
+    freshness: "stale", age_seconds: 86401,
+  })).freshness, "stale");
+  assert.equal(parseSemanticHealthSnapshot(makeSemanticHealth({
+    freshness: "unknown", age_seconds: null,
+  })).freshness, "unknown");
+});
+
+test("rejects private fields and inconsistent semantic health metadata", () => {
+  const privateField = makeSemanticHealth({ endpoint: "http://127.0.0.1/private" });
+  assert.throws(() => parseSemanticHealthSnapshot(privateField), /projection is invalid/);
+  const wrongDimensions = makeSemanticHealth({ probe_status: "skipped" });
+  assert.throws(() => parseSemanticHealthSnapshot(wrongDimensions), /probe outcome is inconsistent/);
+  const wrongCache = makeSemanticHealth({ cache_enabled: false });
+  assert.throws(() => parseSemanticHealthSnapshot(wrongCache), /cache status is inconsistent/);
+  const wrongFreshness = makeSemanticHealth({ freshness: "stale", age_seconds: 20 });
+  assert.throws(() => parseSemanticHealthSnapshot(wrongFreshness), /freshness metadata is inconsistent/);
+});
+
+test("rejects unavailable semantic projections that carry report data", () => {
+  const unavailable = makeSemanticHealth({
+    status: "unavailable",
+    report_schema: null,
+    report_status: null,
+    probe_status: "not_probed",
+    vector_dimensions: null,
+    cache_enabled: null,
+    cache_status: null,
+    observed_at: null,
+    freshness: "unknown",
+    age_seconds: null,
+  });
+  assert.equal(parseSemanticHealthSnapshot(unavailable), unavailable);
+  unavailable.vector_dimensions = 768;
+  assert.throws(() => parseSemanticHealthSnapshot(unavailable), /must not contain report data/);
+});
+
+test("semantic health projection schema is strict and excludes provider details", () => {
+  const schemaUrl = new URL("../../../Task Companion/schemas/semantic-health-projection.v1.schema.json", import.meta.url);
+  const schema = JSON.parse(readFileSync(schemaUrl, "utf8"));
+  assert.equal(schema.properties.schema.const, "icarus.semantic-health-projection.v1");
+  assert.equal(schema.additionalProperties, false);
+  assert.equal(schema.properties.max_age_seconds.const, 86400);
+  assert.equal(Object.hasOwn(schema.properties, "model"), false);
+  assert.equal(Object.hasOwn(schema.properties, "endpoint"), false);
+});
+
+test("Task Drawer requests the semantic health endpoint and renders with text nodes", () => {
+  const scriptUrl = new URL("../../src/idea_architect/static/task-drawer.js", import.meta.url);
+  const script = readFileSync(scriptUrl, "utf8");
+  const checked = spawnSync(process.execPath, ["--check", "--input-type=module"], {
+    input: script, encoding: "utf8",
+  });
+  assert.equal(checked.status, 0, checked.stderr || checked.stdout);
+  assert.match(script, /requestSnapshot\("\/api\/v1\/semantic-health"\)/);
+  assert.match(script, /parseSemanticHealthSnapshot/);
+  assert.doesNotMatch(script, /\.innerHTML\s*=/);
 });

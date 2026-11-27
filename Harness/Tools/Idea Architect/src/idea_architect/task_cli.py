@@ -30,6 +30,11 @@ def main() -> None:
         default=os.environ.get("ICARUS_PROVIDER_HEALTH_REPORT"),
         help="Optional saved Coding Harness provider-health JSON report (read-only)",
     )
+    parser.add_argument(
+        "--semantic-health-report",
+        default=os.environ.get("ICARUS_SEMANTIC_HEALTH_REPORT"),
+        help="Optional saved Coding Harness semantic embedding health report (read-only)",
+    )
     args = parser.parse_args()
     training_data_dir = (
         Path(args.training_data_dir).expanduser()
@@ -43,11 +48,16 @@ def main() -> None:
         Path(args.provider_health_report).expanduser()
         if args.provider_health_report else None
     )
+    semantic_health_report_path = (
+        Path(args.semantic_health_report).expanduser()
+        if args.semantic_health_report else None
+    )
     store = TaskStore(
         Path(args.data).expanduser(),
         training_data_dir=training_data_dir,
         action_journal_dir=action_journal_dir,
         provider_health_report_path=provider_health_report_path,
+        semantic_health_report_path=semantic_health_report_path,
     )
     serve_task_companion(store, port=args.port)
 

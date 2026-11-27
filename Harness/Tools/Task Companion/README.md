@@ -235,3 +235,27 @@ doctor should be run again.
 The Task Drawer requests projection v2 first and falls back to v1 only on
 HTTP 404. The v1 endpoint and schema remain unchanged. Task Companion never
 runs the doctor, contacts a provider, or refreshes the report itself.
+
+## Semantic embedding health
+
+Task Companion can optionally display a saved Coding Harness semantic
+embedding report. Configure its exact path; no path is inferred:
+
+~~~bash
+icarus-harness doctor --workspace /path/to/ICARUS --probe-embeddings \
+  --output ~/.local/share/icarus/embedding-health.json
+icarus-tasks --semantic-health-report ~/.local/share/icarus/embedding-health.json
+~~~
+
+The path can also be supplied through ICARUS_SEMANTIC_HEALTH_REPORT.
+GET /api/v1/semantic-health is a separate read-only endpoint and does not
+change Task API v1-v5 or provider-health v1-v2. The projection exposes only
+probe status, vector dimension count, cache configuration state, and
+24-hour report freshness. It never exposes model names, endpoints,
+credentials, embedding inputs, vectors, or diagnostic response bodies.
+
+A configured cache is shown as not_checked: the embedding doctor does not
+read or write the workspace .icarus/context-index.json. Task Companion
+never executes the doctor, contacts an embedding provider, or changes the
+cache. Embedding reports are diagnostics, not task-run records, Action
+Journal events, or training examples.
