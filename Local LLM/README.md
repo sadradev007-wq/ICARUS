@@ -77,3 +77,19 @@ records. They must not be copied into Train Data/tasks/ or treated as
 training examples. The probe sends one fixed synthetic token only when the
 operator explicitly enables --probe-embeddings; a disabled configuration
 does not contact an endpoint.
+
+
+## Semantic cache integrity diagnostics
+
+The Coding Harness can opt in to a read-only integrity check of the local
+semantic vector cache by combining `--probe-semantic-cache` with
+`--probe-embeddings`. The resulting `icarus.embedding-health.v2` report
+contains only the cache status, entry count, vector dimension count, and
+bounded index byte size. It never contains cache paths, digests, vectors,
+source text, provider identity, model names, endpoints, credentials, or
+response bodies.
+
+Task Companion exposes this through `GET /api/v2/semantic-health` and
+keeps `GET /api/v1/semantic-health` unchanged. The cache inspection does not
+write to `.icarus/context-index.json` and does not create a task-run record.
+A structurally valid cache is not proof of semantic retrieval quality.
