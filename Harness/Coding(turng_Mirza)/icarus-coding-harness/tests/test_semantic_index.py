@@ -167,6 +167,18 @@ class SemanticVectorCacheTests(unittest.TestCase):
         self.assertEqual(report["status"], "invalid")
         self.assertEqual(cache_path.read_bytes(), before)
 
+    def test_inspect_rejects_duplicate_json_keys(self):
+        cache_dir = self.root / ".icarus"
+        cache_dir.mkdir(mode=0o700)
+        cache_path = cache_dir / "context-index.json"
+        cache_path.write_text(
+            '{"schema_version":1,"schema_version":1,"provider_key":"provider-model-v1",'
+            '"dimension":null,"sequence":0,"entries":{}}',
+            encoding="utf-8",
+        )
+        os.chmod(cache_path, 0o600)
+        self.assertEqual(self.cache.inspect()["status"], "invalid")
+
     def test_inspect_fails_closed_for_symlinked_cache_file(self):
         cache_dir = self.root / ".icarus"
         cache_dir.mkdir(mode=0o700)
