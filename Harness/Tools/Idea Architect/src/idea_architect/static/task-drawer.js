@@ -400,7 +400,7 @@ if (root) {
     };
     const statusLabels = {
       ok: "آزمون موفق",
-      warning: "Embedding غیرفعال است",
+      warning: "هشدار",
       error: "آزمون ناموفق",
     };
     const probeLabels = {
@@ -414,6 +414,16 @@ if (root) {
       stale: "گزارش قدیمی؛ اجرای دوباره doctor لازم است",
       unknown: "تازگی گزارش نامشخص است",
     };
+    const cacheLabels = {
+      disabled: "کش بردار غیرفعال است",
+      not_checked: "کش پیکربندی شده؛ یکپارچگی بررسی نشده است",
+      not_initialized: "کش هنوز ایجاد نشده است",
+      empty: "فایل کش معتبر اما خالی است",
+      valid: "ساختار کش معتبر است",
+      invalid: "ساختار کش نامعتبر است",
+      unavailable: "کش در دسترس نیست یا امکان بررسی امن آن وجود ندارد",
+      provider_mismatch: "کش متعلق به پیکربندی Embedding دیگری است",
+    };
     if (snapshot.status !== "configured") {
       statusNode.textContent = overallLabels[snapshot.status];
       return;
@@ -425,17 +435,25 @@ if (root) {
       formatDue(snapshot.observed_at);
     const list = document.createElement("ul");
     list.className = "task-drawer__provider-health-list";
+    const number = (value) => new Intl.NumberFormat("fa-IR").format(value);
     const details = [];
     if (snapshot.vector_dimensions !== null) {
-      details.push("ابعاد Vector: " +
-        new Intl.NumberFormat("fa-IR").format(snapshot.vector_dimensions));
+      details.push("ابعاد Vector آزمون: " + number(snapshot.vector_dimensions));
     }
-    details.push(snapshot.cache_enabled
-      ? "کش بردار پیکربندی شده؛ سلامت ذخیره‌سازی در این بررسی آزمایش نشده است."
-      : "کش بردار غیرفعال است.");
+    details.push(cacheLabels[snapshot.cache_status] ?? "وضعیت کش نامشخص");
+    if (snapshot.report_schema === "icarus.embedding-health.v2") {
+      if (snapshot.cache_entry_count !== null) {
+        details.push("تعداد رکوردهای کش: " + number(snapshot.cache_entry_count));
+      }
+      if (snapshot.cache_vector_dimensions !== null) {
+        details.push("ابعاد Vectorهای ذخیره‌شده: " + number(snapshot.cache_vector_dimensions));
+      }
+      if (snapshot.cache_index_bytes !== null) {
+        details.push("اندازه فایل کش: " + number(snapshot.cache_index_bytes) + " بایت");
+      }
+    }
     if (snapshot.age_seconds !== null) {
-      details.push("سن گزارش: " +
-        new Intl.NumberFormat("fa-IR").format(snapshot.age_seconds) + " ثانیه");
+      details.push("سن گزارش: " + number(snapshot.age_seconds) + " ثانیه");
     }
     for (const value of details) {
       const item = document.createElement("li");
@@ -449,7 +467,7 @@ if (root) {
 
   async function refreshSemanticHealth() {
     const unavailable = {
-      schema: "icarus.semantic-health-projection.v1",
+      schema: "icarus.semantic-health-projection.v2",
       status: "unavailable",
       report_schema: null,
       report_status: null,
@@ -461,9 +479,15 @@ if (root) {
       freshness: "unknown",
       age_seconds: null,
       max_age_seconds: 86400,
+      cache_entry_count: null,
+      cache_vector_dimensions: null,
+      cache_index_bytes: null,
     };
     try {
-      const response = await requestSnapshot("/api/v1/semantic-health");
+      let response = await requestSnapshot("/api/v2/semantic-health");
+      if (response.status === 404) {
+        response = await requestSnapshot("/api/v1/semantic-health");
+      }
       if (!response.ok) {
         renderSemanticHealth(unavailable);
         return;
