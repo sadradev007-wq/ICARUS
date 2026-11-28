@@ -628,8 +628,6 @@ class TaskDashboardTests(unittest.TestCase):
             "cache_entry_count": 4,
             "cache_vector_dimensions": 768,
             "cache_index_bytes": 2048,
-            "model": "private-model",
-            "endpoint": "http://127.0.0.1:11434/private",
         }), encoding="utf-8")
         self.store.semantic_health_report_path = report_path
 
