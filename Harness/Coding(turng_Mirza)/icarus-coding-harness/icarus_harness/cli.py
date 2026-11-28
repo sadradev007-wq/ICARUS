@@ -50,6 +50,11 @@ def main() -> None:
         help="Explicitly probe the configured semantic embedding endpoint with one fixed synthetic input",
     )
     doctor.add_argument(
+        "--probe-semantic-cache",
+        action="store_true",
+        help="Read-only integrity check of the configured local semantic vector cache; requires --probe-embeddings",
+    )
+    doctor.add_argument(
         "--providers-config",
         help="Diagnostics for a Personal Companion providers.local.json file; inference is opt-in",
     )
@@ -59,6 +64,8 @@ def main() -> None:
         parser.error("--probe-local-inference requires --providers-config")
     if args.action == "doctor" and args.probe_embeddings and args.providers_config:
         parser.error("--probe-embeddings cannot be combined with --providers-config")
+    if args.action == "doctor" and args.probe_semantic_cache and not args.probe_embeddings:
+        parser.error("--probe-semantic-cache requires --probe-embeddings")
     if args.action == "run":
         if args.task_id and (not args.task_store or args.task):
             parser.error("--task-id requires --task-store and cannot be combined with a task prompt")
@@ -80,7 +87,9 @@ def main() -> None:
 
             if args.probe_embeddings:
                 report = run_embedding_doctor(
-                    HarnessConfig.load(Path(args.workspace).resolve()).embeddings
+                    HarnessConfig.load(Path(args.workspace).resolve()).embeddings,
+                    workspace_root=Path(args.workspace).resolve(),
+                    probe_cache=args.probe_semantic_cache,
                 )
             elif args.providers_config:
                 report = run_provider_doctor(
