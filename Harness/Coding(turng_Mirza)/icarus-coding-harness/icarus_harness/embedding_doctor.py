@@ -52,8 +52,9 @@ def run_embedding_doctor(
     if type(enabled) is not bool or type(cache_enabled) is not bool:
         cache = None
         if probe_cache:
+            # Invalid config cannot authorize a cache read; fail closed.
             cache = {
-                "status": "unavailable",
+                "status": "disabled",
                 "entry_count": None,
                 "vector_dimensions": None,
                 "index_bytes": None,
