@@ -6,7 +6,8 @@ export const TASK_API_SCHEMA_V5 = "icarus.task-api.v5";
 const PROVIDER_HEALTH_SCHEMA_V1 = "icarus.provider-health-projection.v1";
 const PROVIDER_HEALTH_SCHEMA_V2 = "icarus.provider-health-projection.v2";
 const PROVIDER_MAX_AGE_SECONDS = 24 * 60 * 60;
-const SEMANTIC_HEALTH_SCHEMA = "icarus.semantic-health-projection.v1";
+const SEMANTIC_HEALTH_SCHEMA_V1 = "icarus.semantic-health-projection.v1";
+const SEMANTIC_HEALTH_SCHEMA_V2 = "icarus.semantic-health-projection.v2";
 const SEMANTIC_MAX_AGE_SECONDS = 24 * 60 * 60;
 const PROVIDER_ROUTES = new Set([
   "system1_local", "system1_api", "system2_local", "system2_api",
@@ -96,23 +97,27 @@ export function parseProviderHealthSnapshot(value) {
 }
 
 export function parseSemanticHealthSnapshot(value) {
+  const isV2 = isObject(value) && value.schema === SEMANTIC_HEALTH_SCHEMA_V2;
   const keys = new Set([
     "schema", "status", "report_schema", "report_status", "probe_status",
     "vector_dimensions", "cache_enabled", "cache_status", "observed_at",
     "freshness", "age_seconds", "max_age_seconds",
+    ...(isV2 ? ["cache_entry_count", "cache_vector_dimensions", "cache_index_bytes"] : []),
   ]);
   if (!isObject(value)
       || !hasOnlyKeys(value, keys)
-      || value.schema !== SEMANTIC_HEALTH_SCHEMA
+      || ![SEMANTIC_HEALTH_SCHEMA_V1, SEMANTIC_HEALTH_SCHEMA_V2].includes(value.schema)
       || !["configured", "not_configured", "unavailable", "invalid"].includes(value.status)
-      || ![null, "icarus.embedding-health.v1"].includes(value.report_schema)
+      || ![null, "icarus.embedding-health.v1", ...(isV2 ? ["icarus.embedding-health.v2"] : [])].includes(value.report_schema)
       || ![null, "ok", "warning", "error"].includes(value.report_status)
       || !["not_probed", "passed", "skipped", "failed"].includes(value.probe_status)
       || !(value.vector_dimensions === null
         || (Number.isInteger(value.vector_dimensions)
           && value.vector_dimensions >= 1 && value.vector_dimensions <= 8192))
       || !(value.cache_enabled === null || typeof value.cache_enabled === "boolean")
-      || ![null, "disabled", "not_checked"].includes(value.cache_status)
+      || !(isV2
+        ? [null, "disabled", "not_checked", "not_initialized", "empty", "valid", "invalid", "unavailable", "provider_mismatch"].includes(value.cache_status)
+        : [null, "disabled", "not_checked"].includes(value.cache_status))
       || !(value.observed_at === null
         || (typeof value.observed_at === "string"
           && value.observed_at.length <= 64
@@ -125,35 +130,97 @@ export function parseSemanticHealthSnapshot(value) {
     throw new TypeError("Semantic health projection is invalid");
   }
 
+  if (isV2 && (
+    !(value.cache_entry_count === null
+      || (Number.isInteger(value.cache_entry_count) && value.cache_entry_count >= 0 && value.cache_entry_count <= 512))
+    || !(value.cache_vector_dimensions === null
+      || (Number.isInteger(value.cache_vector_dimensions) && value.cache_vector_dimensions >= 1 && value.cache_vector_dimensions <= 8192))
+    || !(value.cache_index_bytes === null
+      || (Number.isInteger(value.cache_index_bytes) && value.cache_index_bytes >= 1 && value.cache_index_bytes <= 8388608))
+  )) {
+    throw new TypeError("Semantic cache integrity metadata is invalid");
+  }
+
   if (value.status !== "configured") {
     if (value.report_schema !== null || value.report_status !== null
         || value.probe_status !== "not_probed"
         || value.vector_dimensions !== null || value.cache_enabled !== null
         || value.cache_status !== null || value.observed_at !== null
-        || value.freshness !== "unknown" || value.age_seconds !== null) {
+        || value.freshness !== "unknown" || value.age_seconds !== null
+        || (isV2 && (value.cache_entry_count !== null
+          || value.cache_vector_dimensions !== null || value.cache_index_bytes !== null))) {
       throw new TypeError("Unavailable semantic health projection must not contain report data");
     }
     return value;
   }
 
-  if (value.report_schema !== "icarus.embedding-health.v1"
-      || !value.report_status || !value.observed_at
+  if (!value.report_status || !value.observed_at
       || value.cache_enabled === null || value.cache_status === null
       || value.probe_status === "not_probed") {
     throw new TypeError("Configured semantic health projection is incomplete");
   }
-  if ((value.probe_status === "passed"
-        && (value.report_status !== "ok" || value.vector_dimensions === null))
-      || (value.probe_status === "skipped"
-        && (value.report_status !== "warning" || value.vector_dimensions !== null))
-      || (value.probe_status === "failed"
-        && (value.report_status !== "error" || value.vector_dimensions !== null))) {
-    throw new TypeError("Semantic health probe outcome is inconsistent");
+  if (value.report_schema === "icarus.embedding-health.v1") {
+    if ((value.probe_status === "passed"
+          && (value.report_status !== "ok" || value.vector_dimensions === null))
+        || (value.probe_status === "skipped"
+          && (value.report_status !== "warning" || value.vector_dimensions !== null))
+        || (value.probe_status === "failed"
+          && (value.report_status !== "error" || value.vector_dimensions !== null))
+        || (value.cache_enabled && value.cache_status !== "not_checked")
+        || (!value.cache_enabled && value.cache_status !== "disabled")
+        || (isV2 && (value.cache_entry_count !== null
+          || value.cache_vector_dimensions !== null || value.cache_index_bytes !== null))) {
+      throw new TypeError("Legacy semantic health report metadata is inconsistent");
+    }
+  } else {
+    if (!isV2 || value.report_schema !== "icarus.embedding-health.v2") {
+      throw new TypeError("Semantic health report schema is inconsistent");
+    }
+    const cacheStatus = value.cache_status;
+    if ((value.probe_status === "passed" && value.vector_dimensions === null)
+        || (value.probe_status !== "passed" && value.vector_dimensions !== null)) {
+      throw new TypeError("Semantic health probe dimensions are inconsistent");
+    }
+    if (cacheStatus === "disabled") {
+      if (value.cache_enabled || value.cache_entry_count !== null
+          || value.cache_vector_dimensions !== null || value.cache_index_bytes !== null) {
+        throw new TypeError("Disabled semantic cache metadata is inconsistent");
+      }
+    } else if (!value.cache_enabled) {
+      throw new TypeError("Semantic cache status conflicts with configuration");
+    } else if (cacheStatus === "valid") {
+      if (!(Number.isInteger(value.cache_entry_count) && value.cache_entry_count >= 1)
+          || value.cache_vector_dimensions === null || value.cache_index_bytes === null) {
+        throw new TypeError("Valid semantic cache metadata is incomplete");
+      }
+    } else if (cacheStatus === "empty") {
+      if (value.cache_entry_count !== 0 || value.cache_vector_dimensions !== null
+          || value.cache_index_bytes === null) {
+        throw new TypeError("Empty semantic cache metadata is inconsistent");
+      }
+    } else if (cacheStatus === "not_initialized") {
+      if (value.cache_entry_count !== 0 || value.cache_vector_dimensions !== null
+          || value.cache_index_bytes !== null) {
+        throw new TypeError("Uninitialized semantic cache metadata is inconsistent");
+      }
+    } else if (["invalid", "unavailable", "provider_mismatch"].includes(cacheStatus)) {
+      if (value.cache_entry_count !== null || value.cache_vector_dimensions !== null
+          || value.cache_index_bytes !== null) {
+        throw new TypeError("Unverified semantic cache metadata must be omitted");
+      }
+    } else {
+      throw new TypeError("Semantic cache integrity status is unsupported");
+    }
+    const expectedStatus = value.probe_status === "failed"
+      || ["invalid", "unavailable"].includes(cacheStatus) ? "error"
+      : value.probe_status === "skipped"
+        || ["not_initialized", "empty", "provider_mismatch"].includes(cacheStatus) ? "warning"
+        : "ok";
+    if (value.report_status !== expectedStatus) {
+      throw new TypeError("Semantic health aggregate status is inconsistent");
+    }
   }
-  if ((value.cache_enabled && value.cache_status !== "not_checked")
-      || (!value.cache_enabled && value.cache_status !== "disabled")) {
-    throw new TypeError("Semantic cache status is inconsistent");
-  }
+
   if ((value.freshness === "fresh"
         && (value.age_seconds === null || value.age_seconds > value.max_age_seconds))
       || (value.freshness === "stale"
@@ -163,6 +230,7 @@ export function parseSemanticHealthSnapshot(value) {
   }
   return value;
 }
+
 
 const RUN_ID_PATTERN = /^[a-f0-9]{32}$/;
 const COMMIT_ID_PATTERN = /^[a-f0-9]{40}$/;
