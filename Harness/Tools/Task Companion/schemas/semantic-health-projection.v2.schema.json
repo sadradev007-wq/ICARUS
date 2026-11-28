@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/semantic-health-projection.v2.schema.json",
+  "title": "ICARUS Task Companion privacy-bounded semantic embedding and cache health projection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "status", "report_schema", "report_status", "probe_status",
+    "vector_dimensions", "cache_enabled", "cache_status", "observed_at",
+    "freshness", "age_seconds", "max_age_seconds",
+    "cache_entry_count", "cache_vector_dimensions", "cache_index_bytes"
+  ],
+  "properties": {
+    "schema": { "const": "icarus.semantic-health-projection.v2" },
+    "status": { "enum": ["configured", "not_configured", "unavailable", "invalid"] },
+    "report_schema": { "type": ["string", "null"], "enum": ["icarus.embedding-health.v1", "icarus.embedding-health.v2", null] },
+    "report_status": { "type": ["string", "null"], "enum": ["ok", "warning", "error", null] },
+    "probe_status": { "enum": ["not_probed", "passed", "skipped", "failed"] },
+    "vector_dimensions": { "type": ["integer", "null"], "minimum": 1, "maximum": 8192 },
+    "cache_enabled": { "type": ["boolean", "null"] },
+    "cache_status": {
+      "type": ["string", "null"],
+      "enum": ["disabled", "not_checked", "not_initialized", "empty", "valid", "invalid", "unavailable", "provider_mismatch", null]
+    },
+    "observed_at": { "type": ["string", "null"], "format": "date-time" },
+    "freshness": { "enum": ["fresh", "stale", "unknown"] },
+    "age_seconds": { "type": ["integer", "null"], "minimum": 0 },
+    "max_age_seconds": { "const": 86400 },
+    "cache_entry_count": { "type": ["integer", "null"], "minimum": 0, "maximum": 512 },
+    "cache_vector_dimensions": { "type": ["integer", "null"], "minimum": 1, "maximum": 8192 },
+    "cache_index_bytes": { "type": ["integer", "null"], "minimum": 1, "maximum": 8388608 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "configured" } } },
+      "then": {
+        "properties": {
+          "report_schema": { "enum": ["icarus.embedding-health.v1", "icarus.embedding-health.v2"] },
+          "report_status": { "enum": ["ok", "warning", "error"] },
+          "cache_enabled": { "type": "boolean" },
+          "cache_status": { "type": "string" },
+          "observed_at": { "type": "string" }
+        }
+      },
+      "else": {
+        "properties": {
+          "report_schema": { "type": "null" },
+          "report_status": { "type": "null" },
+          "probe_status": { "const": "not_probed" },
+          "vector_dimensions": { "type": "null" },
+          "cache_enabled": { "type": "null" },
+          "cache_status": { "type": "null" },
+          "observed_at": { "type": "null" },
+          "freshness": { "const": "unknown" },
+          "age_seconds": { "type": "null" },
+          "cache_entry_count": { "type": "null" },
+          "cache_vector_dimensions": { "type": "null" },
+          "cache_index_bytes": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "report_schema": { "const": "icarus.embedding-health.v1" } } },
+      "then": {
+        "properties": {
+          "cache_status": { "enum": ["disabled", "not_checked"] },
+          "cache_entry_count": { "type": "null" },
+          "cache_vector_dimensions": { "type": "null" },
+          "cache_index_bytes": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "report_schema": { "const": "icarus.embedding-health.v2" } } },
+      "then": {
+        "properties": {
+          "cache_status": { "enum": ["disabled", "not_initialized", "empty", "valid", "invalid", "unavailable", "provider_mismatch"] }
+        }
+      }
+    }
+  ]
+}
