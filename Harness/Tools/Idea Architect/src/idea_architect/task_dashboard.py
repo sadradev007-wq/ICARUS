@@ -478,9 +478,10 @@ def create_task_server(store: TaskStore, *, host: str = "127.0.0.1",
                     separators=(",", ":"),
                 )
                 self._respond(200, payload, "application/json; charset=utf-8")
-            elif path == "/api/v1/semantic-health":
+            elif path in {"/api/v1/semantic-health", "/api/v2/semantic-health"}:
+                version = 2 if path == "/api/v2/semantic-health" else 1
                 payload = json.dumps(
-                    SemanticHealthReader(store.semantic_health_report_path).snapshot(),
+                    SemanticHealthReader(store.semantic_health_report_path).snapshot(version=version),
                     ensure_ascii=False,
                     separators=(",", ":"),
                 )
