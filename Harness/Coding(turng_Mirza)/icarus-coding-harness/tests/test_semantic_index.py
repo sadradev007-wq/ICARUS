@@ -142,6 +142,27 @@ class SemanticVectorCacheTests(unittest.TestCase):
         for private in ("src/private.py", digest, "0.25", "0.75", "private source document"):
             self.assertNotIn(private, encoded)
 
+    def test_inspect_reports_empty_initialized_cache(self):
+        cache_dir = self.root / ".icarus"
+        cache_dir.mkdir(mode=0o700)
+        cache_path = cache_dir / "context-index.json"
+        payload = {
+            "schema_version": 1,
+            "provider_key": self.cache.provider_key,
+            "dimension": None,
+            "sequence": 0,
+            "entries": {},
+        }
+        cache_path.write_text(json.dumps(payload), encoding="utf-8")
+        os.chmod(cache_path, 0o600)
+
+        report = self.cache.inspect()
+
+        self.assertEqual(report["status"], "empty")
+        self.assertEqual(report["entry_count"], 0)
+        self.assertIsNone(report["vector_dimensions"])
+        self.assertEqual(report["index_bytes"], cache_path.stat().st_size)
+
     def test_inspect_reports_provider_mismatch_without_exposing_cache_metadata(self):
         digest = self.cache.digest("source")
         self.cache.put_many({"src/app.py": (digest, [1.0, 0.0])})
