@@ -8,6 +8,21 @@ from pathlib import Path
 from idea_architect.semantic_health import SemanticHealthReader
 
 
+def make_report_v2(**overrides):
+    return {
+        "schema": "icarus.embedding-health.v2",
+        "status": "ok",
+        "probe_status": "passed",
+        "vector_dimensions": 768,
+        "cache_enabled": True,
+        "cache_status": "valid",
+        "cache_entry_count": 12,
+        "cache_vector_dimensions": 768,
+        "cache_index_bytes": 4096,
+        **overrides,
+    }
+
+
 def make_report(**overrides):
     return {
         "schema": "icarus.embedding-health.v1",
@@ -49,6 +64,51 @@ class SemanticHealthReaderTests(unittest.TestCase):
         encoded = json.dumps(snapshot)
         for private in ("model-name", "127.0.0.1", "api_key", "embedding vector", "query text"):
             self.assertNotIn(private, encoded)
+
+    def test_v2_projection_exposes_only_cache_integrity_metadata(self):
+        self.write(make_report_v2())
+        snapshot = SemanticHealthReader(self.report).snapshot(version=2)
+        self.assertEqual(snapshot["schema"], "icarus.semantic-health-projection.v2")
+        self.assertEqual(snapshot["report_schema"], "icarus.embedding-health.v2")
+        self.assertEqual(snapshot["cache_status"], "valid")
+        self.assertEqual(snapshot["cache_entry_count"], 12)
+        self.assertEqual(snapshot["cache_vector_dimensions"], 768)
+        self.assertEqual(snapshot["cache_index_bytes"], 4096)
+        encoded = json.dumps(snapshot)
+        for private in ("model-name", "127.0.0.1", "api_key", "embedding vector", "query text", "src/private.py"):
+            self.assertNotIn(private, encoded)
+
+    def test_v2_projection_can_read_legacy_v1_report_without_inventing_cache_health(self):
+        self.write(make_report())
+        snapshot = SemanticHealthReader(self.report).snapshot(version=2)
+        self.assertEqual(snapshot["schema"], "icarus.semantic-health-projection.v2")
+        self.assertEqual(snapshot["report_schema"], "icarus.embedding-health.v1")
+        self.assertEqual(snapshot["cache_status"], "not_checked")
+        self.assertIsNone(snapshot["cache_entry_count"])
+        self.assertIsNone(snapshot["cache_vector_dimensions"])
+        self.assertIsNone(snapshot["cache_index_bytes"])
+
+    def test_v1_projection_rejects_v2_report_instead_of_downgrading_its_contract(self):
+        self.write(make_report_v2())
+        snapshot = SemanticHealthReader(self.report).snapshot(version=1)
+        self.assertEqual(snapshot["schema"], "icarus.semantic-health-projection.v1")
+        self.assertEqual(snapshot["status"], "invalid")
+
+    def test_v2_report_rejects_inconsistent_cache_metrics_and_aggregate_status(self):
+        for overrides in (
+            {"cache_entry_count": 513},
+            {"cache_vector_dimensions": None},
+            {"cache_status": "empty"},
+            {"status": "ok", "cache_status": "invalid",
+             "cache_entry_count": None, "cache_vector_dimensions": None,
+             "cache_index_bytes": None},
+        ):
+            with self.subTest(overrides=overrides):
+                self.write(make_report_v2(**overrides))
+                self.assertEqual(
+                    SemanticHealthReader(self.report).snapshot(version=2)["status"],
+                    "invalid",
+                )
 
     def test_disabled_embeddings_are_visible_without_claiming_a_probe(self):
         self.write(make_report(

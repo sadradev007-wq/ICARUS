@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://icarus.local/schemas/embedding-health.v2.schema.json",
+  "title": "ICARUS Coding Harness semantic embedding and cache health report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "status", "probe_status", "vector_dimensions", "cache_enabled",
+    "cache_status", "cache_entry_count", "cache_vector_dimensions", "cache_index_bytes"
+  ],
+  "properties": {
+    "schema": { "const": "icarus.embedding-health.v2" },
+    "status": { "enum": ["ok", "warning", "error"] },
+    "probe_status": { "enum": ["passed", "skipped", "failed"] },
+    "vector_dimensions": { "type": ["integer", "null"], "minimum": 1, "maximum": 8192 },
+    "cache_enabled": { "type": "boolean" },
+    "cache_status": {
+      "enum": ["disabled", "not_initialized", "empty", "valid", "invalid", "unavailable", "provider_mismatch"]
+    },
+    "cache_entry_count": { "type": ["integer", "null"], "minimum": 0, "maximum": 512 },
+    "cache_vector_dimensions": { "type": ["integer", "null"], "minimum": 1, "maximum": 8192 },
+    "cache_index_bytes": { "type": ["integer", "null"], "minimum": 1, "maximum": 8388608 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "probe_status": { "const": "passed" } } },
+      "then": { "properties": { "vector_dimensions": { "type": "integer", "minimum": 1, "maximum": 8192 } } },
+      "else": { "properties": { "vector_dimensions": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "cache_status": { "const": "disabled" } } },
+      "then": {
+        "properties": {
+          "cache_enabled": { "const": false },
+          "cache_entry_count": { "type": "null" },
+          "cache_vector_dimensions": { "type": "null" },
+          "cache_index_bytes": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "cache_status": { "const": "valid" } } },
+      "then": {
+        "properties": {
+          "cache_enabled": { "const": true },
+          "cache_entry_count": { "type": "integer", "minimum": 1, "maximum": 512 },
+          "cache_vector_dimensions": { "type": "integer", "minimum": 1, "maximum": 8192 },
+          "cache_index_bytes": { "type": "integer", "minimum": 1, "maximum": 8388608 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "cache_status": { "const": "empty" } } },
+      "then": {
+        "properties": {
+          "cache_enabled": { "const": true },
+          "cache_entry_count": { "const": 0 },
+          "cache_vector_dimensions": { "type": "null" },
+          "cache_index_bytes": { "type": "integer", "minimum": 1, "maximum": 8388608 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "cache_status": { "const": "not_initialized" } } },
+      "then": {
+        "properties": {
+          "cache_enabled": { "const": true },
+          "cache_entry_count": { "const": 0 },
+          "cache_vector_dimensions": { "type": "null" },
+          "cache_index_bytes": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "cache_status": { "enum": ["invalid", "unavailable", "provider_mismatch"] } } },
+      "then": {
+        "properties": {
+          "cache_enabled": { "const": true },
+          "cache_entry_count": { "type": "null" },
+          "cache_vector_dimensions": { "type": "null" },
+          "cache_index_bytes": { "type": "null" }
+        }
+      }
+    }
+  ]
+}

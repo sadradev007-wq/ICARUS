@@ -555,6 +555,59 @@ test("accepts semantic embedding health and exposes only dimensions/cache metada
   assert.equal(Object.hasOwn(snapshot, "endpoint"), false);
 });
 
+function makeSemanticHealthV2(overrides = {}) {
+  return {
+    schema: "icarus.semantic-health-projection.v2",
+    status: "configured",
+    report_schema: "icarus.embedding-health.v2",
+    report_status: "ok",
+    probe_status: "passed",
+    vector_dimensions: 768,
+    cache_enabled: true,
+    cache_status: "valid",
+    observed_at: "2026-11-28T04:30:00Z",
+    freshness: "fresh",
+    age_seconds: 30,
+    max_age_seconds: 86400,
+    cache_entry_count: 12,
+    cache_vector_dimensions: 768,
+    cache_index_bytes: 4096,
+    ...overrides,
+  };
+}
+
+test("accepts semantic cache integrity v2 projection with bounded metadata only", () => {
+  const snapshot = makeSemanticHealthV2();
+  assert.equal(parseSemanticHealthSnapshot(snapshot), snapshot);
+  assert.equal(snapshot.cache_status, "valid");
+  assert.equal(snapshot.cache_entry_count, 12);
+  assert.equal(Object.hasOwn(snapshot, "vector"), false);
+  assert.equal(Object.hasOwn(snapshot, "endpoint"), false);
+});
+
+test("accepts legacy report through semantic projection v2 without inventing cache integrity", () => {
+  const snapshot = makeSemanticHealthV2({
+    report_schema: "icarus.embedding-health.v1",
+    cache_status: "not_checked",
+    cache_entry_count: null,
+    cache_vector_dimensions: null,
+    cache_index_bytes: null,
+  });
+  assert.equal(parseSemanticHealthSnapshot(snapshot), snapshot);
+});
+
+test("rejects inconsistent semantic cache v2 metrics and aggregate status", () => {
+  const invalidCount = makeSemanticHealthV2({ cache_entry_count: 513 });
+  assert.throws(() => parseSemanticHealthSnapshot(invalidCount), /integrity metadata is invalid/);
+  const missingDimension = makeSemanticHealthV2({ cache_vector_dimensions: null });
+  assert.throws(() => parseSemanticHealthSnapshot(missingDimension), /cache metadata is incomplete/);
+  const invalidAggregate = makeSemanticHealthV2({
+    report_status: "ok", cache_status: "invalid",
+    cache_entry_count: null, cache_vector_dimensions: null, cache_index_bytes: null,
+  });
+  assert.throws(() => parseSemanticHealthSnapshot(invalidAggregate), /aggregate status is inconsistent/);
+});
+
 test("accepts disabled and failed embedding reports without claiming vector dimensions", () => {
   const disabled = makeSemanticHealth({
     report_status: "warning",
@@ -620,6 +673,17 @@ test("semantic health projection schema is strict and excludes provider details"
   assert.equal(Object.hasOwn(schema.properties, "endpoint"), false);
 });
 
+test("semantic health projection v2 schema exposes cache integrity metadata only", () => {
+  const schemaUrl = new URL("../../../Task Companion/schemas/semantic-health-projection.v2.schema.json", import.meta.url);
+  const schema = JSON.parse(readFileSync(schemaUrl, "utf8"));
+  assert.equal(schema.properties.schema.const, "icarus.semantic-health-projection.v2");
+  assert.equal(schema.additionalProperties, false);
+  assert.equal(schema.properties.cache_entry_count.maximum, 512);
+  assert.equal(schema.properties.cache_index_bytes.maximum, 8388608);
+  assert.equal(Object.hasOwn(schema.properties, "vector"), false);
+  assert.equal(Object.hasOwn(schema.properties, "endpoint"), false);
+});
+
 test("Task Drawer requests the semantic health endpoint and renders with text nodes", () => {
   const scriptUrl = new URL("../../src/idea_architect/static/task-drawer.js", import.meta.url);
   const script = readFileSync(scriptUrl, "utf8");
@@ -627,7 +691,9 @@ test("Task Drawer requests the semantic health endpoint and renders with text no
     input: script, encoding: "utf8",
   });
   assert.equal(checked.status, 0, checked.stderr || checked.stdout);
+  assert.match(script, /requestSnapshot\("\/api\/v2\/semantic-health"\)/);
   assert.match(script, /requestSnapshot\("\/api\/v1\/semantic-health"\)/);
+  assert.match(script, /response.status === 404/);
   assert.match(script, /parseSemanticHealthSnapshot/);
   assert.doesNotMatch(script, /\.innerHTML\s*=/);
 });

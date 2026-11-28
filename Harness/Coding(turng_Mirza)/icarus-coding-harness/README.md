@@ -128,3 +128,33 @@ as configured-but-not-checked when enabled.
 This is a diagnostic, not an AgentRuntime task. It does not create a JSON file
 under Local LLM/Train Data/tasks/ or an Action Journal event. The agent
 runtime kill switch remains closed.
+
+
+## Read-only semantic cache integrity probe
+
+The semantic embedding doctor can optionally inspect the local vector cache
+without creating or modifying it:
+
+```bash
+icarus-harness doctor --workspace /path/to/ICARUS --probe-embeddings \
+  --probe-semantic-cache --output ~/.local/share/icarus/embedding-health.json
+```
+
+`--probe-semantic-cache` requires the explicit `--probe-embeddings` opt-in.
+The embedding endpoint check remains governed by the existing provider policy.
+Cache inspection opens the existing `.icarus/context-index.json` through
+no-follow directory/file descriptors, validates its bounded envelope and all
+entries, and does not create the cache directory or lock file. Atomic cache
+replacement means the reader sees one complete old or new index without
+taking the writer lock.
+
+Report v2 distinguishes `not_initialized`, `empty`, `valid`, `invalid`,
+`unavailable`, and `provider_mismatch`. Only entry count, vector dimension
+count, and index byte size are exposed. Paths, hashes, vectors, source text,
+provider identity, endpoint, model name, credentials, and raw errors remain
+private. `valid` confirms structural consistency only; it does not verify
+semantic quality or compare cached digests with current workspace files.
+
+The diagnostic never invokes AgentRuntime, TaskDatasetWriter, Action Journal,
+or the Task Companion mutation paths. It is not a task-run record or training
+example.

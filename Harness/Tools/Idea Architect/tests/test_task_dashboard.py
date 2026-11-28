@@ -616,5 +616,35 @@ class TaskDashboardTests(unittest.TestCase):
         stale = json.loads(stale_body)
         self.assertEqual(stale["freshness"], "stale")
         self.assertGreater(stale["age_seconds"], stale["max_age_seconds"])
+    def test_semantic_health_v2_endpoint_projects_cache_metadata_only(self):
+        report_path = Path(self.temp.name) / "embedding-health.json"
+        report_path.write_text(json.dumps({
+            "schema": "icarus.embedding-health.v2",
+            "status": "ok",
+            "probe_status": "passed",
+            "vector_dimensions": 768,
+            "cache_enabled": True,
+            "cache_status": "valid",
+            "cache_entry_count": 4,
+            "cache_vector_dimensions": 768,
+            "cache_index_bytes": 2048,
+        }), encoding="utf-8")
+        self.store.semantic_health_report_path = report_path
+
+        status, body = self.get("/api/v2/semantic-health")
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        self.assertEqual(payload["schema"], "icarus.semantic-health-projection.v2")
+        self.assertEqual(payload["status"], "configured")
+        self.assertEqual(payload["cache_status"], "valid")
+        self.assertEqual(payload["cache_entry_count"], 4)
+        self.assertEqual(payload["cache_vector_dimensions"], 768)
+        for private in ("private-model", "127.0.0.1:11434", "private"):
+            self.assertNotIn(private, json.dumps(payload))
+
+        legacy_status, legacy_body = self.get("/api/v1/semantic-health")
+        self.assertEqual(legacy_status, 200)
+        self.assertEqual(json.loads(legacy_body)["status"], "invalid")
+
 if __name__ == "__main__":
     unittest.main()

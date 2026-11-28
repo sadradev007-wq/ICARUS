@@ -47,7 +47,7 @@ API v5 combines the safe run projection from tasks/ and the safe action projecti
 
 ## Operational diagnostics are not task-run records
 
-Provider-health and semantic-embedding health reports are operational
+Provider-health, semantic-embedding, and semantic-cache integrity reports are operational
 diagnostics, not Coding Harness task records and not training examples.
 Running icarus-harness doctor (including --probe-embeddings) does not run
 AgentRuntime, does not call TaskDatasetWriter, and must not create a file
