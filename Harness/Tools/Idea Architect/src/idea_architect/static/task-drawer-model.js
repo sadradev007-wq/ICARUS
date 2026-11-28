@@ -165,12 +165,16 @@ export function parseSemanticHealthSnapshot(value) {
         || (value.probe_status === "skipped"
           && (value.report_status !== "warning" || value.vector_dimensions !== null))
         || (value.probe_status === "failed"
-          && (value.report_status !== "error" || value.vector_dimensions !== null))
-        || (value.cache_enabled && value.cache_status !== "not_checked")
-        || (!value.cache_enabled && value.cache_status !== "disabled")
-        || (isV2 && (value.cache_entry_count !== null
-          || value.cache_vector_dimensions !== null || value.cache_index_bytes !== null))) {
-      throw new TypeError("Legacy semantic health report metadata is inconsistent");
+          && (value.report_status !== "error" || value.vector_dimensions !== null))) {
+      throw new TypeError("Semantic health probe outcome is inconsistent");
+    }
+    if ((value.cache_enabled && value.cache_status !== "not_checked")
+        || (!value.cache_enabled && value.cache_status !== "disabled")) {
+      throw new TypeError("Semantic cache status is inconsistent");
+    }
+    if (isV2 && (value.cache_entry_count !== null
+        || value.cache_vector_dimensions !== null || value.cache_index_bytes !== null)) {
+      throw new TypeError("Legacy semantic cache metadata must remain empty");
     }
   } else {
     if (!isV2 || value.report_schema !== "icarus.embedding-health.v2") {
