@@ -9,16 +9,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-_SCHEMA = "icarus.semantic-health-projection.v1"
-_REPORT_SCHEMA = "icarus.embedding-health.v1"
+_SCHEMA_V1 = "icarus.semantic-health-projection.v1"
+_SCHEMA_V2 = "icarus.semantic-health-projection.v2"
+_REPORT_V1 = "icarus.embedding-health.v1"
+_REPORT_V2 = "icarus.embedding-health.v2"
 _MAX_REPORT_BYTES = 64 * 1024
 _MAX_REPORT_AGE_SECONDS = 24 * 60 * 60
 _MAX_VECTOR_DIMENSIONS = 8192
+_MAX_CACHE_ENTRIES = 512
+_MAX_CACHE_BYTES = 8 * 1024 * 1024
 
 
-def _empty(status: str) -> dict[str, Any]:
-    return {
-        "schema": _SCHEMA,
+def _empty(status: str, version: int = 1) -> dict[str, Any]:
+    payload = {
+        "schema": _SCHEMA_V2 if version == 2 else _SCHEMA_V1,
         "status": status,
         "report_schema": None,
         "report_status": None,
@@ -31,20 +35,44 @@ def _empty(status: str) -> dict[str, Any]:
         "age_seconds": None,
         "max_age_seconds": _MAX_REPORT_AGE_SECONDS,
     }
+    if version == 2:
+        payload.update({
+            "cache_entry_count": None,
+            "cache_vector_dimensions": None,
+            "cache_index_bytes": None,
+        })
+    return payload
 
 
-def _validate_report(payload: Any) -> None:
-    expected = {
-        "schema", "status", "probe_status", "vector_dimensions",
-        "cache_enabled", "cache_status",
-    }
-    if not isinstance(payload, dict) or set(payload) != expected:
-        raise ValueError("embedding report has missing or unsupported fields")
-    if payload["schema"] != _REPORT_SCHEMA:
+def _validate_report(payload: Any) -> int:
+    if not isinstance(payload, dict):
+        raise ValueError("embedding report must be an object")
+
+    report_schema = payload.get("schema")
+    if report_schema == _REPORT_V1:
+        expected = {
+            "schema", "status", "probe_status", "vector_dimensions",
+            "cache_enabled", "cache_status",
+        }
+        if set(payload) != expected:
+            raise ValueError("embedding v1 report has missing or unsupported fields")
+        if payload["cache_status"] != ("not_checked" if payload["cache_enabled"] else "disabled"):
+            raise ValueError("embedding v1 cache status is inconsistent")
+        report_version = 1
+    elif report_schema == _REPORT_V2:
+        expected = {
+            "schema", "status", "probe_status", "vector_dimensions", "cache_enabled",
+            "cache_status", "cache_entry_count", "cache_vector_dimensions", "cache_index_bytes",
+        }
+        if set(payload) != expected:
+            raise ValueError("embedding v2 report has missing or unsupported fields")
+        report_version = 2
+    else:
         raise ValueError("embedding report schema is unsupported")
-    if not isinstance(payload["status"], str) or payload["status"] not in {"ok", "warning", "error"}:
+
+    if payload["status"] not in {"ok", "warning", "error"}:
         raise ValueError("embedding report status is invalid")
-    if not isinstance(payload["probe_status"], str) or payload["probe_status"] not in {"passed", "skipped", "failed"}:
+    if payload["probe_status"] not in {"passed", "skipped", "failed"}:
         raise ValueError("embedding probe status is invalid")
     dimensions = payload["vector_dimensions"]
     if dimensions is not None and (
@@ -53,20 +81,80 @@ def _validate_report(payload: Any) -> None:
         raise ValueError("embedding vector dimensions are invalid")
     if type(payload["cache_enabled"]) is not bool:
         raise ValueError("embedding cache flag is invalid")
-    expected_cache_status = "not_checked" if payload["cache_enabled"] else "disabled"
-    if not isinstance(payload["cache_status"], str) or payload["cache_status"] != expected_cache_status:
-        raise ValueError("embedding cache status is inconsistent")
 
     expected_outcomes = {
         "passed": ("ok", True),
         "skipped": ("warning", False),
         "failed": ("error", False),
     }
-    expected_status, requires_dimensions = expected_outcomes[payload["probe_status"]]
-    if payload["status"] != expected_status:
-        raise ValueError("embedding status does not match its probe outcome")
+    _probe_status, requires_dimensions = expected_outcomes[payload["probe_status"]]
     if requires_dimensions != (dimensions is not None):
         raise ValueError("embedding dimensions do not match the probe outcome")
+
+    if report_version == 1:
+        if payload["status"] != _probe_status:
+            raise ValueError("embedding status does not match its probe outcome")
+        return 1
+
+    cache_status = payload["cache_status"]
+    allowed = {
+        "disabled", "not_initialized", "empty", "valid",
+        "invalid", "unavailable", "provider_mismatch",
+    }
+    if cache_status not in allowed:
+        raise ValueError("semantic cache status is invalid")
+
+    count = payload["cache_entry_count"]
+    cache_dimensions = payload["cache_vector_dimensions"]
+    cache_bytes = payload["cache_index_bytes"]
+    if type(count) is not int and count is not None:
+        raise ValueError("semantic cache entry count is invalid")
+    if count is not None and not 0 <= count <= _MAX_CACHE_ENTRIES:
+        raise ValueError("semantic cache entry count is outside its limit")
+    if cache_dimensions is not None and (
+        type(cache_dimensions) is not int
+        or not 1 <= cache_dimensions <= _MAX_VECTOR_DIMENSIONS
+    ):
+        raise ValueError("semantic cache vector dimensions are invalid")
+    if cache_bytes is not None and (
+        type(cache_bytes) is not int or not 1 <= cache_bytes <= _MAX_CACHE_BYTES
+    ):
+        raise ValueError("semantic cache index size is invalid")
+
+    if cache_status == "disabled":
+        if payload["cache_enabled"] or any(
+            value is not None for value in (count, cache_dimensions, cache_bytes)
+        ):
+            raise ValueError("disabled semantic cache metadata is inconsistent")
+    elif not payload["cache_enabled"]:
+        raise ValueError("disabled cache configuration has an active cache status")
+    elif cache_status == "valid":
+        if (
+            count is None or count < 1
+            or cache_dimensions is None
+            or cache_bytes is None
+        ):
+            raise ValueError("valid semantic cache metadata is incomplete")
+    elif cache_status == "empty":
+        if count != 0 or cache_dimensions is not None or cache_bytes is None:
+            raise ValueError("empty semantic cache metadata is inconsistent")
+    elif cache_status == "not_initialized":
+        if count != 0 or cache_dimensions is not None or cache_bytes is not None:
+            raise ValueError("uninitialized semantic cache metadata is inconsistent")
+    elif any(value is not None for value in (count, cache_dimensions, cache_bytes)):
+        raise ValueError("unverified semantic cache metadata must be omitted")
+
+    if payload["probe_status"] == "failed" or cache_status in {"invalid", "unavailable"}:
+        expected_status = "error"
+    elif payload["probe_status"] == "skipped" or cache_status in {
+        "not_initialized", "empty", "provider_mismatch",
+    }:
+        expected_status = "warning"
+    else:
+        expected_status = "ok"
+    if payload["status"] != expected_status:
+        raise ValueError("embedding report aggregate status is inconsistent")
+    return 2
 
 
 class SemanticHealthReader:
@@ -112,23 +200,28 @@ class SemanticHealthReader:
         finally:
             os.close(descriptor)
 
-    def snapshot(self) -> dict[str, Any]:
+    def snapshot(self, version: int = 1) -> dict[str, Any]:
+        if version not in {1, 2}:
+            raise ValueError("semantic health projection version must be 1 or 2")
         if self.report_path is None:
-            return _empty("not_configured")
+            return _empty("not_configured", version)
         try:
             raw, observed_at, observed_datetime = self._read_report()
         except FileNotFoundError:
-            return _empty("unavailable")
+            return _empty("unavailable", version)
         except ValueError:
-            return _empty("invalid")
+            return _empty("invalid", version)
         except OSError:
-            return _empty("unavailable")
+            return _empty("unavailable", version)
 
         try:
             payload = json.loads(raw.decode("utf-8"))
-            _validate_report(payload)
-        except (UnicodeError, json.JSONDecodeError, ValueError):
-            return _empty("invalid")
+            report_version = _validate_report(payload)
+        except (UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError):
+            return _empty("invalid", version)
+
+        if version == 1 and report_version == 2:
+            return _empty("invalid", version)
 
         age = (datetime.now(timezone.utc) - observed_datetime).total_seconds()
         if age < 0:
@@ -137,10 +230,10 @@ class SemanticHealthReader:
             age_seconds = math.ceil(age)
             freshness = "fresh" if age <= _MAX_REPORT_AGE_SECONDS else "stale"
 
-        return {
-            "schema": _SCHEMA,
+        result = {
+            "schema": _SCHEMA_V2 if version == 2 else _SCHEMA_V1,
             "status": "configured",
-            "report_schema": _REPORT_SCHEMA,
+            "report_schema": payload["schema"],
             "report_status": payload["status"],
             "probe_status": payload["probe_status"],
             "vector_dimensions": payload["vector_dimensions"],
@@ -151,3 +244,10 @@ class SemanticHealthReader:
             "age_seconds": age_seconds,
             "max_age_seconds": _MAX_REPORT_AGE_SECONDS,
         }
+        if version == 2:
+            result.update({
+                "cache_entry_count": payload.get("cache_entry_count"),
+                "cache_vector_dimensions": payload.get("cache_vector_dimensions"),
+                "cache_index_bytes": payload.get("cache_index_bytes"),
+            })
+        return result
