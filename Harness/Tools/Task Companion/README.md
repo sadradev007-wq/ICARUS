@@ -259,3 +259,36 @@ read or write the workspace .icarus/context-index.json. Task Companion
 never executes the doctor, contacts an embedding provider, or changes the
 cache. Embedding reports are diagnostics, not task-run records, Action
 Journal events, or training examples.
+ 
+
+## Semantic cache integrity — projection v2
+
+The optional `GET /api/v2/semantic-health` endpoint adds a read-only
+projection of the Coding Harness semantic vector-cache integrity report.
+The Task Drawer requests v2 first and falls back to `/api/v1/semantic-health`
+only when the v2 route returns HTTP 404. The v1 endpoint and schema remain
+unchanged.
+
+To generate the report, explicitly enable both checks:
+
+~~~bash
+icarus-harness doctor --workspace /path/to/ICARUS --probe-embeddings \
+  --probe-semantic-cache --output ~/.local/share/icarus/embedding-health.json
+icarus-tasks --semantic-health-report ~/.local/share/icarus/embedding-health.json
+~~~
+
+The cache inspection is local and read-only. It does not create `.icarus/`,
+open or create the cache lock, rewrite the index, re-embed documents, or
+contact the provider beyond the separately requested embedding probe.
+Projection v2 exposes only cache status, entry count, vector dimension count,
+and bounded index byte size. It never exposes paths, digests, vectors,
+source text, provider identity, model names, endpoints, or credentials.
+
+A `valid` result means the bounded cache envelope and every stored record
+passed structural, dimensional, digest-format, permission, and path checks.
+It does not prove that vectors are semantically useful or still correspond
+to current source files. A provider mismatch is a warning and means cached
+vectors are not reusable for the current endpoint/model identity.
+
+Embedding and cache diagnostics remain operational reports, not task-run
+records, Action Journal events, or training examples.
