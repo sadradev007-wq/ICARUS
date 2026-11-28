@@ -281,7 +281,7 @@ class SemanticVectorCache:
             try:
                 file_fd = os.open(
                     _INDEX_NAME,
-                    os.O_RDONLY | os.O_NOFOLLOW,
+                    os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0),
                     dir_fd=directory_fd,
                 )
             except FileNotFoundError:
@@ -327,9 +327,17 @@ class SemanticVectorCache:
                 os.close(file_fd)
             os.close(directory_fd)
 
+        def unique_object(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError("duplicate cache key")
+                result[key] = value
+            return result
+
         try:
-            payload = json.loads(raw.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
+            payload = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_object)
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
             return {
                 "status": "invalid",
                 "entry_count": None,
@@ -344,6 +352,7 @@ class SemanticVectorCache:
             or type(payload.get("schema_version")) is not int
             or payload["schema_version"] != _SCHEMA_VERSION
             or not isinstance(payload.get("provider_key"), str)
+            or not 1 <= len(payload.get("provider_key", "")) <= 128
             or not isinstance(payload.get("entries"), dict)
             or len(payload["entries"]) > _MAX_ENTRIES
         ):
