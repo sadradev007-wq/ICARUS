@@ -90,3 +90,32 @@ GET /api/v1/semantic-health endpoint exposes only the allowlisted outcome,
 vector dimension count, cache configuration marker, and 24-hour report
 freshness. It does not run the doctor, contact the embedding endpoint, or
 inspect the semantic cache.
+
+
+## Read-only semantic cache integrity (embedding report v2)
+
+When the semantic embedding provider is configured, the operator may add
+`--probe-semantic-cache` alongside `--probe-embeddings`:
+
+```bash
+icarus-harness doctor --workspace /path/to/ICARUS --probe-embeddings \
+  --probe-semantic-cache --output ~/.local/share/icarus/embedding-health.json
+```
+
+The cache check is read-only and never creates `.icarus/`, a lock file, or
+an index. It uses no-follow opens, requires a private regular index file,
+caps reads at 8 MiB, and validates the exact schema, provider identity,
+relative paths, SHA-256 digest format, vector finiteness/dimensions, sequence
+bounds, and 512-entry limit. It does not expose paths, digests, vectors,
+source text, or provider identity.
+
+A `valid` status describes structural integrity only. It does not verify
+that a vector is useful, that a source file still matches its digest, or that
+the cache improves retrieval quality. A provider mismatch is not corruption;
+it means the index belongs to a different endpoint/model identity and must
+not be reused for the current provider.
+
+Task Companion reads the saved v2 report through
+`GET /api/v2/semantic-health`, while the v1 report and projection contracts
+remain unchanged. The cache probe is operational diagnostics, not a harness
+task run or training example.
